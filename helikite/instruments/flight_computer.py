@@ -1,4 +1,4 @@
-'''
+"""
 
 1) Flight computer -> LOG_20220929.txt (has pressure)
 
@@ -8,37 +8,32 @@ DateTime in seconds since 1970-01-01 (to be verified)
 Variables to keep: DateTime, P_baro, CO2, TEMP1, TEMP2, TEMPsamp, RH1, RH2,
                    RHsamp, mFlow
 Houskeeping variables: TEMPbox, vBat
-'''
+"""
 
-from instruments.base import Instrument
+from helikite.instruments.base import Instrument
 import pandas as pd
-from processing.conversions import pressure_to_altitude
+from helikite.processing.conversions import pressure_to_altitude
 from io import StringIO
 import logging
-from constants import constants
+from helikite.constants import constants
 
 
 # Define logger for this file
 logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
-CSV_HEADER = "SBI,DateTime,PartCon,CO2,P_baro,TEMPbox,mFlow,TEMPsamp,RHsamp," \
-             "TEMP1,RH1,TEMP2,RH2,vBat\n"
+CSV_HEADER = (
+    "SBI,DateTime,PartCon,CO2,P_baro,TEMPbox,mFlow,TEMPsamp,RHsamp,"
+    "TEMP1,RH1,TEMP2,RH2,vBat\n"
+)
 
 
 class FlightComputer(Instrument):
-    def __init__(
-        self,
-        *args,
-        **kwargs
-    ) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = 'flight_computer'
+        self.name = "flight_computer"
 
-    def file_identifier(
-        self,
-        first_lines_of_csv
-    ) -> bool:
+    def file_identifier(self, first_lines_of_csv) -> bool:
         if first_lines_of_csv[0] == CSV_HEADER:
             return True
 
@@ -52,15 +47,14 @@ class FlightComputer(Instrument):
         start_pressure: float | None = None,
         start_temperature: float | None = None,
         start_duration_seconds: int = 10,
-
     ) -> pd.DataFrame:
 
         # Create altitude column by using average of first 10 seconds of data
         if start_pressure is None or start_temperature is None:
             try:
                 first_period = df.loc[
-                    df.index[0]:df.index[0] + pd.Timedelta(
-                        seconds=start_duration_seconds)
+                    df.index[0] : df.index[0]  # noqa
+                    + pd.Timedelta(seconds=start_duration_seconds)
                 ]
 
                 averaged_sample = first_period.mean(numeric_only=True)
@@ -85,9 +79,7 @@ class FlightComputer(Instrument):
             )
         else:
             pressure = start_pressure
-            logger.info(
-                f"Pressure at start defined in config as: {pressure}"
-            )
+            logger.info(f"Pressure at start defined in config as: {pressure}")
 
         if start_temperature is None:
             temperature = round(averaged_sample.TEMP1, 2)
@@ -106,46 +98,41 @@ class FlightComputer(Instrument):
         logger.info(f"Altitude at start set to: {altitude}")
 
         # Calculate altitude above mean sea level
-        df['Altitude'] = df[self.pressure_variable].apply(
+        df["Altitude"] = df[self.pressure_variable].apply(
             pressure_to_altitude,
             pressure_at_start=pressure,
             temperature_at_start=temperature,
-            altitude_at_start=altitude
+            altitude_at_start=altitude,
         )
 
         # Create a new column representing altitude above ground level
         # by subtracting starting altitude from calculated
-        df['Altitude_agl'] = df['Altitude'] - altitude
+        df["Altitude_agl"] = df["Altitude"] - altitude
 
         return df
 
-    def set_time_as_index(
-        self,
-        df: pd.DataFrame
-    ) -> pd.DataFrame:
-        ''' Set the DateTime as index of the dataframe and correct if needed
+    def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Set the DateTime as index of the dataframe and correct if needed
 
         Using values in the time_offset variable, correct DateTime index
-        '''
+        """
 
         # Flight computer uses seconds since 1970-01-01
-        df['DateTime'] = pd.to_datetime(df['DateTime'], unit='s')
+        df["DateTime"] = pd.to_datetime(df["DateTime"], unit="s")
 
         # Define the datetime column as the index
-        df.set_index('DateTime', inplace=True)
+        df.set_index("DateTime", inplace=True)
 
         return df
 
-    def read_data(
-        self
-    ) -> pd.DataFrame:
-        ''' Read data into dataframe '''
+    def read_data(self) -> pd.DataFrame:
+        """Read data into dataframe"""
 
         # Parse the file first removing the duplicate header cols
         cleaned_csv = StringIO()
         header_counter = 0
 
-        with open(self.filename, 'r') as csv_data:
+        with open(self.filename, "r") as csv_data:
             for row in csv_data:
                 if row == CSV_HEADER:
                     if header_counter == 0:
@@ -175,27 +162,53 @@ class FlightComputer(Instrument):
 
 flight_computer = FlightComputer(
     dtype={
-        'SBI': "str",
-        'DateTime': "Int64",
-        'PartCon': "Int64",
-        'CO2': "Float64",
-        'P_baro': "Float64",
-        'TEMPbox': "Float64",
-        'mFlow': "str",
-        'TEMPsamp': "Float64",
-        'RHsamp': "Float64",
-        'TEMP1': "Float64",
-        'RH1': "Float64",
-        'TEMP2': "Float64",
-        'RH2': "Float64",
-        'vBat': "Float64",
+        "SBI": "str",
+        "DateTime": "Int64",
+        "PartCon": "Int64",
+        "CO2": "Float64",
+        "P_baro": "Float64",
+        "TEMPbox": "Float64",
+        "mFlow": "str",
+        "TEMPsamp": "Float64",
+        "RHsamp": "Float64",
+        "TEMP1": "Float64",
+        "RH1": "Float64",
+        "TEMP2": "Float64",
+        "RH2": "Float64",
+        "vBat": "Float64",
     },
     na_values=["NA", "-9999.00"],
     comment="#",
-    cols_export=["Altitude", "Altitude_agl", "P_baro", "CO2", "TEMP1", "TEMP2",
-                 "TEMPsamp", "RH1", "RH2", "RHsamp", "mFlow"],
-    cols_housekeeping=['Altitude', "Altitude_agl", 'SBI', 'PartCon', 'CO2',
-                       'P_baro', 'TEMPbox', 'mFlow', 'TEMPsamp', 'RHsamp',
-                       'TEMP1', 'RH1', 'TEMP2', 'RH2', 'vBat'],
+    cols_export=[
+        "Altitude",
+        "Altitude_agl",
+        "P_baro",
+        "CO2",
+        "TEMP1",
+        "TEMP2",
+        "TEMPsamp",
+        "RH1",
+        "RH2",
+        "RHsamp",
+        "mFlow",
+    ],
+    cols_housekeeping=[
+        "Altitude",
+        "Altitude_agl",
+        "SBI",
+        "PartCon",
+        "CO2",
+        "P_baro",
+        "TEMPbox",
+        "mFlow",
+        "TEMPsamp",
+        "RHsamp",
+        "TEMP1",
+        "RH1",
+        "TEMP2",
+        "RH2",
+        "vBat",
+    ],
     export_order=100,
-    pressure_variable='P_baro')
+    pressure_variable="P_baro",
+)

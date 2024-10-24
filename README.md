@@ -14,6 +14,7 @@ with instrument housekeeping and quality control.
 3. [Configuration](#configuration)
    1. [Application constants](#application-constants)
    1. [Runtime configuration](#runtime)
+4. [Using the library](#using-the-library)
 
 # Getting started
 
@@ -459,3 +460,91 @@ plots:
 ```
 
 In general, this does not need to be altered to process the data.
+
+## Using the library
+The library is designed to be run in a docker container or via its command line
+utility.
+
+### Installing the command line utility
+
+Note: As of writing this README, the repository is not a published package on
+PyPi. Therefore, the following instructions are for local installation.
+
+The library uses poetry to manage dependencies. If this is not installed,
+follow the instructions [here](https://python-poetry.org/docs/).
+
+Afterwards, clone the repository, navigate to the root of the project and run
+the following command:
+
+```bash
+poetry install
+```
+
+The library will now be installed locally and can be accessed with
+`poetry run helikite`.
+
+You can navigate the command line utility by running
+`poetry run helikite --help`. An example follows below:
+
+```bash
+[ejthomas@cadiz helikite-data-processing]$ poetry run helikite
+
+ Usage: helikite [OPTIONS] COMMAND [ARGS]...
+
+ helikite-data-processing - Library to generate quicklooks and data quality
+ checks on Helikite campaigns
+ Use the --help option on a subcommand to see more information about it.
+
+╭─ Options ───────────────────────────────────────────────────────────────────╮
+│ --version          Prints the version number of helikite-data-processing    │
+│ --help             Show this message and exit.                              │
+╰─────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ──────────────────────────────────────────────────────────────────╮
+│ execute           Execute the main processing and plotting of the data      │
+│ generate-config   Generate a configuration file in the input folder         │
+│ preprocess        Preprocess the data and generate the configuration file   │
+╰─────────────────────────────────────────────────────────────────────────────╯
+
+```
+
+The commands follow the same structure as the docker commands above. For futher
+help on each option, run `poetry run helikite <command> --help`.
+
+For example:
+```bash
+[ejthomas@cadiz helikite-data-processing]$ poetry run helikite preprocess --help
+
+ Usage: helikite preprocess [OPTIONS]
+
+ Preprocess the data and generate the configuration file
+
+╭─ Options ───────────────────────────────────────────────────────────────────╮
+│ --overwrite       --no-overwrite          Overwrite the existing            │
+│                                           configuration file                │
+│                                           [default: no-overwrite]           │
+│ --config-file                       TEXT  The configuration file to use     │
+│                                           [default: config.yaml]            │
+│ --input-folder                      TEXT  [default:                         │
+│                                           /home/ejthomas/projects/EERL/Hel… │
+│ --help                                    Show this message and exit.       │
+╰─────────────────────────────────────────────────────────────────────────────╯
+```
+
+### Installing as a dependency
+Similarly as above, as this library is not on PyPi, it can be installed as a
+dependency in a `pyproject.toml` file via a git repository. An example is
+below:
+
+```bash
+poetry add git+https://github.com/EERL/helikite-data-processing.git
+```
+
+Otherwise, you may follow the instructions from the previous step and use the
+jupyter lab dependency to run the library. In the repository folder, run
+`poetry run jupyter lab`, and the library can be imported and used in the
+notebook.
+
+## Cleaner
+
+The `cleaner` module is designed to clean up the output folders of the
+application. Follow the [Level 0 notebook](./notebooks/level0.ipynb) for instructions on how to use.
