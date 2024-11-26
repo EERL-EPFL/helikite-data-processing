@@ -3,7 +3,7 @@ from ipywidgets import Output, VBox
 import pandas as pd
 
 
-def choose_outliers(df, x, y, outlier_file="outliers.csv"):
+def choose_outliers(df, y, outlier_file="outliers.csv"):
     """Creates a plot to interactively select outliers in the data
 
     A plot is generated, where two variables are plotted, and the user can
@@ -22,6 +22,33 @@ def choose_outliers(df, x, y, outlier_file="outliers.csv"):
     out.append_stdout("Click on a point to set as outlier.\n")
     df = df.copy()
     selected_points = []
+
+    # Create a list of buttons for the user to select which variable to plot
+    variable_list = []
+    df = df.fillna("")
+    x = None
+    for variable in df.columns:
+        if variable == y or df[variable].dtype == "object":
+            # Skip the x and y variables for the list
+            continue
+        variable_list.append(
+            dict(
+                args=[
+                    {"x": [df[variable]], "name": variable},
+                    {
+                        "title": f"{y} vs {variable}",
+                        "xaxis": {"title": variable},
+                    },
+                ],
+                label=variable,
+                method="update",
+            )
+        )
+
+        # Set x to the first variable in the list, this will become the
+        # first variable to be plotted
+        if x is None:
+            x = variable
 
     # If outlier file exists, load it. Otherwise, create a new one with the
     # same columns as the dateframe, to allow for appending new outliers based
@@ -118,22 +145,6 @@ def choose_outliers(df, x, y, outlier_file="outliers.csv"):
         # if trace.name == self.reference_instrument.name:
         trace.on_click(select_point_callback)
         print(f"Callback attached to trace: {trace.name}")
-
-    variable_list = []
-    df = df.fillna("")
-    for variable in df.columns:
-        if variable == y:
-            # Skip the x and y variables for the list
-            continue
-        variable_list.append(
-            dict(
-                args=[
-                    {"x": [df[variable]], "name": variable},
-                ],
-                label=variable,
-                method="restyle",
-            )
-        )
 
     fig.update_layout(
         updatemenus=[
