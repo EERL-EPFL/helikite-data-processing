@@ -1,103 +1,112 @@
 import plotly.graph_objects as go
-from ipywidgets import Output, VBox
+from ipywidgets import Output, VBox, Dropdown
 import pandas as pd
 
 
 def choose_outliers(df, y, outlier_file="outliers.csv"):
-    """Creates a plot to interactively select outliers in the data
+    """Creates a plot to interactively select outliers in the data.
 
-    A plot is generated, where two variables are plotted, and the user can
-    click on points to select them as outliers. The selected points are
-    stored in a list, which can be accessed later.
+    A plot is generated where two variables are plotted, and the user can
+    click on points to select or deselect them as outliers. The selected points
+    are stored in a list and saved to a CSV, which can be accessed later.
 
     Args:
         df (pandas.DataFrame): The dataframe containing the data
-        x (str): The column name of the x-axis variable
         y (str): The column name of the y-axis variable
-
     """
     # Create a figure widget for interactive plotting
     fig = go.FigureWidget()
     out = Output()
-    out.append_stdout("Click on a point to set as outlier.\n")
+    out.append_stdout("Click on a point to toggle its outlier status.\n")
     df = df.copy()
-    selected_points = []
 
-    # Create a list of buttons for the user to select which variable to plot
+    # Initialize x with the first numerical column other than y
     df = df.fillna("")
-    x = None
-    for variable in df.columns:
-        if variable == y or df[variable].dtype == "object":
-            # Skip the x and y variables for the list
-            continue
+    variable_options = [var for var in df.columns if var != y]
+    x = variable_options[0]
 
-        # Set x to the first variable in the list, this will become the
-        # first variable to be plotted
-        if x is None:
-            x = variable
-
-    # If outlier file exists, load it. Otherwise, create a new one with the
-    # same columns as the dateframe, to allow for appending new outliers based
-    # on their index
+    # Load or create the outliers DataFrame
     try:
-        outliers = pd.read_csv(outlier_file)
-        outliers.set_index(outliers.columns[0], drop=True, inplace=True)
-
+        outliers = pd.read_csv(
+            outlier_file, index_col=0, parse_dates=True
+        ).fillna(False)
     except FileNotFoundError:
         print(f"Outlier file not found. Creating new one at {outlier_file}")
-        outliers = pd.DataFrame(columns=df.columns)
+        outliers = pd.DataFrame(columns=df.columns).fillna(False)
+
+    # Ensure the indices are aligned and of the same type
+    outliers.index = pd.to_datetime(outliers.index)
+    df.index = pd.to_datetime(df.index)
+
+    # Create the variable selection dropdown
+    variable_dropdown = Dropdown(
+        options=variable_options, value=x, description="Variable:"
+    )
+
+    def update_plot(*args):
+        # Get the current variable from the dropdown
+        current_x = variable_dropdown.value
+
+        # Update the main trace
+        with fig.batch_update():
+            fig.data[0].x = df[current_x]
+            fig.data[0].y = df[y]
+            fig.data[0].name = current_x
+            fig.data[0].text = [
+                f"Time: {time} X: {x_val} Y: {y_val}"
+                for time, x_val, y_val in zip(df.index, df[current_x], df[y])
+            ]
+            fig.layout.xaxis.title = current_x
+            fig.layout.title = f"{y} vs {current_x}"
+
+            # Update the outlier trace
+            if current_x in outliers.columns:
+                outlier_mask = outliers[current_x].fillna(False)
+                outlier_indices = outliers[outlier_mask].index
+                outlier_points = df.loc[outlier_indices]
+            else:
+                outlier_points = pd.DataFrame(columns=df.columns)
+
+            fig.data[1].x = outlier_points[current_x]
+            fig.data[1].y = outlier_points[y]
 
     @out.capture(clear_output=True)
     def select_point_callback(trace, points, selector):
-        # Callback function for click events to select points
+        # Callback function for click events to select/deselect points
         nonlocal outliers
         if points.point_inds:
             point_index = points.point_inds[0]
-            print(f"Point index1: {points.point_inds}")
-            print(f"Point index2: {point_index}")
-            # print("Trace", trace)
-            selected_x = trace.x[point_index]
-            selected_y = trace.y[point_index]
-
-            # Get the index of the selected point from the dataframe
-            selected_index = df[(df[x] == selected_x) & (df[y] == selected_y)]
             selected_index = df.iloc[point_index]
-            # print(f"Selected DF index: {selected_index}")
-            print("X Variable: ", x)
-            # print("Trace X", trace.x)
-            print("Points X", points)
-            print("Trace name: ", points.trace_name)
-            print(f"Selected x/y: {selected_x}/{selected_y}")
-            print("Point at index: ", df.index[point_index])
-            print(
-                "Variable x and y at index: ",
-                df[x].iloc[point_index],
-                df[y].iloc[point_index],
-            )
-            selected_points.append((selected_x, selected_y))
 
-            # Append the selected point to the outliers dataframe by adding or
-            # updating a row with the selected point's index, where the
-            # corresponding outlier columns are set to true and the rest false.
-            # If a row already exists at that index, update it, otherwise add
-            # a new row. We can assume the columns of the outliers dataframe
-            # are the same as the columns of the dataframe
-            if selected_index.name in outliers.index:
-                outliers.loc[selected_index.name, [points.trace_name, y]] = (
-                    True
-                )
+            # Get the current x variable from the dropdown
+            current_x = variable_dropdown.value
+
+            # Check if the point is already an outlier
+            if (
+                selected_index.name in outliers.index
+                and current_x in outliers.columns
+                and outliers.loc[selected_index.name, current_x]
+            ):
+                # Remove the outlier
+                outliers.loc[selected_index.name, current_x] = False
+                # Remove the row if all entries are False
+                if not outliers.loc[selected_index.name].any():
+                    outliers = outliers.drop(selected_index.name)
+                print(f"Removed outlier at index {selected_index.name}")
             else:
-                new_row = pd.DataFrame(
-                    [[False] * len(outliers.columns)],
-                    columns=outliers.columns,
-                    index=[selected_index.name],
-                )
-                new_row.loc[selected_index.name, [points.trace_name, y]] = True
-                outliers = pd.concat([outliers, new_row])
-            outliers.to_csv(outlier_file)
+                # Add the outlier
+                if selected_index.name not in outliers.index:
+                    # Initialize a new row with False values
+                    outliers.loc[selected_index.name] = False
+                outliers.loc[selected_index.name, current_x] = True
+                print(f"Added outlier at index {selected_index.name}")
 
-            print(outliers)
+            outliers.to_csv(outlier_file, date_format="%Y-%m-%d %H:%M:%S")
 
+            # Update the plot
+            update_plot()
+
+    # Initial plot
     fig.add_trace(
         go.Scattergl(
             x=df[x],
@@ -124,107 +133,45 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
         )
     )
 
-    # Attach the callback to all traces
-    for trace in fig.data:
-        # Only allow the reference instrument to be clickable
-        # if trace.name == self.reference_instrument.name:
-        trace.on_click(select_point_callback)
-        print(f"Callback attached to trace: {trace.name}")
+    # Attach the callback to the main trace
+    fig.data[0].on_click(select_point_callback)
 
-    # Add the outlier points to the plot as red X on top of the same points.
-    # Filter the points according to the variable that is currently plotted.
-    # As the outliers table is a binary table, we can use it to filter the
-    # points that are outliers for the current variable.
-    for variable in df.columns:
-        if variable == y or df[variable].dtype == "object":
-            # Skip the x and y variables for the list
-            continue
-        if variable in outliers.columns and variable == x:
-            # Filter the outliers for the current variable
-            print("Adding plot for outliers on variable: ", variable)
-            outlier_points = df.loc[outliers[outliers[variable] == True].index]
-            fig.add_trace(
-                go.Scattergl(
-                    x=outlier_points[x],
-                    y=outlier_points[y],
-                    name="Outliers",
-                    mode="markers",
-                    marker=dict(
-                        color="red",
-                        symbol="x",
-                        size=10,
-                    ),
-                    showlegend=True,
-                )
-            )
+    # Add the outlier points to the plot
+    if x in outliers.columns:
+        outlier_mask = outliers[x].fillna(False)
+        outlier_indices = outliers[outlier_mask].index
+        outlier_points = df.loc[outlier_indices]
+    else:
+        outlier_points = pd.DataFrame(columns=df.columns)
 
-    variable_list = []
-    for variable in df.columns:
-        if variable == y or df[variable].dtype == "object":
-            # Skip the x and y variables for the list
-            continue
-
-        outlier_points = df.loc[outliers[outliers[variable]].index]
-
-        variable_list.append(
-            dict(
-                args=[
-                    {
-                        "x": [df[variable], outlier_points[variable]],
-                        "y": [df[y], outlier_points[y]],
-                        "name": variable,
-                    },
-                    {
-                        "annotations": [],
-                        "shapes": [],
-                        "title": f"{y} vs {variable}",
-                        "xaxis": {"title": variable},
-                    },
-                ],
-                label=variable,
-                method="update",
-            )
+    fig.add_trace(
+        go.Scattergl(
+            x=outlier_points[x],
+            y=outlier_points[y],
+            name="Outliers",
+            mode="markers",
+            marker=dict(
+                color="red",
+                symbol="x",
+                size=10,
+            ),
+            showlegend=True,
         )
-
-    # Add dropdown menu to the plot layout
-    fig.update_layout(
-        updatemenus=[
-            dict(
-                buttons=variable_list,
-                direction="down",
-                showactive=True,
-                x=0.1,
-                xanchor="left",
-                y=1.1,
-                yanchor="top",
-            )
-        ]
     )
 
     fig.update_layout(
-        annotations=[
-            dict(
-                text="Variable:",
-                showarrow=False,
-                x=0,
-                y=1.085,
-                yref="paper",
-                align="left",
-            )
-        ],
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
-    )
-
-    # Customize plot layout
-    fig.update_layout(
         title=f"{y} vs {x}",
         xaxis_title=x,
         yaxis_title=y,
         hovermode="closest",
         showlegend=True,
         height=600,
-        width=800,
+        width=1000,
     )
 
+    # Observe variable selection changes
+    variable_dropdown.observe(update_plot, names="value")
+
     # Show plot with interactive click functionality
-    return VBox([fig, out])  # Use VBox to stack the plot and output
+    return VBox([variable_dropdown, fig, out])
