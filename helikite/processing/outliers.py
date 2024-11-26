@@ -13,6 +13,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
     Args:
         df (pandas.DataFrame): The dataframe containing the data
         y (str): The column name of the y-axis variable
+        outlier_file (str): The path to the CSV file to store the outliers
     """
     # Create a figure widget for interactive plotting
     fig = go.FigureWidget()
@@ -23,7 +24,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
     # Initialize x with the first numerical column other than y
     df = df.fillna("")
     variable_options = [var for var in df.columns if var != y]
-    x = variable_options[0]
+    x = variable_options[0]  # Set the first x plot to the first in the list
 
     # Load or create the outliers DataFrame
     try:
