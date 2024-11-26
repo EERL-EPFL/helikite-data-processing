@@ -24,26 +24,12 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
     selected_points = []
 
     # Create a list of buttons for the user to select which variable to plot
-    variable_list = []
     df = df.fillna("")
     x = None
     for variable in df.columns:
         if variable == y or df[variable].dtype == "object":
             # Skip the x and y variables for the list
             continue
-        variable_list.append(
-            dict(
-                args=[
-                    {"x": [df[variable]], "name": variable},
-                    {
-                        "title": f"{y} vs {variable}",
-                        "xaxis": {"title": variable},
-                    },
-                ],
-                label=variable,
-                method="update",
-            )
-        )
 
         # Set x to the first variable in the list, this will become the
         # first variable to be plotted
@@ -101,7 +87,6 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
                     True
                 )
             else:
-
                 new_row = pd.DataFrame(
                     [[False] * len(outliers.columns)],
                     columns=outliers.columns,
@@ -146,18 +131,77 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
         trace.on_click(select_point_callback)
         print(f"Callback attached to trace: {trace.name}")
 
+    # Add the outlier points to the plot as red X on top of the same points.
+    # Filter the points according to the variable that is currently plotted.
+    # As the outliers table is a binary table, we can use it to filter the
+    # points that are outliers for the current variable.
+    for variable in df.columns:
+        if variable == y or df[variable].dtype == "object":
+            # Skip the x and y variables for the list
+            continue
+        if variable in outliers.columns and variable == x:
+            # Filter the outliers for the current variable
+            print("Adding plot for outliers on variable: ", variable)
+            outlier_points = df.loc[outliers[outliers[variable] == True].index]
+            fig.add_trace(
+                go.Scattergl(
+                    x=outlier_points[x],
+                    y=outlier_points[y],
+                    name="Outliers",
+                    mode="markers",
+                    marker=dict(
+                        color="red",
+                        symbol="x",
+                        size=10,
+                    ),
+                    showlegend=True,
+                )
+            )
+
+    variable_list = []
+    for variable in df.columns:
+        if variable == y or df[variable].dtype == "object":
+            # Skip the x and y variables for the list
+            continue
+        # if variable in outliers.columns and variable == x:
+        outlier_points = df.loc[outliers[outliers[variable]].index]
+        # print(
+        #     "Building updated points for plot for outliers on variable: ",
+        #     variable,
+        # )
+        # print("Outlier points: ", outlier_points)
+        variable_list.append(
+            dict(
+                args=[
+                    {
+                        "x": [df[variable], outlier_points[variable]],
+                        "y": [df[y], outlier_points[y]],
+                        "name": variable,
+                    },
+                    {
+                        "annotations": [],
+                        "shapes": [],
+                        "title": f"{y} vs {variable}",
+                        "xaxis": {"title": variable},
+                    },
+                ],
+                label=variable,
+                method="update",
+            )
+        )
+
+    # Add dropdown menu to the plot layout
     fig.update_layout(
         updatemenus=[
             dict(
                 buttons=variable_list,
                 direction="down",
-                pad={"r": 5, "t": 5},
                 showactive=True,
                 x=0.1,
                 xanchor="left",
                 y=1.1,
                 yanchor="top",
-            ),
+            )
         ]
     )
 
@@ -175,33 +219,30 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
     )
 
-    # fig.update_layout(
-    #     updatemenus=[
-    #         dict(
-    #             buttons=list(
-    #                 [
-    #                     dict(
-    #                         args=["type", "surface"],
-    #                         label="3D Surface",
-    #                         method="restyle",
-    #                     ),
-    #                     dict(
-    #                         args=["type", "heatmap"],
-    #                         label="Heatmap",
-    #                         method="restyle",
-    #                     ),
-    #                 ]
-    #             ),
-    #             direction="down",
-    #             pad={"r": 10, "t": 10},
-    #             showactive=True,
-    #             x=0.1,
-    #             xanchor="left",
-    #             y=1.1,
-    #             yanchor="top",
-    #         ),
-    #     ]
-    # )
+    # # Dynamically filter and add outliers when the variable changes
+    # for variable in df.columns:
+    #     if variable in outliers.columns and variable == x:
+    #         outlier_points = df.loc[outliers[outliers[variable]].index]
+    #         print("Updating plot for outliers on variable: ", variable)
+    #         # print("Outlier points: ", outlier_points)
+    #         # fig.add_trace(
+    #         #     go.Scattergl(
+    #         #         x=outlier_points[x],
+    #         #         y=outlier_points[y],
+    #         #         name=f"Outliers ({variable})",
+    #         #         mode="markers",
+    #         #         marker=dict(
+    #         #             color="red",
+    #         #             symbol="x",
+    #         #             size=10,
+    #         #         ),
+    #         #         showlegend=True,
+    #         #     )
+    #         # )
+    #         fig.update_traces(
+    #             selector=dict(name="Outliers"),
+    #             x=outlier_points[x],
+    #         )
     # Customize plot layout
     fig.update_layout(
         title=f"{y} vs {x}",
