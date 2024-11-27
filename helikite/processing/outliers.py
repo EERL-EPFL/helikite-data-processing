@@ -1,5 +1,5 @@
 import plotly.graph_objects as go
-from ipywidgets import Output, VBox, Dropdown
+from ipywidgets import Output, VBox, Dropdown, ToggleButton
 import pandas as pd
 
 
@@ -7,8 +7,8 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
     """Creates a plot to interactively select outliers in the data.
 
     A plot is generated where two variables are plotted, and the user can
-    click on points to select or deselect them as outliers. The selected points
-    are stored in a list and saved to a CSV, which can be accessed later.
+    use the lasso or box selection tools to select or deselect multiple points as outliers.
+    The selected points are stored in a list and saved to a CSV, which can be accessed later.
 
     Args:
         df (pandas.DataFrame): The dataframe containing the data
@@ -18,7 +18,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
     # Create a figure widget for interactive plotting
     fig = go.FigureWidget()
     out = Output()
-    out.append_stdout("Click on a point to toggle its outlier status.\n")
+    out.append_stdout("Use the lasso or box select tool to select points.\n")
     df = df.copy()
 
     # Initialize x with the first numerical column other than y
@@ -43,6 +43,26 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
     variable_dropdown = Dropdown(
         options=variable_options, value=x, description="Variable:"
     )
+
+    # Create the mode toggle button
+    add_remove_toggle = ToggleButton(
+        value=True,
+        description="Add Mode",
+        disabled=False,
+        button_style="",
+        tooltip="Click to toggle between add and remove modes",
+        icon="plus",  # You can use 'minus' for remove mode
+    )
+
+    def on_toggle_change(change):
+        if change["new"]:
+            add_remove_toggle.description = "Add Mode"
+            add_remove_toggle.icon = "plus"
+        else:
+            add_remove_toggle.description = "Remove Mode"
+            add_remove_toggle.icon = "minus"
+
+    add_remove_toggle.observe(on_toggle_change, names="value")
 
     def update_plot(*args):
         # Get the current variable from the dropdown
@@ -73,34 +93,35 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
 
     @out.capture(clear_output=True)
     def select_point_callback(trace, points, selector):
-        # Callback function for click events to select/deselect points
+        # Callback function for selection events to add/remove selected points as outliers
         nonlocal outliers
         if points.point_inds:
-            point_index = points.point_inds[0]
-            selected_index = df.iloc[point_index]
+            selected_indices = df.iloc[points.point_inds].index
 
             # Get the current x variable from the dropdown
             current_x = variable_dropdown.value
 
-            # Check if the point is already an outlier
-            if (
-                selected_index.name in outliers.index
-                and current_x in outliers.columns
-                and outliers.loc[selected_index.name, current_x]
-            ):
-                # Remove the outlier
-                outliers.loc[selected_index.name, current_x] = False
-                # Remove the row if all entries are False
-                if not outliers.loc[selected_index.name].any():
-                    outliers = outliers.drop(selected_index.name)
-                print(f"Removed outlier at index {selected_index.name}")
-            else:
-                # Add the outlier
-                if selected_index.name not in outliers.index:
-                    # Initialize a new row with False values
-                    outliers.loc[selected_index.name] = False
-                outliers.loc[selected_index.name, current_x] = True
-                print(f"Added outlier at index {selected_index.name}")
+            mode = "add" if add_remove_toggle.value else "remove"
+
+            if mode == "add":
+                # Add selected indices to outliers
+                for index in selected_indices:
+                    if index not in outliers.index:
+                        # Initialize a new row with False values
+                        outliers.loc[index] = False
+                    outliers.loc[index, current_x] = True
+            elif mode == "remove":
+                # Remove selected indices from outliers
+                for index in selected_indices:
+                    if (
+                        index in outliers.index
+                        and current_x in outliers.columns
+                        and outliers.loc[index, current_x]
+                    ):
+                        outliers.loc[index, current_x] = False
+                        # Remove the row if all entries are False
+                        if not outliers.loc[index].any():
+                            outliers = outliers.drop(index)
 
             outliers.to_csv(outlier_file, date_format="%Y-%m-%d %H:%M:%S")
 
@@ -135,7 +156,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
     )
 
     # Attach the callback to the main trace
-    fig.data[0].on_click(select_point_callback)
+    fig.data[0].on_selection(select_point_callback)
 
     # Add the outlier points to the plot
     if x in outliers.columns:
@@ -174,5 +195,5 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
     # Observe variable selection changes
     variable_dropdown.observe(update_plot, names="value")
 
-    # Show plot with interactive click functionality
-    return VBox([variable_dropdown, fig, out])
+    # Show plot with interactive selection functionality
+    return VBox([variable_dropdown, add_remove_toggle, fig, out])
