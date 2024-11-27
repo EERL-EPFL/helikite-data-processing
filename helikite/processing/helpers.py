@@ -51,7 +51,6 @@ def remove_duplicates(
     """Removes duplicate rows from a dataframe based on the DateTime column"""
 
     df_unique = df.copy()
-    df_unique["duplicate_values"] = df_unique.index.duplicated()
     df_unique.drop_duplicates(subset=["DateTime"], inplace=True)
     logger.info(
         "Initial length:",

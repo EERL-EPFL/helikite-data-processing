@@ -386,35 +386,69 @@ class Cleaner:
         ],
         use_once=False,
     )
-    def merge_instruments(self):
+    def merge_instruments(
+        self, tolerance_seconds: int = 1, remove_duplicates: bool = True
+    ) -> None:
         """Merges all the dataframes from the instruments into one dataframe.
 
         All columns from all instruments are included in the merged dataframe,
         with unique prefixes to avoid column name collisions.
+
+        Parameters
+        ----------
+        tolerance_seconds: int
+            The tolerance in seconds for merging dataframes.
+        remove_duplicates: bool
+            If True, removes duplicate times and keeps the first result.
         """
-        # Add instrument name as a prefix to all columns to ensure uniqueness
-        instrument_dfs = [
-            instrument.df.add_prefix(f"{instrument.name}_").copy()
-            for instrument in self._instruments
-        ]
 
-        print("Merging all instrument dataframes with unique column prefixes.")
+        # Ensure all dataframes are sorted by their index
+        for instrument in self._instruments:
+            instrument.df.sort_index(inplace=True)
 
-        # Merge all the dataframes together
-        self.master_df = instrument_dfs[0]
-        for df in instrument_dfs[1:]:
-            self.master_df = self.master_df.merge(
-                df,
-                how="outer",
-                left_index=True,
-                right_index=True,
+            # Use same time resolution as reference instrument
+            instrument.df.index = instrument.df.index.astype(
+                self.reference_instrument.df.index.dtype
             )
 
-        # Sort rows by the datetime index
-        self.master_df.index = pd.to_datetime(self.master_df.index)
-        self.master_df.sort_index(inplace=True)
+        print("Using merge_asof to align and merge instrument dataframes.")
 
-        print("The master dataframe has been created at Cleaner.master_df.")
+        # Start with the reference instrument dataframe
+        self.master_df = self.reference_instrument.df.copy()
+        self.master_df.columns = [
+            f"{self.reference_instrument.name}_{col}"
+            for col in self.master_df.columns
+        ]
+
+        # Merge all other dataframes with merge_asof
+        for instrument in self._instruments:
+            if instrument == self.reference_instrument:
+                continue
+
+            temp_df = instrument.df.copy()
+            temp_df.columns = [
+                f"{instrument.name}_{col}" for col in temp_df.columns
+            ]
+
+            self.master_df = pd.merge_asof(
+                self.master_df,
+                temp_df,
+                left_index=True,
+                right_index=True,
+                tolerance=pd.Timedelta(seconds=tolerance_seconds),
+                direction="nearest",
+            )
+
+        # Remove duplicates in the merged dataframe if flag is set
+        if remove_duplicates:
+            self.master_df = self.master_df[
+                ~self.master_df.index.duplicated(keep="first")
+            ]
+
+        print(
+            "Master dataframe created using merge_asof. "
+            "Available at Cleaner.master_df."
+        )
 
     @function_dependencies(
         [
