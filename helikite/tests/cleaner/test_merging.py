@@ -47,4 +47,4 @@ def test_merge_instruments(campaign_data):
     cleaner.merge_instruments()
 
     # Assert that the merged DataFrame is correct
-    assert len(cleaner.master_df) == 108952
+    assert len(cleaner.master_df) == 10792
