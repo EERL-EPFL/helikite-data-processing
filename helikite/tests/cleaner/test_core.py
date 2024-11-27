@@ -1,5 +1,3 @@
-import shutil
-import pytest
 from helikite.classes.cleaning import Cleaner
 from helikite.tests.cleaner.mock import MockInstrument
 import pandas as pd

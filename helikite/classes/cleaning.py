@@ -67,15 +67,15 @@ class Cleaner:
         reference_instrument: Instrument,
         input_folder: str,
         flight_date: datetime.date,
-        time_trim_from: datetime.datetime | None = None,
-        time_trim_to: datetime.datetime | None = None,
+        time_takeoff: datetime.datetime | None = None,
+        time_landing: datetime.datetime | None = None,
         time_offset: datetime.time = datetime.time(0, 0),
     ) -> None:
         self._instruments: list[Instrument] = []  # For managing in batches
         self.input_folder: str = input_folder
         self.flight_date: datetime.date = flight_date
-        self.time_trim_from: datetime.datetime | None = time_trim_from
-        self.time_trim_to: datetime.datetime | None = time_trim_to
+        self.time_takeoff: datetime.datetime | None = time_takeoff
+        self.time_landing: datetime.datetime | None = time_landing
         self.time_offset: datetime.time = time_offset
         self.pressure_column: str = constants.HOUSEKEEPING_VAR_PRESSURE
         self.master_df: pd.DataFrame | None = None
@@ -135,9 +135,9 @@ class Cleaner:
         state_info.append(f"{'Input folder':<25}{self.input_folder:<30}")
         state_info.append(f"{'Flight date':<25}{self.flight_date}")
         state_info.append(
-            f"{'Time trim from':<25}{str(self.time_trim_from):<30}"
+            f"{'Time trim from':<25}{str(self.time_takeoff):<30}"
         )
-        state_info.append(f"{'Time trim to':<25}{str(self.time_trim_to):<30}")
+        state_info.append(f"{'Time trim to':<25}{str(self.time_landing):<30}")
         state_info.append(f"{'Time offset':<25}{str(self.time_offset):<30}")
         state_info.append(f"{'Pressure column':<25}{self.pressure_column:<30}")
 
@@ -195,7 +195,7 @@ class Cleaner:
                 signature = inspect.signature(method)
                 func_wrapper = getattr(self.__class__, name)
 
-                # Extract function dependencies and use_once details from the decorator
+                # Extract func dependencies and use_once details from decorator
                 dependencies = getattr(func_wrapper, "__dependencies__", [])
                 use_once = getattr(func_wrapper, "__use_once__", False)
 
@@ -216,7 +216,7 @@ class Cleaner:
                 if dependencies:
                     print(f"\tDependencies: {', '.join(dependencies)}")
                 if use_once:
-                    print(f"\tNote: Can only be run once")
+                    print("\tNote: Can only be run once")
 
     def _print_instruments(self) -> None:
         print(
@@ -225,7 +225,8 @@ class Cleaner:
         )
         for instrument in self._instruments:
             print(
-                f"- Cleaner.{instrument.name}.df ({len(instrument.df)} records)",
+                f"- Cleaner.{instrument.name}.df "
+                f"({len(instrument.df)} records)",
                 end="",
             )
             if instrument == self.reference_instrument:
@@ -524,16 +525,14 @@ class Cleaner:
         Uses the pressure measurements of the reference instrument to select
         the start and end of the flight. The user can click on the plot to
         select the points.
-
-        The time of the selected points will be used to trim the dataframes.
         """
 
         # Create a figure widget for interactive plotting
         fig = go.FigureWidget()
         out = Output()
         # out.append_stdout('Output appended with append_stdout')
-        out.append_stdout(f"\nStart time: {self.time_trim_from}\n")
-        out.append_stdout(f"End time: {self.time_trim_to}\n")
+        out.append_stdout(f"\nStart time: {self.time_takeoff}\n")
+        out.append_stdout(f"End time: {self.time_landing}\n")
         out.append_stdout("Click to set the start time.\n")
 
         # Initialize the list to store selected pressure points
@@ -550,24 +549,23 @@ class Cleaner:
                 # As we are clicking on a point to define it, the next click
                 # should be the end time. If both are set, then it will be
                 # reset.
-                if (self.time_trim_from is None) or (
-                    self.time_trim_from is not None
-                    and self.time_trim_to is not None
+                if (self.time_takeoff is None) or (
+                    self.time_takeoff is not None
+                    and self.time_landing is not None
                 ):
                     # Set the start time, and reset the end time
-                    self.time_trim_from = selected_x
-                    self.time_trim_to = None
-                    print(f"Start time: {self.time_trim_from}")
-                    print(f"End time: {self.time_trim_to}")
+                    self.time_takeoff = selected_x
+                    self.time_landing = None
+                    print(f"Start time: {self.time_takeoff}")
+                    print(f"End time: {self.time_landing}")
                     print("Click to set the end time.")
                 elif (
-                    self.time_trim_from is not None
-                    and self.time_trim_to is None
+                    self.time_takeoff is not None and self.time_landing is None
                 ):
                     # Set the end time
-                    self.time_trim_to = selected_x
-                    print(f"Start time: {self.time_trim_from}")
-                    print(f"End time: {self.time_trim_to}")
+                    self.time_landing = selected_x
+                    print(f"Start time: {self.time_takeoff}")
+                    print(f"End time: {self.time_landing}")
                     print(
                         "Click again if you wish to reset the times and set "
                         "a new start time"
@@ -575,12 +573,9 @@ class Cleaner:
                 else:
                     print("Something went wrong with the time selection.")
 
-            # Update the plot if self.time_trim_from and self.time_trim_to
+            # Update the plot if self.time_takeoff and self.time_landing
             # have been set or modified
-            if (
-                self.time_trim_from is not None
-                and self.time_trim_to is not None
-            ):
+            if self.time_takeoff is not None and self.time_landing is not None:
                 # If there is a vrect, delete it and add a new one. First,
                 # find the vrect shape
                 shapes = [
@@ -595,19 +590,19 @@ class Cleaner:
 
                 # Add a new vrect
                 fig.add_vrect(
-                    x0=self.time_trim_from,
-                    x1=self.time_trim_to,
+                    x0=self.time_takeoff,
+                    x1=self.time_landing,
                     fillcolor="rgba(0, 128, 0, 0.25)",
                     layer="below",
                     line_width=0,
                 )
 
         # Add the initial time range to the plot
-        if self.time_trim_from is not None and self.time_trim_to is not None:
+        if self.time_takeoff is not None and self.time_landing is not None:
             # Add a new vrect
             fig.add_vrect(
-                x0=self.time_trim_from,
-                x1=self.time_trim_to,
+                x0=self.time_takeoff,
+                x1=self.time_landing,
                 fillcolor="rgba(0, 128, 0, 0.25)",
                 layer="below",
                 line_width=0,
@@ -778,13 +773,13 @@ class Cleaner:
                     right_index=True,
                 )
 
-        takeofftime = df_pressure.index.asof(pd.Timestamp(self.time_trim_from))
-        landingtime = df_pressure.index.asof(pd.Timestamp(self.time_trim_to))
+        takeofftime = df_pressure.index.asof(pd.Timestamp(self.time_takeoff))
+        landingtime = df_pressure.index.asof(pd.Timestamp(self.time_landing))
 
         if detrend_pressure_on:
             print("Index of df_pressure", df_pressure.index)
-            print("self.time_trim_from", self.time_trim_from)
-            print("self.time_trim_to", self.time_trim_to)
+            print("self.time_takeoff", self.time_takeoff)
+            print("self.time_landing", self.time_landing)
             print("Columns of df_pressure", df_pressure.columns)
             print(df_pressure)
             if takeofftime is None or landingtime is None:
@@ -792,8 +787,8 @@ class Cleaner:
                     "Could not find takeoff or landing time in the pressure "
                     "data. Check the time range and the pressure data. "
                     f"The takeoff time is {takeofftime} @ "
-                    f"{self.time_trim_from} and the landing time "
-                    f"is {landingtime} @ {self.time_trim_to}."
+                    f"{self.time_takeoff} and the landing time "
+                    f"is {landingtime} @ {self.time_landing}."
                 )
             for instrument in detrend_pressure_on:
                 if instrument.name not in df_pressure.columns:
@@ -831,7 +826,8 @@ class Cleaner:
                         )
                     )
                     print(
-                        f"Applied match pressure correction for {instrument.name}"
+                        "Applied match pressure correction for "
+                        f"{instrument.name}"
                     )
         df_new = crosscorrelation.df_derived_by_shift(
             df_pressure,
@@ -888,18 +884,3 @@ class Cleaner:
         )
 
         fig.show()
-
-        # # Again, merge the dataframes with merge_asof to the reference
-        # # instrument and apply the lag shift with crosscorrelation.df_lagshift
-        # # to the other instruments
-        # for instrument in self._instruments:
-        #     if (
-        #         self.pressure_column in instrument.df.columns
-        #         and instrument != self.reference_instrument
-        #     ):
-        #         instrument.df = crosscorrelation.df_lagshift(
-        #             instrument.df,
-        #             self.reference_instrument.df,
-        #             instrument.corr_max_idx,
-        #             f"{instrument.name}_",
-        #         )
