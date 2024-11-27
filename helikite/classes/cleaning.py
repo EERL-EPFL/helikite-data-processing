@@ -280,55 +280,6 @@ class Cleaner:
         self._print_success_errors("time as index", success, errors)
 
     @function_dependencies(["set_time_as_index"], use_once=True)
-    def correct_time(
-        self,
-        trim_start: pd.Timestamp | None = None,
-        trim_end: pd.Timestamp | None = None,
-    ) -> None:
-        """Corrects the time of each instrument based on the time offset"""
-
-        success = []
-        errors = []
-
-        # If no trim start or end, use the class's time_trim_from/to values
-        if trim_start is None:
-            trim_start = self.time_trim_from
-        if trim_end is None:
-            trim_end = self.time_trim_to
-
-        for instrument in self._instruments:
-            try:
-                if self.time_trim_from is None or self.time_trim_to is None:
-                    temp_df = instrument.correct_time_from_config(
-                        instrument.df, trim_start, trim_end
-                    )
-                    if len(instrument.df) == 0:
-                        print(
-                            f"Warning {instrument.name}: No data in time range! "
-                            "No changes have been made."
-                        )
-                        continue
-
-                    instrument.df = temp_df
-                    success.append(instrument.name)
-
-                elif (
-                    self.time_trim_from is not None
-                    and self.time_trim_to is not None
-                ):
-                    # Cut each instrument's data to the selected time range
-                    instrument.df = instrument.df[
-                        (instrument.df.index >= self.time_trim_from)
-                        & (instrument.df.index <= self.time_trim_to)
-                    ]
-                    print("Time trimmed for", instrument.name)
-                    success.append(instrument.name)
-            except Exception as e:
-                errors.append((instrument.name, e))
-
-        self._print_success_errors("time corrections", success, errors)
-
-    @function_dependencies(["set_time_as_index"], use_once=True)
     def data_corrections(
         self,
         start_altitude: float = None,
@@ -496,7 +447,6 @@ class Cleaner:
             "merge_instruments",
             "set_pressure_column",
             "set_time_as_index",
-            "correct_time",
             "remove_duplicates",
         ],
         use_once=True,
