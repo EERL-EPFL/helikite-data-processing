@@ -51,35 +51,39 @@ def df_findtimelag(df, range_list, instname=""):
 
 def df_lagshift(df_instrument, df_reference, index, instname=""):
     """
-    Create a df that merges the df with the df_struncresampn using merge_asof
-    to match the timestamps of the two dataframes, and then shift the df by the
-    index value to create the synthetic data
+    Shift the instrument dataframe by the specified lag index and reindex
+    to match the reference instrument's index.
+
+    Parameters
+    ----------
+    df_instrument: pd.DataFrame
+        The dataframe of the instrument to shift.
+    df_reference: pd.DataFrame
+        The dataframe of the reference instrument.
+    index: int
+        The lag index to shift by.
+    instname: str
+        The name of the instrument (for logging purposes).
+
+    Returns
+    -------
+    df_shifted: pd.DataFrame
+        The shifted instrument dataframe.
     """
     print(f"Shifting {instname} by {index} index")
 
-    # Add columns to the reference, so we know which to delete later
-    # df_reference.columns = [f"{col}_ref" for col in df_reference.columns]
     df_instrument = df_instrument.copy()
 
-    df_reference = df_reference.copy()
-    # Match timestamp resolution of the reference data
-    df_instrument.index = df_instrument.index.astype(df_reference.index.dtype)
+    # Shift the instrument data
+    df_shifted = df_instrument.shift(periods=index, axis=0)
 
-    # Merge the two dataframes
-    df = pd.merge_asof(
-        df_reference,
-        df_instrument,
-        left_index=True,
-        right_index=True,
-        suffixes=("", "_ref"),
-    )
+    # Remove duplicates in the shifted dataframe
+    df_shifted = df_shifted[~df_shifted.index.duplicated(keep="first")]
 
-    df_syn = df.shift(periods=index, axis=0)
-    columns_to_drop = [col for col in df.columns if "_ref" in col]
-    if columns_to_drop:
-        df = df.drop(columns=columns_to_drop)
+    # Reindex the instrument data to match the reference instrument's index
+    df_shifted = df_shifted.reindex(df_reference.index)
 
-    return df_syn
+    return df_shifted
 
 
 # correct the other instrument pressure with the reference pressure
