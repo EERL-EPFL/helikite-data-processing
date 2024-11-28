@@ -7,8 +7,8 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
     """Creates a plot to interactively select outliers in the data.
 
     A plot is generated where two variables are plotted, and the user can
-    use the lasso or box selection tools to select or deselect multiple points as outliers.
-    The selected points are stored in a list and saved to a CSV, which can be accessed later.
+    click on points to select or deselect them as outliers, or use the lasso/box
+    selection tools to select multiple points at once.
 
     Args:
         df (pandas.DataFrame): The dataframe containing the data
@@ -18,7 +18,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
     # Create a figure widget for interactive plotting
     fig = go.FigureWidget()
     out = Output()
-    out.append_stdout("Use the lasso or box select tool to select points.\n")
+    out.append_stdout("Click on a point to toggle its outlier status.\n")
     df = df.copy()
 
     # Initialize x with the first numerical column other than y
@@ -44,7 +44,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
         options=variable_options, value=x, description="Variable:"
     )
 
-    # Create the mode toggle button
+    # Create the mode toggle button (now always visible)
     add_remove_toggle = ToggleButton(
         value=True,
         description="Add Mode",
@@ -92,7 +92,43 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
             fig.data[1].y = outlier_points[y]
 
     @out.capture(clear_output=True)
-    def select_point_callback(trace, points, selector):
+    def click_point_callback(trace, points, selector):
+        # Callback function for click events to toggle outlier status
+        nonlocal outliers
+        if points.point_inds:
+            point_index = points.point_inds[0]
+            selected_index = df.iloc[point_index]
+
+            # Get the current x variable from the dropdown
+            current_x = variable_dropdown.value
+
+            # Check if the point is already an outlier
+            if (
+                selected_index.name in outliers.index
+                and current_x in outliers.columns
+                and outliers.loc[selected_index.name, current_x]
+            ):
+                # Remove the outlier
+                outliers.loc[selected_index.name, current_x] = False
+                # Remove the row if all entries are False
+                if not outliers.loc[selected_index.name].any():
+                    outliers = outliers.drop(selected_index.name)
+                print(f"Removed outlier at index {selected_index.name}")
+            else:
+                # Add the outlier
+                if selected_index.name not in outliers.index:
+                    # Initialize a new row with False values
+                    outliers.loc[selected_index.name] = False
+                outliers.loc[selected_index.name, current_x] = True
+                print(f"Added outlier at index {selected_index.name}")
+
+            outliers.to_csv(outlier_file, date_format="%Y-%m-%d %H:%M:%S")
+
+            # Update the plot
+            update_plot()
+
+    @out.capture(clear_output=True)
+    def select_points_callback(trace, points, selector):
         # Callback function for selection events to add/remove selected points as outliers
         nonlocal outliers
         if points.point_inds:
@@ -110,6 +146,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
                         # Initialize a new row with False values
                         outliers.loc[index] = False
                     outliers.loc[index, current_x] = True
+                    print(f"Added outlier at index {index}")
             elif mode == "remove":
                 # Remove selected indices from outliers
                 for index in selected_indices:
@@ -122,6 +159,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
                         # Remove the row if all entries are False
                         if not outliers.loc[index].any():
                             outliers = outliers.drop(index)
+                        print(f"Removed outlier at index {index}")
 
             outliers.to_csv(outlier_file, date_format="%Y-%m-%d %H:%M:%S")
 
@@ -155,8 +193,9 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
         )
     )
 
-    # Attach the callback to the main trace
-    fig.data[0].on_selection(select_point_callback)
+    # Attach the callbacks to the main trace
+    fig.data[0].on_click(click_point_callback)
+    fig.data[0].on_selection(select_points_callback)
 
     # Add the outlier points to the plot
     if x in outliers.columns:
