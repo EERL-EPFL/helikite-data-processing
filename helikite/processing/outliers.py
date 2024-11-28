@@ -246,4 +246,4 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
     variable_dropdown.observe(update_plot, names="value")
 
     # Show plot with interactive selection functionality
-    return VBox([out, variable_dropdown, add_remove_toggle, fig])
+    return VBox([variable_dropdown, add_remove_toggle, fig, out])
