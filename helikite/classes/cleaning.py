@@ -482,7 +482,7 @@ class Cleaner:
             "set_pressure_column",
             "set_time_as_index",
         ],
-        use_once=True,
+        use_once=False,
     )
     def _apply_rolling_window_to_pressure(
         self,
