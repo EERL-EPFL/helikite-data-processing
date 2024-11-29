@@ -316,7 +316,6 @@ class Cleaner:
 
         Assumes the pressure column has been set for each instrument
         """
-
         fig = go.Figure()
 
         for instrument in self._instruments:
@@ -326,6 +325,8 @@ class Cleaner:
                     f"Note: {instrument.name} does not have a pressure column"
                 )
                 continue
+
+            # Plot the pressure data
             fig.add_trace(
                 go.Scatter(
                     x=instrument.df.index,
@@ -334,6 +335,19 @@ class Cleaner:
                 )
             )
 
+            # Plot the df_before_timeshift if it exists
+            if hasattr(instrument, "df_before_timeshift"):
+                fig.add_trace(
+                    go.Scatter(
+                        x=instrument.df_before_timeshift.index,
+                        y=instrument.df_before_timeshift[
+                            instrument.pressure_column
+                        ],
+                        name=f"{instrument.name} (before timeshift)",
+                        line=dict(color="rgba(0, 0, 0, 0.5)"),  # Fainter line
+                        opacity=0.5,
+                    )
+                )
         fig.update_layout(
             title="Pressure measurements",
             xaxis_title="Time",
@@ -347,6 +361,8 @@ class Cleaner:
                 orientation="v",
             ),
             margin=dict(l=40, r=150, t=50, b=40),
+            height=800,
+            width=1200,
         )
 
         fig.show()
@@ -710,7 +726,13 @@ class Cleaner:
             )
             # Adjust the index (DateTime) by the specified offset
             instrument.df.index = instrument.df.index + pd.Timedelta(
-                seconds=offset_seconds
+                seconds=offset_seconds,
+                unit="s",
+            )
+            instrument.df.index = instrument.df.index.astype("datetime64[s]")
+
+            print(
+                f"Instrument: {instrument.name} has been offset. Index is: {instrument.df.index}"
             )
         if reference_pressure_thresholds:
             # Assert the tuple has two values (low, high)
