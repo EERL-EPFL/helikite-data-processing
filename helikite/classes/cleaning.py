@@ -737,10 +737,10 @@ class Cleaner:
         # in the range
         rangelag = [i for i in range(-max_lag, max_lag + 1) if i != 0]
 
-        df_pressure = self.reference_instrument.df[
+        self.df_pressure = self.reference_instrument.df[
             [self.reference_instrument.pressure_column]
         ].copy()
-        df_pressure.rename(
+        self.df_pressure.rename(
             columns={
                 self.reference_instrument.pressure_column: self.reference_instrument.name  # noqa
             },
@@ -763,22 +763,26 @@ class Cleaner:
                     inplace=True,
                 )
 
-                df_pressure = pd.merge_asof(
-                    df_pressure,
+                self.df_pressure = pd.merge_asof(
+                    self.df_pressure,
                     df,
                     left_index=True,
                     right_index=True,
                 )
 
-        takeofftime = df_pressure.index.asof(pd.Timestamp(self.time_takeoff))
-        landingtime = df_pressure.index.asof(pd.Timestamp(self.time_landing))
+        takeofftime = self.df_pressure.index.asof(
+            pd.Timestamp(self.time_takeoff)
+        )
+        landingtime = self.df_pressure.index.asof(
+            pd.Timestamp(self.time_landing)
+        )
 
         if detrend_pressure_on:
-            print("Index of df_pressure", df_pressure.index)
+            print("Index of self.df_pressure", self.df_pressure.index)
             print("self.time_takeoff", self.time_takeoff)
             print("self.time_landing", self.time_landing)
-            print("Columns of df_pressure", df_pressure.columns)
-            print(df_pressure)
+            print("Columns of self.df_pressure", self.df_pressure.columns)
+            print(self.df_pressure)
             if takeofftime is None or landingtime is None:
                 raise ValueError(
                     "Could not find takeoff or landing time in the pressure "
@@ -788,15 +792,17 @@ class Cleaner:
                     f"is {landingtime} @ {self.time_landing}."
                 )
             for instrument in detrend_pressure_on:
-                if instrument.name not in df_pressure.columns:
+                if instrument.name not in self.df_pressure.columns:
                     raise ValueError(
-                        f"{instrument.name} not in df_pressure columns. "
-                        f"Available columns: {df_pressure.columns}"
+                        f"{instrument.name} not in self.df_pressure columns. "
+                        f"Available columns: {self.df_pressure.columns}"
                     )
-                df_pressure[instrument.name] = crosscorrelation.presdetrend(
-                    df_pressure[instrument.name],
-                    takeofftime,
-                    landingtime,
+                self.df_pressure[instrument.name] = (
+                    crosscorrelation.presdetrend(
+                        self.df_pressure[instrument.name],
+                        takeofftime,
+                        landingtime,
+                    )
                 )
                 print(
                     f"Detrended pressure for {instrument.name} on column "
@@ -806,7 +812,7 @@ class Cleaner:
                 # Apply matchpress to correct pressure
                 pd_walk_time = pd.Timedelta(seconds=walk_time_seconds)
                 refpresFC = (
-                    df_pressure[self.reference_instrument.name]
+                    self.df_pressure[self.reference_instrument.name]
                     .loc[takeofftime - pd_walk_time : takeofftime]
                     .mean()
                 )
@@ -827,7 +833,7 @@ class Cleaner:
                         f"{instrument.name}"
                     )
         df_new = crosscorrelation.df_derived_by_shift(
-            df_pressure,
+            self.df_pressure,
             lag=max_lag,
             NON_DER=[self.reference_instrument.name],
         )
