@@ -49,37 +49,37 @@ def df_findtimelag(df, range_list, instname=""):
     return df_inst
 
 
-def df_lagshift(df_instrument, df_reference, index, instname=""):
+def df_lagshift(
+    df_instrument, df_reference, shift_quantity, instrument_name=""
+):
     """
-    Create a df that merges the df with the df_struncresampn using merge_asof
-    to match the timestamps of the two dataframes, and then shift the df by the
-    index value to create the synthetic data
+    Shifts the instrument's dataframe by the given quantity.
+    First, match the instrument with the index of the reference instrument.
     """
-    print(f"Shifting {instname} by {index} index")
+    print(f"Shifting {instrument_name} by {shift_quantity} index")
 
     # Add columns to the reference, so we know which to delete later
     # df_reference.columns = [f"{col}_ref" for col in df_reference.columns]
-    df_instrument = df_instrument.copy()
+    df_original = df_instrument.copy()
 
-    df_reference = df_reference.copy()
-    # Match timestamp resolution of the reference data
-    df_instrument.index = df_instrument.index.astype(df_reference.index.dtype)
+    df_reference_index = df_reference.copy().index.to_frame()
 
-    # Merge the two dataframes
-    df = pd.merge_asof(
-        df_reference,
-        df_instrument,
+    # Remove index name
+    df_reference_index = df_reference_index.rename_axis(None, axis=1)
+
+    print(f"Merging instrument {instrument_name} with reference data")
+
+    df_shifted = df_original.shift(periods=shift_quantity, axis=0)
+    # Get only the index of the reference and merge with instrument
+    df_synchronised = pd.merge_asof(
+        df_reference_index,
+        df_shifted,
         left_index=True,
         right_index=True,
-        suffixes=("", "_ref"),
     )
 
-    df_syn = df.shift(periods=index, axis=0)
-    columns_to_drop = [col for col in df.columns if "_ref" in col]
-    if columns_to_drop:
-        df = df.drop(columns=columns_to_drop)
-
-    return df_syn
+    print("First row after shift", df_synchronised.iloc[0])
+    return (df_original, df_synchronised)
 
 
 # correct the other instrument pressure with the reference pressure

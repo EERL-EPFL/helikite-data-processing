@@ -86,6 +86,9 @@ class SmartTether(Instrument):
         # Define the datetime column as the index
         df.set_index("DateTime", inplace=True)
 
+        # Set to index type to seconds
+        df.index = df.index.astype("datetime64[s]")
+
         return df
 
     def data_corrections(self, df, *args, **kwargs):
