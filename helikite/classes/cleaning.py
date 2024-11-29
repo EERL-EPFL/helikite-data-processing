@@ -676,9 +676,42 @@ class Cleaner:
         rolling_window_size: int = constants.ROLLING_WINDOW_DEFAULT_SIZE,
         reference_pressure_thresholds: tuple[float, float] | None = None,
         detrend_pressure_on: list[Instrument] = [],
+        offsets: list[tuple[Instrument, int]] = [],
     ):
-        """Correct time and pressure for each instrument based on time lag."""
+        """Correct time and pressure for each instrument based on time lag.
 
+        Parameters
+        ----------
+        max_lag: int
+            The maximum time lag to consider for cross-correlation.
+        walk_time_seconds: int
+            The time in seconds to walk the pressure data to match the
+            reference instrument.
+        apply_rolling_window_to: list[Instrument]
+            A list of instruments to apply a rolling window to the pressure
+            data.
+        rolling_window_size: int
+            The size of the rolling window to apply to the pressure data.
+        reference_pressure_thresholds: tuple[float, float]
+            A tuple with two values (low, high) to apply a threshold to the
+            reference instrument's pressure data.
+        detrend_pressure_on: list[Instrument]
+            A list of instruments to detrend the pressure data.
+        offsets: list[tuple[Instrument, int]]
+            A list of tuples with an instrument and an offset in seconds to
+            apply to the time index.
+
+        """
+        # Apply manual offsets before cross-correlation
+        for instrument, offset_seconds in offsets:
+            print(
+                f"Applying manual offset of {offset_seconds} seconds to "
+                f"{instrument.name}"
+            )
+            # Adjust the index (DateTime) by the specified offset
+            instrument.df.index = instrument.df.index + pd.Timedelta(
+                seconds=offset_seconds
+            )
         if reference_pressure_thresholds:
             # Assert the tuple has two values (low, high)
             assert len(reference_pressure_thresholds) == 2, (
