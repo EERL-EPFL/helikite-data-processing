@@ -731,7 +731,6 @@ class Cleaner:
                 self._apply_rolling_window_to_pressure(
                     instrument,
                     window_size=rolling_window_size,
-                    column_name=instrument.pressure_column,
                 )
 
         # 0 is ignore because it's at the beginning of the df_corr, not
