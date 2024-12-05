@@ -893,42 +893,46 @@ class Cleaner:
 
             if walk_time_seconds:
                 # Apply matchpress to correct pressure
-                pd_walk_time = pd.Timedelta(seconds=walk_time_seconds)
-                refpresFC = (
-                    self.df_pressure[self.reference_instrument.name]
-                    .loc[takeofftime - pd_walk_time : takeofftime]
-                    .mean()
+                print(
+                    "Walk time adjustment is not available and will be "
+                    "skipped."
                 )
+                # pd_walk_time = pd.Timedelta(seconds=walk_time_seconds)
+                # refpresFC = (
+                #     self.df_pressure[self.reference_instrument.name]
+                #     .loc[takeofftime - pd_walk_time : takeofftime]
+                #     .mean()
+                # )
 
-                print("Applying match pressure correction:")
-                for instrument in self._instruments:
-                    print(f"\tWorking on instrument: {instrument.name}")
-                    if instrument == self.reference_instrument:
-                        print("\tSkipping reference instrument")
-                        continue
-                    if instrument.pressure_column not in instrument.df.columns:
-                        print(
-                            f"\tNote: {instrument.name} does not have a "
-                            "pressure column"
-                        )
-                        continue
-                    try:
-                        df_press_corr = crosscorrelation.matchpress(
-                            instrument.df[instrument.pressure_column],
-                            refpresFC,
-                            takeofftime,
-                            pd_walk_time,
-                        )
-                        instrument.df[f"{instrument.pressure_column}_corr"] = (
-                            df_press_corr
-                        )
-                    except (TypeError, AttributeError, NameError) as e:
-                        print(f"\tError in match pressure: {e}")
+                # print("Applying match pressure correction:")
+                # for instrument in self._instruments:
+                #     print(f"\tWorking on instrument: {instrument.name}")
+                #     if instrument == self.reference_instrument:
+                #         print("\tSkipping reference instrument")
+                #         continue
+                #     if instrument.pressure_column not in instrument.df.columns:
+                #         print(
+                #             f"\tNote: {instrument.name} does not have a "
+                #             "pressure column"
+                #         )
+                #         continue
+                #     try:
+                #         df_press_corr = crosscorrelation.matchpress(
+                #             instrument.df[instrument.pressure_column],
+                #             refpresFC,
+                #             takeofftime,
+                #             pd_walk_time,
+                #         )
+                #         instrument.df[f"{instrument.pressure_column}_corr"] = (
+                #             df_press_corr
+                #         )
+                #     except (TypeError, AttributeError, NameError) as e:
+                #         print(f"\tError in match pressure: {e}")
 
-                    print(
-                        "\tApplied match pressure correction for "
-                        f"{instrument.name}\n"
-                    )
+                #     print(
+                #         "\tApplied match pressure correction for "
+                #         f"{instrument.name}\n"
+                #     )
 
         df_new = crosscorrelation.df_derived_by_shift(
             self.df_pressure,
