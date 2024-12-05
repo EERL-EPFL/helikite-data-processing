@@ -9,6 +9,9 @@ import numpy as np
 import inspect
 from functools import wraps
 from ipywidgets import Output, VBox
+import psutil
+
+parent_process = psutil.Process().parent().cmdline()[-1]
 
 
 def function_dependencies(required_operations: list[str] = [], use_once=False):
@@ -948,7 +951,7 @@ class Cleaner:
             NON_DER=[self.reference_instrument.name],
         )
         df_new = df_new.dropna()
-        df_corr = df_new.corr()
+        self.df_corr = df_new.corr()
 
         msems_instrument_idx = [
             i
@@ -966,7 +969,7 @@ class Cleaner:
             ):
                 print("Working on instrument:", instrument.name)
                 instrument.corr_df = crosscorrelation.df_findtimelag(
-                    df_corr, rangelag, instname=f"{instrument.name}_"
+                    self.df_corr, rangelag, instname=f"{instrument.name}_"
                 )
                 msems_instrument_idx = [
                     i
@@ -1029,4 +1032,9 @@ class Cleaner:
             width=1000,
         )
 
-        fig.show()
+        # Show the figure if using a jupyter notebook
+        if (
+            "jupyter-lab" in parent_process
+            or "jupyter-notebook" in parent_process
+        ):
+            fig.show()
