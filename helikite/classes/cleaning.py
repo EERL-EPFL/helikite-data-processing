@@ -506,8 +506,9 @@ class Cleaner:
             )
 
         if filename is None:
-            # Include the date and time in the filename
-            filename = f"level0_{self.flight_date}.csv"
+            # Include the date and time of the first row of the reference
+            # instrument in the filename
+            filename = f'level0_{self.master_df.index[0].to_pydatetime().strftime("%Y-%m-%dT%H-%M")}.csv'  # noqa
 
         # Combine all columns from all instruments
         all_columns = list(self.master_df.columns)
@@ -1018,7 +1019,7 @@ class Cleaner:
             # Copy the pressure column from the primary instrument to the
             # secondary instrument
 
-            secondary_instrument.pressure_column = f"{primary_instrument.pressure_variable}_copied_from_{primary_instrument.name}"  # noqa
+            secondary_instrument.pressure_column = f"{primary_instrument.pressure_column}_copied_from_{primary_instrument.name}"  # noqa
             secondary_instrument.df[secondary_instrument.pressure_column] = (
                 primary_instrument.df[
                     primary_instrument.pressure_column
