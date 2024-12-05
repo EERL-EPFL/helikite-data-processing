@@ -479,7 +479,7 @@ class Cleaner:
     )
     def export_data(
         self,
-        filename: str = "level0.csv",
+        filename: str | None = None,
     ) -> None:
         """Export all data columns from all instruments to a single CSV file"""
 
@@ -489,6 +489,10 @@ class Cleaner:
                 "Dataframes have not been merged. Please run the "
                 "merge_instruments() method."
             )
+
+        if filename is None:
+            # Include the date and time in the filename
+            filename = f"level0_{self.flight_date}.csv"
 
         # Combine all columns from all instruments
         all_columns = list(self.master_df.columns)
