@@ -1020,16 +1020,6 @@ class Cleaner:
                 f"{secondary_instrument.name}\n"
             )
 
-            # Copy the pressure column from the primary instrument to the
-            # secondary instrument
-
-            secondary_instrument.pressure_column = f"{primary_instrument.pressure_column}_copied_from_{primary_instrument.name}"  # noqa
-            secondary_instrument.df[secondary_instrument.pressure_column] = (
-                primary_instrument.df[
-                    primary_instrument.pressure_column
-                ].copy()
-            )
-
         print("Time and pressure corrections applied.")
 
         # Plot the corr_df for each instrument on one plot
