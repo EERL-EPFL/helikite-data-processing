@@ -36,6 +36,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
 
     # Load or create the outliers DataFrame
     try:
+        pd.set_option("future.no_silent_downcasting", False)
         outliers = pd.read_csv(
             outlier_file, index_col=0, parse_dates=True
         ).fillna(False)
