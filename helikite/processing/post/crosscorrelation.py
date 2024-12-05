@@ -25,7 +25,7 @@ def df_derived_by_shift(df_init, lag=0, NON_DER=[]):
     for i in range(1, 2 * lag + 1):
         for x in list(df.columns):
             if x not in NON_DER:
-                if not x in cols:
+                if x not in cols:
                     cols[x] = ["{}_{}".format(x, i)]
                 else:
                     cols[x].append("{}_{}".format(x, i))
@@ -78,32 +78,25 @@ def df_lagshift(
         right_index=True,
     )
 
-    print("First row after shift", df_synchronised.iloc[0])
     return (df_original, df_synchronised)
 
 
 # correct the other instrument pressure with the reference pressure
 def matchpress(dfpressure, refpresFC, takeofftimeFL, walktime):
-    try:
-        diffpress = (
-            dfpressure.loc[takeofftimeFL - walktime : takeofftimeFL].mean()
-            - refpresFC
-        )
-        dfprescorr = dfpressure.sub(np.float64(diffpress))  # .iloc[0]
-    # catch when df1 is None
-    except AttributeError:
-        pass
-    # catch when it hasn't even been defined
-    except NameError:
-        pass
+
+    diffpress = (
+        dfpressure.loc[takeofftimeFL - walktime : takeofftimeFL].mean()
+        - refpresFC
+    )
+    if not diffpress or not isinstance(diffpress, float):
+        raise ValueError("Error in match pressure: diffpress is not a float")
+    dfprescorr = dfpressure.sub(np.float64(diffpress))  # .iloc[0]
+
     return dfprescorr
 
 
 def presdetrend(dfpressure, takeofftimeFL, landingtimeFL):
     """detrend instrument pressure measurements"""
-    print("take off location", dfpressure.loc[takeofftimeFL])
-    print("landing location", dfpressure.loc[landingtimeFL])
-    print("length of dfpressure", len(dfpressure))
 
     # Check for NA values and handle them
     start_pressure = dfpressure.loc[takeofftimeFL]
@@ -112,7 +105,8 @@ def presdetrend(dfpressure, takeofftimeFL, landingtimeFL):
     # TODO: How to handle NA. Should there even be NA in the pressure data?
     if pd.isna(start_pressure) or pd.isna(end_pressure):
         print(
-            "Warning: NA values found in pressure data at takeoff or landing time."
+            "Warning: NA values found in pressure data at takeoff or "
+            "landing time."
         )
         # Use the first and last non-NA values as fallback
         start_pressure = dfpressure.dropna().iloc[0]
