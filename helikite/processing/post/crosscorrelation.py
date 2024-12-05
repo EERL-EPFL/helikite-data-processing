@@ -56,7 +56,7 @@ def df_lagshift(
     Shifts the instrument's dataframe by the given quantity.
     First, match the instrument with the index of the reference instrument.
     """
-    print(f"Shifting {instrument_name} by {shift_quantity} index")
+    print(f"\tShifting {instrument_name} by {shift_quantity} index")
 
     # Add columns to the reference, so we know which to delete later
     # df_reference.columns = [f"{col}_ref" for col in df_reference.columns]
@@ -66,8 +66,6 @@ def df_lagshift(
 
     # Remove index name
     df_reference_index = df_reference_index.rename_axis(None, axis=1)
-
-    print(f"Merging instrument {instrument_name} with reference data")
 
     df_shifted = df_original.shift(periods=shift_quantity, axis=0)
     # Get only the index of the reference and merge with instrument
@@ -105,8 +103,8 @@ def presdetrend(dfpressure, takeofftimeFL, landingtimeFL):
     # TODO: How to handle NA. Should there even be NA in the pressure data?
     if pd.isna(start_pressure) or pd.isna(end_pressure):
         print(
-            "Warning: NA values found in pressure data at takeoff or "
-            "landing time."
+            "\tWarning: NA values found in pressure data at takeoff or "
+            "landing time. Dropping NA values."
         )
         # Use the first and last non-NA values as fallback
         start_pressure = dfpressure.dropna().iloc[0]
