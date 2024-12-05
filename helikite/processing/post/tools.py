@@ -257,13 +257,27 @@ def choose_flags(df, y, flag_file="flags.csv", key="flag", value="selected"):
     The flags are stored in a CSV file, which can be used to tag the data points
     later.
 
-    Args:
-        df (pandas.DataFrame): The dataframe containing the data
-        y (str): The column name of the y-axis variable
-        flag_file (str): The path to the CSV file to store the flags
-        key (str): The column name to assign flags
-        value (str): The value to assign to the key when points are selected
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The dataframe containing the data.
+    y : str
+        The column name of the y-axis variable.
+    flag_file : str, optional
+        The path to the CSV file to store the flags (default is "flags.csv").
+    key : str, optional
+        The column name to assign flags (default is "flag").
+    value : str, optional
+        The value to assign to the key when points are selected (default is "selected").
+
+    Returns
+    -------
+    VBox
+        A VBox widget containing the variable dropdown, add/remove toggle button,
+        the interactive plot, and the output widget.
     """
+
     # Create a figure widget for interactive plotting
     fig = go.FigureWidget()
     out = Output()
