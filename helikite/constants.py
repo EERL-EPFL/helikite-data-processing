@@ -19,7 +19,7 @@ class Constants(BaseSettings):
     CONFIG_FILE: str = "config.yaml"
     MASTER_CSV_FILENAME: str = "helikite-data.csv"
     HOUSEKEEPING_CSV_FILENAME: str = "helikite-housekeeping.csv"
-    HOUSEKEEPING_VAR_PRESSURE: str = "housekeeping_pressure"
+    HOUSEKEEPING_VAR_PRESSURE: str = "pressure"
     LOGFILE_NAME: str = "helikite.log"
     LOGLEVEL_CONSOLE: str = "INFO"
     LOGLEVEL_FILE: str = "DEBUG"
