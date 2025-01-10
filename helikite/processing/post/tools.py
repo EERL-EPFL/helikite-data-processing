@@ -31,8 +31,19 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
 
     # Initialize x with the first numerical column other than y
     df = df.fillna("")
+    # Add the index as a column to allow it to be used on the x-axis and place
+    # it as the first column
+    index_column_name = (
+        f"Index<{df.index.name}>" if df.index.name else "Index<>"
+    )
+    df[index_column_name] = df.index
+    df = df[
+        [index_column_name]
+        + [col for col in df.columns if col != index_column_name]
+    ]
+
     variable_options = [var for var in df.columns if var != y]
-    x = variable_options[0]  # Set the first x plot to the first in the list
+    x = variable_options[1]  # Set first non-index var to the first in the list
 
     # Load or create the outliers DataFrame
     try:
@@ -131,7 +142,13 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
                 outliers.loc[selected_index.name, current_x] = True
                 print("Added 1 outlier")
 
-            outliers.to_csv(outlier_file, date_format="%Y-%m-%d %H:%M:%S")
+            outliers_without_index_column = outliers.drop(
+                columns=[index_column_name]
+            )
+
+            outliers_without_index_column.to_csv(
+                outlier_file, date_format="%Y-%m-%d %H:%M:%S"
+            )
 
             # Update the plot
             update_plot()
@@ -173,7 +190,13 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
                         count += 1
                 print(f"Removed {count} outliers")
 
-            outliers.to_csv(outlier_file, date_format="%Y-%m-%d %H:%M:%S")
+            outliers_without_index_column = outliers.drop(
+                columns=[index_column_name]
+            )
+
+            outliers_without_index_column.to_csv(
+                outlier_file, date_format="%Y-%m-%d %H:%M:%S"
+            )
 
             # Update the plot
             update_plot()
@@ -295,8 +318,20 @@ def choose_flags(df, y, flag_file="flags.csv", key="flag", value="selected"):
 
     # Initialize x with the first numerical column other than y
     df = df.fillna("")
+
+    # Add the index as a column to allow it to be used on the x-axis and place
+    # it as the first column
+    index_column_name = (
+        f"Index<{df.index.name}>" if df.index.name else "Index<>"
+    )
+    df[index_column_name] = df.index
+    df = df[
+        [index_column_name]
+        + [col for col in df.columns if col != index_column_name]
+    ]
+
     variable_options = [var for var in df.columns if var != y]
-    x = variable_options[0]  # Set the first x plot to the first in the list
+    x = variable_options[1]  # Set first non-index var to the first in the list
 
     # Load or create the flags DataFrame
     try:
