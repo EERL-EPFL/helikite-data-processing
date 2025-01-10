@@ -1,30 +1,42 @@
 [tool.poetry]
 name = "helikite-data-processing"
-version = "1.0.3"
+version = "1.1.0"
 description = "Library to generate quicklooks and data quality checks on Helikite campaigns"
 authors = ["Evan Thomas <evan.thomas@epfl.ch>"]
 readme = "README.md"
-packages = [{include = "helikite"}]
+packages = [{ include = "helikite" }]
+
+[tool.poetry.scripts]
+helikite = 'helikite.helikite:app'
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.12"
-pandas = "^1.5.3"
-pydantic = "^1.10.5"
+python = ">=3.10,<3.13"
+pandas = "^2.2"
 plotly = "^5.13.1"
 pyyaml = "^6.0"
 scipy = "^1.10.1"
 matplotlib = "^3.7.1"
 types-pyyaml = "^6.0.12.9"
-
+pydantic-settings = "^2.5.2"
+typer = "^0.12.5"
+toml = "^0.10.2"
+ipympl = "^0.9.4"
+ipywidgets = "^8.1.5"
+jupyterlab-widgets = "^3.0.13"
+jupyterlab = "^4.2.5"
 
 [tool.poetry.group.dev.dependencies]
 jupyter = "^1.0.0"
 mypy = "^1.1.1"
 pytest = "^7.2.2"
-pytest-watch = "^4.2.0"
 pytest-cov = "^4.0.0"
 flake8 = "^6.0.0"
+pytest-watcher = "^0.4.3"
+pytest-xdist = { extras = ["psutil"], version = "^3.6.1" }
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]

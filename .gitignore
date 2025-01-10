@@ -137,3 +137,5 @@ dmypy.json
 
 inputs/
 outputs/
+*.ipynb
+.vscode

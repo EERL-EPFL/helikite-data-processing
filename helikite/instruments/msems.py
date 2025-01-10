@@ -1,4 +1,4 @@
-'''
+"""
 4) mSEMS ->
     mSEMS_103_220929_101343_INVERTED.txt (data to be plotted) (has pressure)
     mSEMS_103_220929_101343_READINGS.txt (high resolution raw data with
@@ -23,34 +23,31 @@ timeseries (with the addition of total particle concentration and altitude).
 
 Houskeeping file: Look at READINGS (look at msems_err / cpc_err)
 
-'''
+"""
 
-from .base import Instrument
+from helikite.instruments.base import Instrument
 import pandas as pd
 import numpy as np
 
 
 class MSEMSInverted(Instrument):
-    def __init__(
-        self,
-        *args,
-        **kwargs
-    ) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = 'msems_inverted'
+        self.name = "msems_inverted"
 
     def data_corrections(self, df, **kwargs):
-        ''' Create new columns to plot bins  '''
-        bins = df.groupby('NumBins').all().index.to_list()
+        """Create new columns to plot bins"""
+        bins = df.groupby("NumBins").all().index.to_list()
         if len(bins) != 1:
             # Check that there is only one single value.
-            raise ValueError("There are multiple bins in this dataset. "
-                             "Cannot proceed")
+            raise ValueError(
+                "There are multiple bins in this dataset. " "Cannot proceed"
+            )
         else:
             # Unpack the single value list to a single integer
             bins = bins[0]
         # Form column names of all bins
-        bin_diameter_columns = [f"Bin_Dia{i}" for i in range(1, bins+1)]
+        bin_diameter_columns = [f"Bin_Dia{i}" for i in range(1, bins + 1)]
 
         # Calculate the mean of the bin diameters
         bin_diameter_average = df[bin_diameter_columns].mean()
@@ -78,7 +75,7 @@ class MSEMSInverted(Instrument):
 
         # Create the bin limit columns and add the first limit column
         # (so there are total n_bins + 1)
-        bin_limit_columns = [f"Bin_Lim{i}" for i in range(1, bins+1)]
+        bin_limit_columns = [f"Bin_Lim{i}" for i in range(1, bins + 1)]
         bin_limit_columns.insert(0, "Bin_Lim0")
 
         # Add first and last bins
@@ -88,79 +85,88 @@ class MSEMSInverted(Instrument):
         # Calculate the bin limits for all but the first and last
         for i, col in enumerate(bin_limit_columns[1:-1]):
             df[col] = (
-                bin_diameter_log[i]
-                + (bin_diameter_log[i+1] - bin_diameter_log[i])
-                / 2
+                bin_diameter_log.iloc[i]
+                + (bin_diameter_log.iloc[i + 1] - bin_diameter_log.iloc[i]) / 2
             )
 
         # Return values to the inverse of log10
         df[bin_limit_columns] = 10 ** df[bin_limit_columns]
 
         # Set the EndTime to the StartTime of the next row
-        df['StartTime'] = df.index
-        df['EndTime'] = pd.Series(df.index).shift(-1).values
+        df["StartTime"] = df.index
+        df["EndTime"] = pd.Series(df.index).shift(-1).values
 
         # Set the string time values to Date objects
-        df['StartTime'] = pd.to_datetime(df['StartTime'])
-        df['EndTime'] = pd.to_datetime(df['EndTime'])
+        df["StartTime"] = pd.to_datetime(df["StartTime"])
+        df["EndTime"] = pd.to_datetime(df["EndTime"])
 
         # The last row needs an end date, just add 1 minute
-        df.loc[df.index[-1], 'EndTime'] = (
-            df.loc[df.index[-1], 'StartTime'] + pd.DateOffset(minutes=1)
-        )
+        df.loc[df.index[-1], "EndTime"] = df.loc[
+            df.index[-1], "StartTime"
+        ] + pd.DateOffset(minutes=1)
 
         # Set the EndTime as one second less so that the bin end date does not
         # equal the start of the next bin start
-        df['EndTime'] += pd.DateOffset(seconds=-1)
+        df["EndTime"] += pd.DateOffset(seconds=-1)
 
         return df
 
-    def file_identifier(
-        self,
-        first_lines_of_csv
-    ) -> bool:
+    def file_identifier(self, first_lines_of_csv) -> bool:
         # To match "...INVERTED.txt" file
         if (
             "#Date\tTime\tTemp(C)\tPress(hPa)\tNumBins\tBin_Dia1\t"
             "Bin_Dia2\tBin_Dia3"
         ) in first_lines_of_csv[0]:
             return True
+        if (
+            "#Date\tTime\tTemp(C)\tPress(hPa)\tNumBins\tBin_Dia1\t"
+            "Bin_Dia2\tBin_Dia3"
+        ) in first_lines_of_csv[55]:
+            return True
 
         return False
 
-    def set_time_as_index(
-        self,
-        df: pd.DataFrame
-    ) -> pd.DataFrame:
-        ''' Set the DateTime as index of the dataframe and correct if needed
+    def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Set the DateTime as index of the dataframe and correct if needed
 
         Using values in the time_offset variable, correct DateTime index
-        '''
+        """
 
-        df['DateTime'] = pd.to_datetime(df['#Date'] + ' ' + df['Time'],
-                                        format='%y/%m/%d %H:%M:%S')
+        df["DateTime"] = pd.to_datetime(
+            df["#Date"] + " " + df["Time"], format="%y/%m/%d %H:%M:%S"
+        )
         df.drop(columns=["#Date", "Time"], inplace=True)
 
         # Define the datetime column as the index
-        df.set_index('DateTime', inplace=True)
+        df.set_index("DateTime", inplace=True)
+        df.index = df.index.astype("datetime64[s]")
+
+        return df
+
+    def read_data(self) -> pd.DataFrame:
+
+        df = pd.read_csv(
+            self.filename,
+            dtype=self.dtype,
+            na_values=self.na_values,
+            header=self.header,
+            delimiter=self.delimiter,
+            lineterminator=self.lineterminator,
+            comment=self.comment,
+            names=self.names,
+            index_col=self.index_col,
+        )
 
         return df
 
 
 class MSEMSReadings(Instrument):
     # To match a "...READINGS.txt" file
-    def __init__(
-        self,
-        *args,
-        **kwargs
-    ) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = 'msems_readings'
+        self.name = "msems_readings"
 
-    def file_identifier(
-        self,
-        first_lines_of_csv
-    ) -> bool:
+    def file_identifier(self, first_lines_of_csv) -> bool:
         if (
             "#mSEMS" in first_lines_of_csv[0]
             and "#YY/MM/DD" in first_lines_of_csv[31]
@@ -169,39 +175,50 @@ class MSEMSReadings(Instrument):
 
         return False
 
-    def set_time_as_index(
-        self,
-        df: pd.DataFrame
-    ) -> pd.DataFrame:
-        ''' Set the DateTime as index of the dataframe and correct if needed
+    def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Set the DateTime as index of the dataframe and correct if needed
 
         Using values in the time_offset variable, correct DateTime index
-        '''
+        """
 
-        df['DateTime'] = pd.to_datetime(df['#YY/MM/DD'] + ' ' + df['HR:MN:SC'],
-                                        format='%y/%m/%d %H:%M:%S')
+        df["DateTime"] = pd.to_datetime(
+            df["#YY/MM/DD"] + " " + df["HR:MN:SC"], format="%y/%m/%d %H:%M:%S"
+        )
         df.drop(columns=["#YY/MM/DD", "HR:MN:SC"], inplace=True)
 
         # Define the datetime column as the index
-        df.set_index('DateTime', inplace=True)
+        df.set_index("DateTime", inplace=True)
+        df.index = df.index.astype("datetime64[s]")
+
+        return df
+
+    def data_corrections(self, df, *args, **kwargs):
+        return df
+
+    def read_data(self) -> pd.DataFrame:
+
+        df = pd.read_csv(
+            self.filename,
+            dtype=self.dtype,
+            na_values=self.na_values,
+            header=self.header,
+            delimiter=self.delimiter,
+            lineterminator=self.lineterminator,
+            comment=self.comment,
+            names=self.names,
+            index_col=self.index_col,
+        )
 
         return df
 
 
 class MSEMSScan(Instrument):
     # To match a "...SCAN.txt" file
-    def __init__(
-        self,
-        *args,
-        **kwargs
-    ) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = 'msems_scan'
+        self.name = "msems_scan"
 
-    def file_identifier(
-        self,
-        first_lines_of_csv
-    ) -> bool:
+    def file_identifier(self, first_lines_of_csv) -> bool:
         if (
             "#mSEMS" in first_lines_of_csv[0]
             and "#scan_conf" in first_lines_of_csv[31]
@@ -210,21 +227,39 @@ class MSEMSScan(Instrument):
 
         return False
 
-    def set_time_as_index(
-        self,
-        df: pd.DataFrame
-    ) -> pd.DataFrame:
-        ''' Set the DateTime as index of the dataframe and correct if needed
+    def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Set the DateTime as index of the dataframe and correct if needed
 
         Using values in the time_offset variable, correct DateTime index
-        '''
+        """
 
-        df['DateTime'] = pd.to_datetime(df['#YY/MM/DD'] + ' ' + df['HR:MN:SC'],
-                                        format='%y/%m/%d %H:%M:%S')
+        df["DateTime"] = pd.to_datetime(
+            df["#YY/MM/DD"] + " " + df["HR:MN:SC"], format="%y/%m/%d %H:%M:%S"
+        )
         df.drop(columns=["#YY/MM/DD", "HR:MN:SC"], inplace=True)
 
         # Define the datetime column as the index
-        df.set_index('DateTime', inplace=True)
+        df.set_index("DateTime", inplace=True)
+        df.index = df.index.astype("datetime64[s]")
+
+        return df
+
+    def data_corrections(self, df, *args, **kwargs):
+        return df
+
+    def read_data(self) -> pd.DataFrame:
+
+        df = pd.read_csv(
+            self.filename,
+            dtype=self.dtype,
+            na_values=self.na_values,
+            header=self.header,
+            delimiter=self.delimiter,
+            lineterminator=self.lineterminator,
+            comment=self.comment,
+            names=self.names,
+            index_col=self.index_col,
+        )
 
         return df
 
@@ -317,9 +352,9 @@ msems_scan = MSEMSScan(
         "mcpc_errs": "Int64",
     },
     export_order=710,
-    pressure_variable='press_avg',
+    pressure_variable="press_avg",
     cols_export=[],
-    cols_housekeeping=[]
+    cols_housekeeping=[],
 )
 
 # To match a "...READINGS.txt" file
@@ -357,9 +392,10 @@ msems_readings = MSEMSReadings(
         "mcpc_a_cnt": "Int64",
     },
     export_order=700,
-    pressure_variable='pressure',
+    pressure_variable="pressure",
     cols_export=[],
-    cols_housekeeping=[])
+    cols_housekeeping=[],
+)
 
 # To match a "...READINGS.txt" file
 msems_inverted = MSEMSInverted(
@@ -494,4 +530,5 @@ msems_inverted = MSEMSInverted(
     },
     export_order=720,
     cols_export=[],
-    cols_housekeeping=[])
+    cols_housekeeping=[],
+)

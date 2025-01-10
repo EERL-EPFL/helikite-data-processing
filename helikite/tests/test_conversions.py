@@ -1,14 +1,9 @@
-import sys
-import os
 import pytest
-
-# Append the root directory of your project to the system path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from processing.conversions import pressure_to_altitude  # noqa
+from helikite.processing.conversions import pressure_to_altitude
 
 
 def test_pressure_to_altitude():
-    ''' Test the conversion of pressure to altitude '''
+    """Test the conversion of pressure to altitude"""
 
     pressure_at_start = 977
     temperate_at_start = 6
