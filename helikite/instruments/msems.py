@@ -139,6 +139,7 @@ class MSEMSInverted(Instrument):
 
         # Define the datetime column as the index
         df.set_index("DateTime", inplace=True)
+        df.index = df.index.astype("datetime64[s]")
 
         return df
 

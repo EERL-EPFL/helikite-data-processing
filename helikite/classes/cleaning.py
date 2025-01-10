@@ -9,6 +9,11 @@ import numpy as np
 import inspect
 from functools import wraps
 from ipywidgets import Output, VBox
+import psutil
+from itertools import cycle
+import plotly.colors
+
+parent_process = psutil.Process().parent().cmdline()[-1]
 
 
 def function_dependencies(required_operations: list[str] = [], use_once=False):
@@ -90,6 +95,7 @@ class Cleaner:
                 input_folder, quiet=True
             )
             instrument.df = instrument.df_raw.copy(deep=True)
+            instrument.df_before_timeshift = pd.DataFrame()
             instrument.date = flight_date
             instrument.pressure_column = self.pressure_column
             instrument.time_offset = {}
@@ -318,25 +324,37 @@ class Cleaner:
         """
         fig = go.Figure()
 
+        # Use Plotly's default color sequence
+        color_cycle = cycle(plotly.colors.qualitative.Plotly)
+
         for instrument in self._instruments:
-            # Check that the column exists
+            # Check that the pressure column exists
             if instrument.pressure_column not in instrument.df.columns:
                 print(
                     f"Note: {instrument.name} does not have a pressure column"
                 )
                 continue
 
-            # Plot the pressure data
+            # Get the next color from the cycle
+            color = next(color_cycle)
+
+            # Plot the main pressure data
             fig.add_trace(
                 go.Scatter(
                     x=instrument.df.index,
                     y=instrument.df[instrument.pressure_column],
                     name=instrument.name,
+                    line=dict(color=color),
                 )
             )
 
-            # Plot the df_before_timeshift if it exists
-            if hasattr(instrument, "df_before_timeshift"):
+            # Plot the df_before_timeshift if it exists and is not empty
+            if (
+                hasattr(instrument, "df_before_timeshift")
+                and not instrument.df_before_timeshift.empty
+                and instrument.pressure_variable
+                in instrument.df_before_timeshift.columns
+            ):
                 fig.add_trace(
                     go.Scatter(
                         x=instrument.df_before_timeshift.index,
@@ -344,12 +362,12 @@ class Cleaner:
                             instrument.pressure_column
                         ],
                         name=f"{instrument.name} (before timeshift)",
-                        line=dict(color="rgba(0, 0, 0, 0.5)"),  # Fainter line
-                        opacity=0.5,
+                        line=dict(color=color, dash="dash"),  # Dashed line
                     )
                 )
+
         fig.update_layout(
-            title="Pressure measurements",
+            title="Pressure Measurements",
             xaxis_title="Time",
             yaxis_title="Pressure (hPa)",
             legend=dict(
@@ -476,7 +494,7 @@ class Cleaner:
     )
     def export_data(
         self,
-        filename: str = "level0.csv",
+        filename: str | None = None,
     ) -> None:
         """Export all data columns from all instruments to a single CSV file"""
 
@@ -486,6 +504,11 @@ class Cleaner:
                 "Dataframes have not been merged. Please run the "
                 "merge_instruments() method."
             )
+
+        if filename is None:
+            # Include the date and time of the first row of the reference
+            # instrument in the filename
+            filename = f'level0_{self.master_df.index[0].to_pydatetime().strftime("%Y-%m-%dT%H-%M")}.csv'  # noqa
 
         # Combine all columns from all instruments
         all_columns = list(self.master_df.columns)
@@ -660,7 +683,6 @@ class Cleaner:
             # Only allow the reference instrument to be clickable
             if trace.name == self.reference_instrument.name:
                 trace.on_click(select_point_callback)
-                print(f"Callback attached to trace: {trace.name}")
 
         # Customize plot layout
         fig.update_layout(
@@ -693,6 +715,7 @@ class Cleaner:
         reference_pressure_thresholds: tuple[float, float] | None = None,
         detrend_pressure_on: list[Instrument] = [],
         offsets: list[tuple[Instrument, int]] = [],
+        match_adjustment_with: list[tuple[Instrument, Instrument]] = [],
     ):
         """Correct time and pressure for each instrument based on time lag.
 
@@ -716,14 +739,21 @@ class Cleaner:
         offsets: list[tuple[Instrument, int]]
             A list of tuples with an instrument and an offset in seconds to
             apply to the time index.
+        match_adjustment_with: dict[Instrument, list[Instrument]]
+            A list of tuples with two instruments, in order to be able to
+            to match the same time adjustment. This can be used,
+            for example, if an instrument does not have a pressure column,
+            and as such, can use the time adjustment from another instrument.
+            The first instrument is the one that has the index adjustment, and
+            the second instrument is the one that will be adjusted.
 
         """
         # Apply manual offsets before cross-correlation
+        if offsets:
+            print("Applying manual offsets:")
         for instrument, offset_seconds in offsets:
-            print(
-                f"Applying manual offset of {offset_seconds} seconds to "
-                f"{instrument.name}"
-            )
+            print(f"\t{instrument.name}: {offset_seconds} seconds")
+
             # Adjust the index (DateTime) by the specified offset
             instrument.df.index = instrument.df.index + pd.Timedelta(
                 seconds=offset_seconds,
@@ -731,9 +761,6 @@ class Cleaner:
             )
             instrument.df.index = instrument.df.index.astype("datetime64[s]")
 
-            print(
-                f"Instrument: {instrument.name} has been offset. Index is: {instrument.df.index}"
-            )
         if reference_pressure_thresholds:
             # Assert the tuple has two values (low, high)
             assert len(reference_pressure_thresholds) == 2, (
@@ -746,15 +773,6 @@ class Cleaner:
             ), (
                 "The first value of the reference_pressure_threshold must be "
                 "lower than the second value"
-            )
-            msems_instrument_idx = [
-                i
-                for i, instrument in enumerate(self._instruments)
-                if instrument.name == "msems_readings"
-            ]
-            print(
-                "Columns for msems inverted",
-                self._instruments[msems_instrument_idx[0]].df.columns,
             )
 
             # Apply the threshold to the reference instrument
@@ -797,16 +815,6 @@ class Cleaner:
                     window_size=rolling_window_size,
                 )
 
-            msems_instrument_idx = [
-                i
-                for i, instrument in enumerate(self._instruments)
-                if instrument.name == "msems_readings"
-            ]
-            print(
-                "Columns for msems inverted",
-                self._instruments[msems_instrument_idx[0]].df.columns,
-            )
-
         # 0 is ignore because it's at the beginning of the df_corr, not
         # in the range
         rangelag = [i for i in range(-max_lag, max_lag + 1) if i != 0]
@@ -820,15 +828,7 @@ class Cleaner:
             },
             inplace=True,
         )
-        msems_instrument_idx = [
-            i
-            for i, instrument in enumerate(self._instruments)
-            if instrument.name == "msems_readings"
-        ]
-        print(
-            "Columns for msems inverted",
-            self._instruments[msems_instrument_idx[0]].df.columns,
-        )
+
         for instrument in self._instruments:
             if instrument == self.reference_instrument:
                 # We principally use the ref for this, don't merge with itself
@@ -852,15 +852,6 @@ class Cleaner:
                     right_index=True,
                 )
 
-        msems_instrument_idx = [
-            i
-            for i, instrument in enumerate(self._instruments)
-            if instrument.name == "msems_readings"
-        ]
-        print(
-            "Columns for msems inverted",
-            self._instruments[msems_instrument_idx[0]].df.columns,
-        )
         takeofftime = self.df_pressure.index.asof(
             pd.Timestamp(self.time_takeoff)
         )
@@ -869,11 +860,6 @@ class Cleaner:
         )
 
         if detrend_pressure_on:
-            print("Index of self.df_pressure", self.df_pressure.index)
-            print("self.time_takeoff", self.time_takeoff)
-            print("self.time_landing", self.time_landing)
-            print("Columns of self.df_pressure", self.df_pressure.columns)
-            print(self.df_pressure)
             if takeofftime is None or landingtime is None:
                 raise ValueError(
                     "Could not find takeoff or landing time in the pressure "
@@ -882,10 +868,15 @@ class Cleaner:
                     f"{self.time_takeoff} and the landing time "
                     f"is {landingtime} @ {self.time_landing}."
                 )
+
+            if detrend_pressure_on:
+                print("Detrending pressure:")
+
             for instrument in detrend_pressure_on:
+                print(f"\t{instrument.name}")
                 if instrument.name not in self.df_pressure.columns:
                     raise ValueError(
-                        f"{instrument.name} not in self.df_pressure columns. "
+                        f"\t{instrument.name} not in the df_pressure column. "
                         f"Available columns: {self.df_pressure.columns}"
                     )
                 self.df_pressure[instrument.name] = (
@@ -896,93 +887,88 @@ class Cleaner:
                     )
                 )
                 print(
-                    f"Detrended pressure for {instrument.name} on column "
-                    f"'{instrument.pressure_column}'"
+                    f"\tDetrended pressure for {instrument.name} on column "
+                    f"'{instrument.pressure_column}'\n"
                 )
 
-            msems_instrument_idx = [
-                i
-                for i, instrument in enumerate(self._instruments)
-                if instrument.name == "msems_readings"
-            ]
-            print(
-                "Columns for msems inverted",
-                self._instruments[msems_instrument_idx[0]].df.columns,
-            )
             if walk_time_seconds:
                 # Apply matchpress to correct pressure
-                pd_walk_time = pd.Timedelta(seconds=walk_time_seconds)
-                refpresFC = (
-                    self.df_pressure[self.reference_instrument.name]
-                    .loc[takeofftime - pd_walk_time : takeofftime]
-                    .mean()
+                print(
+                    "Walk time adjustment is not available and will be "
+                    "skipped."
                 )
+                # pd_walk_time = pd.Timedelta(seconds=walk_time_seconds)
+                # refpresFC = (
+                #     self.df_pressure[self.reference_instrument.name]
+                #     .loc[takeofftime - pd_walk_time : takeofftime]
+                #     .mean()
+                # )
 
-                for instrument in self._instruments:
-                    if instrument == self.reference_instrument:
-                        continue
-                    instrument.df[f"{instrument.pressure_column}_corr"] = (
-                        crosscorrelation.matchpress(
-                            instrument.df[instrument.pressure_column],
-                            refpresFC,
-                            takeofftime,
-                            pd_walk_time,
-                        )
-                    )
-                    print(
-                        "Applied match pressure correction for "
-                        f"{instrument.name}"
-                    )
-                    msems_instrument_idx = [
-                        i
-                        for i, instrument in enumerate(self._instruments)
-                        if instrument.name == "msems_readings"
-                    ]
-                    print(
-                        "Columns for msems inverted",
-                        self._instruments[msems_instrument_idx[0]].df.columns,
-                    )
+                # print("Applying match pressure correction:")
+                # for instrument in self._instruments:
+                #     print(f"\tWorking on instrument: {instrument.name}")
+                #     if instrument == self.reference_instrument:
+                #         print("\tSkipping reference instrument")
+                #         continue
+                #     if instrument.pressure_column not in instrument.df.columns:
+                #         print(
+                #             f"\tNote: {instrument.name} does not have a "
+                #             "pressure column"
+                #         )
+                #         continue
+                #     try:
+                #         df_press_corr = crosscorrelation.matchpress(
+                #             instrument.df[instrument.pressure_column],
+                #             refpresFC,
+                #             takeofftime,
+                #             pd_walk_time,
+                #         )
+                #         instrument.df[f"{instrument.pressure_column}_corr"] = (
+                #             df_press_corr
+                #         )
+                #     except (TypeError, AttributeError, NameError) as e:
+                #         print(f"\tError in match pressure: {e}")
+
+                #     print(
+                #         "\tApplied match pressure correction for "
+                #         f"{instrument.name}\n"
+                #     )
+
         df_new = crosscorrelation.df_derived_by_shift(
             self.df_pressure,
             lag=max_lag,
             NON_DER=[self.reference_instrument.name],
         )
         df_new = df_new.dropna()
-        df_corr = df_new.corr()
+        self.df_corr = df_new.corr()
 
-        msems_instrument_idx = [
-            i
-            for i, instrument in enumerate(self._instruments)
-            if instrument.name == "msems_readings"
-        ]
-        print(
-            "Columns for msems (after df derived by shift)",
-            self._instruments[msems_instrument_idx[0]].df.columns,
-        )
+        print("Cross correlation:")
         for instrument in self._instruments:
-            if (
-                instrument.pressure_column in instrument.df.columns
-                and instrument != self.reference_instrument
-            ):
-                print("Working on instrument:", instrument.name)
+            print("\tWorking on instrument:", instrument.name)
+            instrument_is_matched_with = None
+            for (
+                primary_instrument,
+                secondary_instrument,
+            ) in match_adjustment_with:
+                # If the instrument is in the match_adjustment_with list,
+                # then it will be matched with the match_with instrument
+                if instrument == secondary_instrument:
+                    instrument_is_matched_with = primary_instrument
+                    break
+
+            if instrument == self.reference_instrument:
+                print("\tSkipping reference instrument\n")
+                continue
+            if instrument.pressure_column in instrument.df.columns:
                 instrument.corr_df = crosscorrelation.df_findtimelag(
-                    df_corr, rangelag, instname=f"{instrument.name}_"
-                )
-                msems_instrument_idx = [
-                    i
-                    for i, instrument in enumerate(self._instruments)
-                    if instrument.name == "msems_readings"
-                ]
-                print(
-                    "Columns for msems (after df findtimelag)",
-                    self._instruments[msems_instrument_idx[0]].df.columns,
+                    self.df_corr, rangelag, instname=f"{instrument.name}_"
                 )
 
                 instrument.corr_max_val = max(instrument.corr_df)
                 instrument.corr_max_idx = instrument.corr_df.idxmax(axis=0)
 
                 print(
-                    f"Instrument: {instrument.name} | Max val "
+                    f"\tInstrument: {instrument.name} | Max val "
                     f"{instrument.corr_max_val} "
                     f"@ idx: {instrument.corr_max_idx}"
                 )
@@ -994,21 +980,48 @@ class Cleaner:
                         f"{instrument.name}_",
                     )
                 )
-                print(
-                    "Columns for msems (after df findtimelag)",
-                    self._instruments[msems_instrument_idx[0]].df.columns,
-                )
+
+                print()
             else:
-                print("No pressure column")
-        msems_instrument_idx = [
-            i
-            for i, instrument in enumerate(self._instruments)
-            if instrument.name == "msems_readings"
-        ]
-        print(
-            "Columns for msems (after df lagshift)",
-            self._instruments[msems_instrument_idx[0]].df.columns,
-        )
+                if instrument_is_matched_with:
+                    # If the instrument is matched with another instrument,
+                    # it will use the time adjustment from the matched
+                    # instrument to adjust its own time index.
+                    print(
+                        f"\tInstrument: {instrument.name} will be matched "
+                        f"with {instrument_is_matched_with.name} "
+                        "after all other instruments are adjusted.\n"
+                    )
+                else:
+                    print(
+                        f"\tERROR: No pressure column in {instrument.name}\n"
+                    )
+
+        if match_adjustment_with:
+            print("Applying time adjustment from primary to secondary:")
+        for primary_instrument, secondary_instrument in match_adjustment_with:
+            # Apply the time adjustment from the primary instrument to the
+            # secondary instrument
+
+            print(
+                f"\t{primary_instrument.name} to {secondary_instrument.name}"
+            )
+            (
+                secondary_instrument.df_before_timeshift,
+                secondary_instrument.df,
+            ) = crosscorrelation.df_lagshift(
+                secondary_instrument.df,
+                self.reference_instrument.df,
+                primary_instrument.corr_max_idx,
+                f"{secondary_instrument.name}_",
+            )
+            print(
+                f"\tApplied time adjustment from {primary_instrument.name} to "
+                f"{secondary_instrument.name}\n"
+            )
+
+        print("Time and pressure corrections applied.")
+
         # Plot the corr_df for each instrument on one plot
         fig = go.Figure()
         for instrument in self._instruments:
@@ -1029,4 +1042,12 @@ class Cleaner:
             width=1000,
         )
 
-        fig.show()
+        print("Note: Cross correlation df available at Cleaner.df_corr")
+        print("Note: Pressure data available at Cleaner.df_pressure")
+
+        # Show the figure if using a jupyter notebook
+        if (
+            "jupyter-lab" in parent_process
+            or "jupyter-notebook" in parent_process
+        ):
+            fig.show()
