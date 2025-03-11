@@ -170,6 +170,7 @@ class MSEMSReadings(Instrument):
         if (
             "#mSEMS" in first_lines_of_csv[0]
             and "#YY/MM/DD" in first_lines_of_csv[31]
+            and "mono_dia" in first_lines_of_csv[31]
         ):
             return True
 
@@ -222,6 +223,7 @@ class MSEMSScan(Instrument):
         if (
             "#mSEMS" in first_lines_of_csv[0]
             and "#scan_conf" in first_lines_of_csv[31]
+            and "scan_direction" in first_lines_of_csv[55]
         ):
             return True
 
@@ -397,9 +399,9 @@ msems_readings = MSEMSReadings(
     cols_housekeeping=[],
 )
 
-# To match a "...READINGS.txt" file
+# To match a "...INVERTED.txt" file
 msems_inverted = MSEMSInverted(
-    # header=31,
+    header=55,
     delimiter="\t",
     dtype={
         "#Date": "str",

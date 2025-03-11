@@ -168,12 +168,12 @@ class FlightComputerV2(Instrument):
             "F_psvolts,F_err_rpt,SO_S,SO_D,SO_U,SO_V,SO_W,SO_T,SO_H,SO_P,"
             "SO_PI,SO_RO,SO_MD,POPID,POPCHAIN,POPtot,POPf,POPT,POPc1,POPc2,"
             "POPc3,POPc4,POPc5,POPc6,POPc7,POPc8,Ubat,CO2,BME_T,BME_H,BME_P,"
-            "CPUTEMP,RPiT,RPiS,UTCTime,Status,Lat,LatDir,Long,LongDir,Speed,"
-            "Course,Date,MagVar,MVdir,Inlet_T,Inlet_H,Out1_T,Out1_H,Out2_T,"
-            "Out2_H,GPSQ,Sats,Hprec,Alt,AltU,Geoidal,UTCTime2,Heading,"
-            "HeadTrue,Roll,Pitch,Heave,RollAcc,PitchAcc,HeadAcc,GNSSqty,"
-            "STblk_smp,STblk_ref,STsmp_flw,STsmp_tmp,STsmp_prs,STpump_pw,"
-            "STpsvolts,STerr_rpt"
+            "CPUTEMP,RPiT,RPiS,issue1,issue2,issue3,IYaw,IPitch,IRoll,ILat,"
+            "ILong,IVX,IVY,IVZ,IAX,IAY,IAZ,Out1_T,Out1_H,Out2_T,Out2_H,"
+            "Inlet2_T,Inlet2_H,UTCTime,Status,Lat,LatDir,Long,LongDir,Speed,"
+            "Course,Date,MagVar,MVdir,GLat,GLatDir,GLong,GLongDir,GPSQ,GNSats,"
+            "Hprec,GAlt,AltU,Geoidal,UTCTime2,Heading,HeadTrue,Roll,Pitch,"
+            "Heave,RollAcc,PitchAcc,HeadAcc,GNSSqty"
         )
 
     def file_identifier(self, first_lines_of_csv) -> bool:
@@ -185,83 +185,135 @@ class FlightComputerV2(Instrument):
     def read_data(self) -> pd.DataFrame:
         """Read data into dataframe, adjusting for duplicate headers."""
 
-        cleaned_csv = StringIO()
+        ## Evan 11.05.25: Commented below is attempt to clean the CSV file,
+        ## disabled for now in favour of alternative read code
+        # cleaned_csv = StringIO()
 
-        # The file needs parsing first:
-        # 1. The header row starts with a datetime and space, rename it to
-        #    datetime, remove the space and write to a new StringIO object
-        # 2. The same applies to each row, replace space with comma, keep the
-        #    data
-        # 3. Some lines have been split over two lines, find any rows ending
-        #    in a comma and append the next line to it
-        with open(self.filename, "r") as csv_data:
-            saved_row = None  # Store the last row if it's split
-            for row_index, row in enumerate(csv_data):
-                if row_index == 0:
-                    # Split the space out of the whole header (removing the
-                    # recorded timestamp), then add "datetime" and a comma
-                    full_header = row.split(" ")[1]
-                    fixed_header = f"DateTime,{full_header}"
-                    cleaned_csv.write(fixed_header)
-                else:
-                    # Replace space with comma in the first 20 chars of line
-                    fixed_row = row[:20].replace(" ", ",") + row[20:]
+        # # The file needs parsing first:
+        # # 1. The header row starts with a datetime and space, rename it to
+        # #    datetime, remove the space and write to a new StringIO object
+        # # 2. The same applies to each row, replace space with comma, keep the
+        # #    data
+        # # 3. Some lines have been split over two lines, find any rows ending
+        # #    in a comma and append the next line to it
+        # with open(self.filename, "r") as csv_data:
+        #     saved_row = None  # Store the last row if it's split
+        #     for row_index, row in enumerate(csv_data):
+        #         if row_index == 0:
+        #             # Split the space out of the whole header (removing the
+        #             # recorded timestamp), then add "datetime" and a comma
+        #             full_header = row.split(" ")[1]
+        #             fixed_header = f"DateTime,{full_header}"
+        #             cleaned_csv.write(fixed_header)
+        #         else:
+        #             # Replace space with comma in the first 20 chars of line
+        #             fixed_row = row[:20].replace(" ", ",") + row[20:]
 
-                    # If the column ends with a comma, it's a split row, so
-                    # append the next row to it
-                    if fixed_row[-2] in [",", "-"]:
-                        saved_row = fixed_row
-                        # If there is a - with no value, remove the sign
-                        if fixed_row[-2] == "-":
-                            saved_row = saved_row[:-2] + saved_row[-1]
+        #             # If the column ends with a comma, it's a split row, so
+        #             # append the next row to it
+        #             if fixed_row[-2] in [",", "-"]:
+        #                 saved_row = fixed_row
+        #                 # If there is a - with no value, remove the sign
+        #                 if fixed_row[-2] == "-":
+        #                     saved_row = saved_row[:-2] + saved_row[-1]
 
-                        continue
+        #                 continue
 
-                    if fixed_row[0] == ",":  # Remove leading comma
-                        # Add the saved row to the start of the current row
-                        fixed_row = saved_row[:-1] + fixed_row
-                        saved_row = None
+        #             if fixed_row[0] == ",":  # Remove leading comma
+        #                 # Add the saved row to the start of the current row
+        #                 fixed_row = saved_row[:-1] + fixed_row
+        #                 saved_row = None
 
-                    # Get all individual columns by splitting on commas then
-                    # remove any extra columns
-                    number_of_columns = len(fixed_row.split(","))
-                    fixed_row = fixed_row.split(",")
+        #             # Get all individual columns by splitting on commas then
+        #             # remove any extra columns
+        #             number_of_columns = len(fixed_row.split(","))
+        #             fixed_row = fixed_row.split(",")
 
-                    # If the number of columns is greater than expected, remove
-                    # the extra columns
-                    if number_of_columns > len(self.cols_housekeeping):
-                        fixed_row = fixed_row[: len(self.cols_housekeeping)]
+        #             # If the number of columns is greater than expected, remove
+        #             # the extra columns
+        #             if number_of_columns > len(self.cols_housekeeping):
+        #                 fixed_row = fixed_row[: len(self.cols_housekeeping)]
 
-                    if number_of_columns < len(self.cols_housekeeping):
-                        # If the number of columns is less than expected append
-                        # empty columns
-                        fixed_row += [
-                            ""
-                            for _ in range(
-                                len(self.cols_housekeeping) - number_of_columns
-                            )
-                        ]
+        #             if number_of_columns < len(self.cols_housekeeping):
+        #                 # If the number of columns is less than expected append
+        #                 # empty columns
+        #                 fixed_row += [
+        #                     ""
+        #                     for _ in range(
+        #                         len(self.cols_housekeeping) - number_of_columns
+        #                     )
+        #                 ]
 
-                    # Join the columns back into a string
-                    fixed_row = ",".join(fixed_row)
-                    cleaned_csv.write(fixed_row)
+        #             # Join the columns back into a string
+        #             fixed_row = ",".join(fixed_row)
+        #             cleaned_csv.write(fixed_row)
 
-                cleaned_csv.write("\n")
+        #         cleaned_csv.write("\n")
 
-        # Return to the start of StringIO for reading
-        cleaned_csv.seek(0)
+        # # Return to the start of StringIO for reading
+        # cleaned_csv.seek(0)
         # print(cleaned_csv.getvalue())
         df = pd.read_csv(
-            cleaned_csv,
-            dtype=self.dtype,
-            na_values=self.na_values,
-            header=self.header,
-            delimiter=self.delimiter,
-            lineterminator=self.lineterminator,
-            comment=self.comment,
-            names=self.names,
-            index_col=False,
+            self.filename,
+            # dtype=self.dtype,
+            # na_values=self.na_values,
+            # header=self.header,
+            # delimiter=self.delimiter,
+            # lineterminator=self.lineterminator,
+            # comment=self.comment,
+            # names=self.names,
+            # index_col=False,
+            on_bad_lines="skip",
+            low_memory=False,
+            sep=",",
         )
+
+        # to convert all the columns to float, except the string columns
+        exclude_str_cols = [
+            "Time",
+            "RPiS",
+            "Status",
+            "LongDir",
+            "LatDir",
+            "HeadTrue",
+            "GLongDir",
+            "HeadTrue",
+        ]
+
+        # columns from the INS are shifted and need to be corrected
+        shifted_columns = {
+            "IYaw": "issue1",
+            "IPitch": "issue2",
+            "IRoll": "issue3",
+            "ILat": "IYaw",
+            "ILong": "IPitch",
+            "IVX": "IRoll",
+            "IVY": "ILat",
+            "IVZ": "ILong",
+            "IAX": "IVX",
+            "IAY": "IVY",
+            "IAZ": "IVZ",
+            "IARX": "IAX",
+            "IARY": "IAY",
+            "IARZ": "IAZ",
+        }
+
+        df.loc[:, ~df.columns.isin(exclude_str_cols)] = df.loc[
+            :, ~df.columns.isin(exclude_str_cols)
+        ].apply(pd.to_numeric, errors="coerce")
+
+        # Rename columns that have been shifted
+        df.rename(columns=shifted_columns, inplace=True)
+
+        # define the timestamp
+        df["DateTime"] = pd.to_datetime(df["Time"], format="%y%m%d-%H%M%S")
+        df.index = df["DateTime"]
+
+        # Remove any rows with missing time data
+        df = df.dropna(subset=["DateTime"])
+
+        # Remote rows with missing or empty pressure data
+        df = df.dropna(subset=[self.pressure_variable])
 
         return df
 
@@ -281,6 +333,9 @@ class FlightComputerV2(Instrument):
 
         # Define the datetime column as the index
         df.set_index("DateTime", inplace=True)
+
+        # Set to index type to seconds
+        df.index = df.index.astype("datetime64[s]")
 
         return df
 
@@ -340,7 +395,8 @@ flight_computer_v1 = FlightComputerV1(
 
 flight_computer_v2 = FlightComputerV2(
     dtype={
-        "DateTime": "str",  # Matches rewritten header as above in read_data()
+        "DateTime": "str",
+        "Time": "str",
         "F_cur_pos": "Float64",
         "F_cntdown": "Float64",
         "F_smp_flw": "Float64",
@@ -361,18 +417,18 @@ flight_computer_v2 = FlightComputerV2(
         "SO_RO": "Float64",
         "SO_MD": "Float64",
         "POPID": "Float64",
-        "POPCHAIN": "Int64",
-        "POPtot": "Int64",
-        "POPf": "Int64",
-        "POPT": "Int64",
-        "POPc1": "Int64",
-        "POPc2": "Int64",
-        "POPc3": "Int64",
-        "POPc4": "Int64",
-        "POPc5": "Int64",
-        "POPc6": "Int64",
-        "POPc7": "Int64",
-        "POPc8": "Int64",
+        "POPCHAIN": "Float64",
+        "POPtot": "Float64",
+        "POPf": "Float64",
+        "POPT": "Float64",
+        "POPc1": "Float64",
+        "POPc2": "Float64",
+        "POPc3": "Float64",
+        "POPc4": "Float64",
+        "POPc5": "Float64",
+        "POPc6": "Float64",
+        "POPc7": "Float64",
+        "POPc8": "Float64",
         "Ubat": "Float64",
         "CO2": "Float64",
         "BME_T": "Float64",
@@ -381,31 +437,49 @@ flight_computer_v2 = FlightComputerV2(
         "CPUTEMP": "Float64",
         "RPiT": "str",
         "RPiS": "str",
+        "issue1": "str",
+        "issue2": "str",
+        "issue3": "str",
+        "IYaw": "Float64",
+        "IPitch": "Float64",
+        "IRoll": "Float64",
+        "ILat": "Float64",
+        "ILong": "Float64",
+        "IVX": "Float64",
+        "IVY": "Float64",
+        "IVZ": "Float64",
+        "IAX": "Float64",
+        "IAY": "Float64",
+        "IAZ": "Float64",
+        "Out1_T": "Float64",
+        "Out1_H": "Float64",
+        "Out2_T": "Float64",
+        "Out2_H": "Float64",
+        "Inlet2_T": "Float64",
+        "Inlet2_H": "Float64",
         "UTCTime": "str",
         "Status": "str",
         "Lat": "str",
         "LatDir": "str",
         "Long": "str",
         "LongDir": "str",
-        "Speed": "str",
+        "Speed": "Float64",
         "Course": "Float64",
         "Date": "str",
-        "MagVar": "str",
+        "MagVar": "Float64",
         "MVdir": "str",
-        "Inlet_T": "Float64",
-        "Inlet_H": "Float64",
-        "Out1_T": "Float64",
-        "Out1_H": "Float64",
-        "Out2_T": "Float64",
-        "Out2_H": "Float64",
-        "GPSQ": "str",
-        "Sats": "Float64",
+        "GLat": "str",
+        "GLatDir": "str",
+        "GLong": "str",
+        "GLongDir": "str",
+        "GPSQ": "Float64",
+        "GNSats": "Float64",
         "Hprec": "Float64",
-        "Alt": "str",
+        "GAlt": "Float64",
         "AltU": "str",
         "Geoidal": "Float64",
         "UTCTime2": "str",
-        "Heading": "str",
+        "Heading": "Float64",
         "HeadTrue": "str",
         "Roll": "Float64",
         "Pitch": "Float64",
@@ -414,29 +488,13 @@ flight_computer_v2 = FlightComputerV2(
         "PitchAcc": "Float64",
         "HeadAcc": "Float64",
         "GNSSqty": "Float64",
-        "STinvmm_r": "Float64",
-        "STinvmm_g": "Float64",
-        "STinvmm_b": "Float64",
-        "STred_smp": "Float64",
-        "STred_ref": "Float64",
-        "STgrn_smp": "Float64",
-        "STgrn_ref": "Float64",
-        "STblu_smp": "Float64",
-        "STblk_smp": "Float64",
-        "STblk_ref": "Float64",
-        "STsmp_flw": "Float64",
-        "STsmp_tmp": "Float64",
-        "STsmp_prs": "Float64",
-        "STpump_pw": "Float64",
-        "STpsvolts": "Float64",
-        "STerr_rpt": "Float64",
     },
     na_values=[],
     comment="#",
     cols_export=[
-        "Altitude",
-        "Altitude_agl",
-        "P_baro",
+        "GAlt",  # GPS Altitude
+        "Geoidal",
+        "F_smp_prs",
         "CO2",
         "BME_T",
         "BME_H",
@@ -448,8 +506,8 @@ flight_computer_v2 = FlightComputerV2(
         "Speed",
         "Course",
         "MagVar",
-        "Inlet_T",
-        "Inlet_H",
+        "Inlet2_T",
+        "Inlet2_H",
         "Out1_T",
         "Out1_H",
         "Out2_T",
@@ -463,18 +521,10 @@ flight_computer_v2 = FlightComputerV2(
         "PitchAcc",
         "HeadAcc",
         "GNSSqty",
-        "STinvmm_r",
-        "STinvmm_g",
-        "STinvmm_b",
-        "STred_smp",
-        "STred_ref",
-        "STgrn_smp",
-        "STgrn_ref",
-        "STblu_smp",
     ],
     cols_housekeeping=[
-        "Altitude",
-        "Altitude_agl",
+        "GAlt",
+        "Geoidal",
         "F_cur_pos",
         "F_cntdown",
         "F_smp_flw",
@@ -515,6 +565,9 @@ flight_computer_v2 = FlightComputerV2(
         "CPUTEMP",
         "RPiT",
         "RPiS",
+        "issue1",
+        "issue2",
+        "issue3",
         "UTCTime",
         "Status",
         "Lat",
@@ -526,16 +579,16 @@ flight_computer_v2 = FlightComputerV2(
         "Date",
         "MagVar",
         "MVdir",
-        "Inlet_T",
-        "Inlet_H",
+        "Inlet2_T",
+        "Inlet2_H",
         "Out1_T",
         "Out1_H",
         "Out2_T",
         "Out2_H",
         "GPSQ",
-        "Sats",
+        "GNSats",
         "Hprec",
-        "Alt",
+        "GAlt",
         "AltU",
         "Geoidal",
         "UTCTime2",
@@ -548,14 +601,6 @@ flight_computer_v2 = FlightComputerV2(
         "PitchAcc",
         "HeadAcc",
         "GNSSqty",
-        "STinvmm_r",
-        "STinvmm_g",
-        "STinvmm_b",
-        "STred_smp",
-        "STred_ref",
-        "STgrn_smp",
-        "STgrn_ref",
-        "STblu_smp",
     ],
     export_order=100,
     pressure_variable="F_smp_prs",
