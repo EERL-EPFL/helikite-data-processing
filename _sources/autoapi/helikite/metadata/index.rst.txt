@@ -1,0 +1,15 @@
+helikite.metadata
+=================
+
+.. py:module:: helikite.metadata
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /autoapi/helikite/metadata/flights/index
+
+

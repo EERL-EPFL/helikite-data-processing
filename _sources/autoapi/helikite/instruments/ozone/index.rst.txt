@@ -1,0 +1,85 @@
+helikite.instruments.ozone
+==========================
+
+.. py:module:: helikite.instruments.ozone
+
+.. autoapi-nested-parse::
+
+   8) Ozone monitor -> LOG46.txt (can't use pressure)
+
+   Resolution: 2 sec
+
+   Headers: "ozone","cell_temp","cell_pressure","flow_rate","date","time"
+
+   (last column is nothing)
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   helikite.instruments.ozone.ozone_monitor
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   helikite.instruments.ozone.OzoneMonitor
+
+
+Module Contents
+---------------
+
+.. py:class:: OzoneMonitor(*args, **kwargs)
+
+   Bases: :py:obj:`helikite.instruments.base.Instrument`
+
+
+   Helper class that provides a standard way to create an ABC using
+   inheritance.
+
+
+   .. py:attribute:: name
+      :value: 'ozone'
+
+
+
+   .. py:method:: file_identifier(first_lines_of_csv) -> bool
+
+      Default file identifier callback
+
+      Must return false. True would provide false positives.
+
+
+
+   .. py:method:: set_time_as_index(df: pandas.DataFrame) -> pandas.DataFrame
+
+      Set the DateTime as index of the dataframe and correct
+
+
+
+   .. py:method:: data_corrections(df, *args, **kwargs)
+
+      Default callback function for data corrections.
+
+      Return with no changes
+
+
+
+   .. py:method:: read_data() -> pandas.DataFrame
+
+      Read data into dataframe
+
+      This allows a custom read function to parse the CSV/TXT into a
+      dataframe, for example cleaning dirty data at the end of the file
+      in memory without altering the input file (see flight computer conf).
+
+
+
+
+.. py:data:: ozone_monitor
+

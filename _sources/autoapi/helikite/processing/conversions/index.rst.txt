@@ -1,0 +1,46 @@
+helikite.processing.conversions
+===============================
+
+.. py:module:: helikite.processing.conversions
+
+.. autoapi-nested-parse::
+
+   Functions to convert data
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   helikite.processing.conversions.pressure_to_altitude
+
+
+Module Contents
+---------------
+
+.. py:function:: pressure_to_altitude(pressure: float, pressure_at_start: float, temperature_at_start: float, altitude_at_start: float = 0) -> float
+
+   Convert pressure to altitude
+
+   :param pressure: Pressure to convert to altitude
+   :type pressure: float
+   :param pressure_at_start: Pressure at start of flight
+   :type pressure_at_start: float
+   :param temp_at_start: Temperature at start of flight
+   :type temp_at_start: float
+   :param altitude_at_start: Altitude at start of flight (default 0)
+   :type altitude_at_start: float
+
+   :returns: **altitude** -- Altitude in meters
+   :rtype: float
+
+   .. rubric:: Example
+
+   >>> pressure_to_altitude(101325, 101325, 20)
+   0.0
+   >>> pressure_to_altitude(101325, 101325, 20, 1000)
+   1000.0
+
+

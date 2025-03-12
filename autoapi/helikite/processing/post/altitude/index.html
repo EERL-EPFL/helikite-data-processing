@@ -1,0 +1,319 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>helikite.processing.post.altitude &mdash; helikite-data-processing 1.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/graphviz.css?v=4ae1632d" />
+
+  
+      <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../_static/documentation_options.js?v=fc837d61"></script>
+      <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" />
+    <link rel="next" title="helikite.processing.post.co2" href="../co2/index.html" />
+    <link rel="prev" title="helikite.processing.post" href="../index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            helikite-data-processing
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../../../../index.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../../../index.html">helikite</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="../../../index.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="../../../classes/index.html">helikite.classes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../constants/index.html">helikite.constants</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../instruments/index.html">helikite.instruments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../metadata/index.html">helikite.metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plots/index.html">helikite.plots</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="../../index.html">helikite.processing</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../index.html#classes">Classes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../index.html#package-contents">Package Contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">helikite-data-processing</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">API Reference</a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">helikite</a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">helikite.processing</a></li>
+          <li class="breadcrumb-item"><a href="../index.html">helikite.processing.post</a></li>
+      <li class="breadcrumb-item active">helikite.processing.post.altitude</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../../_sources/autoapi/helikite/processing/post/altitude/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-helikite.processing.post.altitude">
+<span id="helikite-processing-post-altitude"></span><h1>helikite.processing.post.altitude<a class="headerlink" href="#module-helikite.processing.post.altitude" title="Link to this heading"></a></h1>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#helikite.processing.post.altitude.Air_density" title="helikite.processing.post.altitude.Air_density"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Air_density</span></code></a>(T, P[, RH])</p></td>
+<td><p>Calculate dry and wet air density using the ideal gas law.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#helikite.processing.post.altitude.waterpressure" title="helikite.processing.post.altitude.waterpressure"><code class="xref py py-obj docutils literal notranslate"><span class="pre">waterpressure</span></code></a>(RH, T, P)</p></td>
+<td><p>Calculate the partial pressure of water vapor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#helikite.processing.post.altitude.Watersatpress" title="helikite.processing.post.altitude.Watersatpress"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Watersatpress</span></code></a>(press, temp)</p></td>
+<td><p>Calculate water saturation vapor pressure for moist air.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#helikite.processing.post.altitude.EstimateAltitude" title="helikite.processing.post.altitude.EstimateAltitude"><code class="xref py py-obj docutils literal notranslate"><span class="pre">EstimateAltitude</span></code></a>(P0, Pb, T0)</p></td>
+<td><p>Estimate the altitude difference using a barometric formula.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#helikite.processing.post.altitude.calculate_altitude_hypsometric_simple" title="helikite.processing.post.altitude.calculate_altitude_hypsometric_simple"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_altitude_hypsometric_simple</span></code></a>(p0, p, t)</p></td>
+<td><p>Calculate altitude using a simplified hypsometric equation.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#helikite.processing.post.altitude.calculate_altitude_for_row" title="helikite.processing.post.altitude.calculate_altitude_for_row"><code class="xref py py-obj docutils literal notranslate"><span class="pre">calculate_altitude_for_row</span></code></a>(row)</p></td>
+<td><p>Calculate altitude from a data row of meteorological measurements.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="helikite.processing.post.altitude.Air_density">
+<span class="sig-prename descclassname"><span class="pre">helikite.processing.post.altitude.</span></span><span class="sig-name descname"><span class="pre">Air_density</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">P</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">RH</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.processing.post.altitude.Air_density" title="Link to this definition"></a></dt>
+<dd><p>Calculate dry and wet air density using the ideal gas law.</p>
+<p>This function computes the dry air density from the ideal gas law based on
+a reference state and adjusts for moisture content using the water vapor
+pressure to yield the wet air density.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>T</strong> (<em>float</em>) – Temperature in Kelvin.</p></li>
+<li><p><strong>P</strong> (<em>float</em>) – Pressure in hPa.</p></li>
+<li><p><strong>RH</strong> (<em>float</em><em>, </em><em>optional</em>) – Relative humidity in percent (default is 0).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>A tuple containing:</dt><dd><ul class="simple">
+<li><p>dry air density in kg/m³</p></li>
+<li><p>wet air density in kg/m³</p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>tuple of float</p>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>The calculation uses standard reference conditions (rho0 = 1.29 kg/m³,
+P0 = 1013.25 hPa, T0 = 273.15 K) and applies an adjustment based on water
+vapor pressure.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="helikite.processing.post.altitude.waterpressure">
+<span class="sig-prename descclassname"><span class="pre">helikite.processing.post.altitude.</span></span><span class="sig-name descname"><span class="pre">waterpressure</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">RH</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">P</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.processing.post.altitude.waterpressure" title="Link to this definition"></a></dt>
+<dd><p>Calculate the partial pressure of water vapor.</p>
+<p>This function determines the water vapor pressure given the relative
+humidity, temperature, and pressure. It computes the saturation vapor
+pressure and then scales it by the relative humidity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>RH</strong> (<em>float</em>) – Relative humidity in percent.</p></li>
+<li><p><strong>T</strong> (<em>float</em>) – Temperature in Kelvin.</p></li>
+<li><p><strong>P</strong> (<em>float</em>) – Pressure in hPa.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Partial pressure of water vapor in hPa.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="helikite.processing.post.altitude.Watersatpress">
+<span class="sig-prename descclassname"><span class="pre">helikite.processing.post.altitude.</span></span><span class="sig-name descname"><span class="pre">Watersatpress</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">press</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">temp</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.processing.post.altitude.Watersatpress" title="Link to this definition"></a></dt>
+<dd><p>Calculate water saturation vapor pressure for moist air.</p>
+<p>This function computes the saturation vapor pressure for water based on the
+WMO CIMO guide, valid for temperatures between -45°C and 60°C. The
+temperature is first converted from Kelvin to Celsius before applying the
+empirical formula.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>press</strong> (<em>float</em>) – Pressure in hPa.</p></li>
+<li><p><strong>temp</strong> (<em>float</em>) – Temperature in Kelvin.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Saturation vapor pressure of water (H₂O) in hPa.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+<p class="rubric">References</p>
+<p><a class="reference external" href="https://www.wmo.int/pages/prog/www/IMOP/CIMO-Guide.html">https://www.wmo.int/pages/prog/www/IMOP/CIMO-Guide.html</a></p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="helikite.processing.post.altitude.EstimateAltitude">
+<span class="sig-prename descclassname"><span class="pre">helikite.processing.post.altitude.</span></span><span class="sig-name descname"><span class="pre">EstimateAltitude</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">P0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">Pb</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">T0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.processing.post.altitude.EstimateAltitude" title="Link to this definition"></a></dt>
+<dd><p>Estimate the altitude difference using a barometric formula.</p>
+<p>This function calculates the altitude based on the reference pressure, the
+observed barometric pressure, and the reference temperature. A standard
+relative humidity of 50% is assumed to compute the wet air density used in
+the calculation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>P0</strong> (<em>float</em>) – Reference pressure in hPa.</p></li>
+<li><p><strong>Pb</strong> (<em>float</em>) – Observed barometric pressure in hPa.</p></li>
+<li><p><strong>T0</strong> (<em>float</em>) – Reference temperature in Kelvin.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Estimated altitude in meters.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="helikite.processing.post.altitude.calculate_altitude_hypsometric_simple">
+<span class="sig-prename descclassname"><span class="pre">helikite.processing.post.altitude.</span></span><span class="sig-name descname"><span class="pre">calculate_altitude_hypsometric_simple</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">p0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">p</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.processing.post.altitude.calculate_altitude_hypsometric_simple" title="Link to this definition"></a></dt>
+<dd><p>Calculate altitude using a simplified hypsometric equation.</p>
+<p>This function estimates altitude based on the hypsometric formula. It uses
+the reference pressure (p0), observed pressure (p), and temperature in
+Celsius (t) to compute the altitude.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>p0</strong> (<em>float</em>) – Reference pressure in hPa.</p></li>
+<li><p><strong>p</strong> (<em>float</em>) – Observed pressure in hPa.</p></li>
+<li><p><strong>t</strong> (<em>float</em>) – Temperature in Celsius.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Estimated altitude in meters.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="helikite.processing.post.altitude.calculate_altitude_for_row">
+<span class="sig-prename descclassname"><span class="pre">helikite.processing.post.altitude.</span></span><span class="sig-name descname"><span class="pre">calculate_altitude_for_row</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">row</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.processing.post.altitude.calculate_altitude_for_row" title="Link to this definition"></a></dt>
+<dd><p>Calculate altitude from a data row of meteorological measurements.</p>
+<p>This function extracts pressure and temperature data from a dictionary-like
+object and computes the altitude using a simplified hypsometric formula.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>row</strong> (<em>dict-like</em>) – <dl class="simple">
+<dt>Data structure containing the following keys:</dt><dd><ul class="simple">
+<li><p>”Pref”: reference pressure in hPa.</p></li>
+<li><p>”P_baro”: observed barometric pressure in hPa.</p></li>
+<li><p>”TEMP1”: temperature in Celsius.</p></li>
+</ul>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Estimated altitude in meters.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../index.html" class="btn btn-neutral float-left" title="helikite.processing.post" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../co2/index.html" class="btn btn-neutral float-right" title="helikite.processing.post.co2" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Evan Thomas.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

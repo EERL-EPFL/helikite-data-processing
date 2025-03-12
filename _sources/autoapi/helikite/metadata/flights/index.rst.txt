@@ -1,0 +1,97 @@
+helikite.metadata.flights
+=========================
+
+.. py:module:: helikite.metadata.flights
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   helikite.metadata.flights.Flight
+   helikite.metadata.flights.FlightState
+
+
+Module Contents
+---------------
+
+.. py:class:: Flight
+
+   Bases: :py:obj:`pydantic.BaseModel`
+
+
+   .. py:attribute:: flight
+      :type:  str
+
+
+   .. py:attribute:: takeoff_time
+      :type:  datetime.datetime
+
+
+   .. py:attribute:: landing_time
+      :type:  datetime.datetime
+
+
+   .. py:method:: __repr__() -> str
+
+
+.. py:class:: FlightState(filename)
+
+   Store flight times
+
+   Currently, flight times are stored in a CSV file. This class simulates
+   a REST API and can be adapted to an actual API when needed.
+
+
+   .. py:attribute:: filename
+
+
+   .. py:attribute:: df
+
+
+   .. py:method:: __repr__() -> str
+
+
+   .. py:method:: _convert_to_flight_model(row)
+
+      Convert a DataFrame row to a Pydantic Flight model.
+
+
+
+   .. py:method:: get_all_flights()
+
+      Simulates a GET request to retrieve all flight data as Pydantic models.
+
+
+
+   .. py:method:: get_flight(flight_number)
+
+      Simulates a GET request to retrieve data for a specific flight.
+
+
+
+   .. py:method:: add_flight(flight_number, takeoff_time, landing_time)
+
+      Simulates a POST request to add a new flight.
+
+
+
+   .. py:method:: update_flight(flight_number, takeoff_time=None, landing_time=None)
+
+      Simulates a PUT/PATCH request to update an existing flight.
+
+
+
+   .. py:method:: delete_flight(flight_number)
+
+      Simulates a DELETE request to remove a flight.
+
+
+
+   .. py:method:: save()
+
+      Locks the file, writes to temp, then replaces original
+
+
+

@@ -1,0 +1,54 @@
+helikite.processing.preprocess
+==============================
+
+.. py:module:: helikite.processing.preprocess
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   helikite.processing.preprocess.logger
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   helikite.processing.preprocess.get_columns_from_dtype
+   helikite.processing.preprocess.read_yaml_config
+   helikite.processing.preprocess.preprocess
+   helikite.processing.preprocess.print_preprocess_stats
+   helikite.processing.preprocess.export_yaml_config
+   helikite.processing.preprocess.generate_config
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:function:: get_columns_from_dtype(instrument: helikite.instruments.base.Instrument)
+
+   Gets the column names from the instrument config
+
+
+.. py:function:: read_yaml_config(file_path)
+
+.. py:function:: preprocess(input_folder=constants.INPUTS_FOLDER, config_file=constants.CONFIG_FILE)
+
+.. py:function:: print_preprocess_stats(yaml_config)
+
+.. py:function:: export_yaml_config(yaml_config, out_location)
+
+.. py:function:: generate_config(overwrite=False, input_folder=constants.INPUTS_FOLDER, config_file=constants.CONFIG_FILE) -> None
+
+   Write out the configuration file
+
+   If overwrite is True, the configuration file in the path argument is
+   overwritten
+
+
+

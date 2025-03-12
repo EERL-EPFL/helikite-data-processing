@@ -1,0 +1,85 @@
+helikite.instruments.filter
+===========================
+
+.. py:module:: helikite.instruments.filter
+
+.. autoapi-nested-parse::
+
+   Filter instrument class for Helikite project.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   helikite.instruments.filter.logger
+   helikite.instruments.filter.filter
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   helikite.instruments.filter.Filter
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:class:: Filter(*args, **kwargs)
+
+   Bases: :py:obj:`helikite.instruments.base.Instrument`
+
+
+   Helper class that provides a standard way to create an ABC using
+   inheritance.
+
+
+   .. py:attribute:: name
+      :value: 'filter'
+
+
+
+   .. py:method:: file_identifier(first_lines_of_csv) -> bool
+
+      Default file identifier callback
+
+      Must return false. True would provide false positives.
+
+
+
+   .. py:method:: data_corrections(df, *args, **kwargs)
+
+      Default callback function for data corrections.
+
+      Return with no changes
+
+
+
+   .. py:method:: set_time_as_index(df: pandas.DataFrame) -> pandas.DataFrame
+
+      Set the DateTime as index of the dataframe
+
+      Filter instrument contains date and time separately and appears to
+      include an extra whitespace in the field of each of those two columns
+
+
+
+   .. py:method:: read_data() -> pandas.DataFrame
+
+      Read data into dataframe
+
+      This allows a custom read function to parse the CSV/TXT into a
+      dataframe, for example cleaning dirty data at the end of the file
+      in memory without altering the input file (see flight computer conf).
+
+
+
+
+.. py:data:: filter
+

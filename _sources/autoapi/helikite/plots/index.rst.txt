@@ -1,0 +1,125 @@
+helikite.plots
+==============
+
+.. py:module:: helikite.plots
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   helikite.plots.logger
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   helikite.plots.plot_scatter_from_variable_list_by_index
+   helikite.plots.generate_grid_plot
+   helikite.plots.generate_particle_heatmap
+   helikite.plots.generate_average_bin_concentration_plot
+   helikite.plots.write_plots_to_html
+   helikite.plots.generate_altitude_plot
+   helikite.plots.generate_altitude_concentration_plot
+   helikite.plots.generate_normalised_colours
+   helikite.plots.campaign_2023
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:function:: plot_scatter_from_variable_list_by_index(df: pandas.DataFrame, title: str, variables: List[str]) -> plotly.graph_objects.Figure
+
+.. py:function:: generate_grid_plot(df: pandas.DataFrame, all_instruments: List[helikite.instruments.Instrument], altitude_col: str = 'flight_computer_Altitude', resample_seconds: int | None = None) -> plotly.graph_objects.Figure
+
+   Generates a 4x3 plot of quicklooks variables from several instruments
+
+   Resample values to a time interval in seconds is possible, to decrease
+   the total count of points in the plot. This is useful for large datasets
+   where the plot is too slow to render, or too many points to be useful.
+
+   The resampling will not happen on the wind direction due to the nature
+   of the data. The wind direction is a circular variable, and resampling
+   will not work as expected.
+
+   :param df: The dataframe containing the data to plot
+   :type df: pd.DataFrame
+   :param all_instruments: A list of all instruments to plot
+   :type all_instruments: List[instruments.Instrument]
+   :param altitude_col: The column name of the altitude variable, by default
+                        "flight_computer_Altitude"
+   :type altitude_col: str, optional
+   :param resample_seconds: The number of seconds to resample the data to, by default None
+   :type resample_seconds: int, optional
+
+
+.. py:function:: generate_particle_heatmap(df: pandas.DataFrame, props_msems_inverted: Dict[str, Any], props_msems_scan: Dict[str, Any]) -> plotly.graph_objects.Figure
+
+.. py:function:: generate_average_bin_concentration_plot(df: pandas.DataFrame, title: str, timestamp_start: pandas.Timestamp, timestamp_end: pandas.Timestamp, bin_limit_col_prefix: str = 'msems_inverted_Bin_Lim', bin_concentration_col_prefix: str = 'msems_inverted_Bin_Conc', bin_quantity_col: str = 'msems_inverted_NumBins', y_logscale: bool = False) -> plotly.graph_objects.Figure
+
+   With a given timestamp, generate an average of MSEM bin concentrations
+
+   :param df: Dataframe containing the data
+   :type df: pd.DataFrame
+   :param title: Title of plot
+   :type title: str
+   :param timestamp_start: Start timestamp of period to average
+   :type timestamp_start: str
+   :param timestamp_end: End timestamp of period to average
+   :type timestamp_end: str
+   :param bin_limit_col_prefix: Prefix of column containing bin limits, default: msems_inverted_Bin_Lim
+   :type bin_limit_col_prefix: str, optional
+   :param bin_concentration_col_prefix: Prefix of column containing bin concentrations,
+                                        default 'msems_inverted_Bin_Conc'
+   :type bin_concentration_col_prefix: str, optional
+   :param bin_quantity_col: Column containing number of bins, default 'msems_inverted_NumBins'
+   :type bin_quantity_col: str, optional
+   :param y_logscale: Whether to use a log scale for the y axis, default False
+   :type y_logscale: bool, optional
+
+   :returns: Plotly figure
+   :rtype: go.Figure
+
+
+.. py:function:: write_plots_to_html(figures: List[plotly.graph_objects.Figure], filename: str) -> None
+
+.. py:function:: generate_altitude_plot(df: pandas.DataFrame, at_ground_level: bool, altitude_col: str = 'flight_computer_Altitude') -> plotly.graph_objects.Figure
+
+.. py:function:: generate_altitude_concentration_plot(df: pandas.DataFrame, bins: List[Tuple[str, str, str]], at_ground_level: bool, height: int = 400, altitude_col: str = 'flight_computer_Altitude') -> plotly.graph_objects.Figure
+
+   Generate a plot that sits above MSEMS with selected bins
+
+   The bins represent the periods of time that the averaged plots are
+   calculated from.
+
+
+.. py:function:: generate_normalised_colours(df: pandas.DataFrame, convert_nan_to: int = 0) -> List[str]
+
+   Generate a list of colours for a plot based on index of dataframe
+
+
+.. py:function:: campaign_2023(df: pandas.DataFrame, plot_props: Dict[str, Any], all_instruments: List[helikite.instruments.Instrument], output_path_with_time: str) -> None
+
+   Defines all the plots for the 2023 campaigns
+
+   Due to the plot specifications being bespoke according to plans defined
+   in 2023, this function attemps to isolate these decisions from further
+   plotting requirements in the future
+
+   :param df: Dataframe containing all the merged data to be plotted
+   :type df: pd.DataFrame
+   :param plot_props: Dictionary containing all the properties for the plots originating from
+                      the runtime YAML
+   :type plot_props: Dict[str, Any]
+   :param all_instruments: List of all instruments that are available after merging all the data
+   :type all_instruments: List[instruments.Instrument]
+   :param output_path_with_time: Path to the output directory for the plots, most likely the one
+                                 generated in helikite.py with the current output time
+   :type output_path_with_time: str
+
+

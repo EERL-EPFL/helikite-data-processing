@@ -1,0 +1,264 @@
+helikite.instruments.base
+=========================
+
+.. py:module:: helikite.instruments.base
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   helikite.instruments.base.logger
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   helikite.instruments.base.Instrument
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:class:: Instrument(dtype: Dict[Any, Any] = {}, na_values: List[Any] | None = None, header: int | None = 0, delimiter: str = ',', lineterminator: str | None = None, comment: str | None = None, names: List[str] | None = None, index_col: bool | int | None = None, cols_export: List[str] = [], cols_housekeeping: List[str] = [], export_order: int | None = None, pressure_variable: str | None = None)
+
+   Bases: :py:obj:`abc.ABC`
+
+
+   Helper class that provides a standard way to create an ABC using
+   inheritance.
+
+
+   .. py:attribute:: dtype
+
+
+   .. py:attribute:: na_values
+      :value: None
+
+
+
+   .. py:attribute:: header
+      :value: 0
+
+
+
+   .. py:attribute:: delimiter
+      :value: ','
+
+
+
+   .. py:attribute:: lineterminator
+      :value: None
+
+
+
+   .. py:attribute:: comment
+      :value: None
+
+
+
+   .. py:attribute:: names
+      :value: None
+
+
+
+   .. py:attribute:: index_col
+      :value: None
+
+
+
+   .. py:attribute:: cols_export
+      :value: []
+
+
+
+   .. py:attribute:: cols_housekeeping
+      :value: []
+
+
+
+   .. py:attribute:: export_order
+      :value: None
+
+
+
+   .. py:attribute:: pressure_variable
+      :value: None
+
+
+
+   .. py:attribute:: filename
+      :type:  str | None
+      :value: None
+
+
+
+   .. py:attribute:: date
+      :type:  datetime.datetime | None
+      :value: None
+
+
+
+   .. py:attribute:: pressure_offset_housekeeping
+      :type:  float | None
+      :value: None
+
+
+
+   .. py:attribute:: time_offset
+      :type:  Dict[str, int]
+
+
+   .. py:attribute:: name
+      :type:  str | None
+      :value: None
+
+
+
+   .. py:attribute:: time_range
+      :type:  Tuple[Any, Any] | None
+      :value: None
+
+
+
+   .. py:method:: add_config(yaml_props: Dict[str, Any])
+
+      Adds the application's config to the Instrument class
+
+      This is called from the main() function in helikite.py
+
+
+
+   .. py:method:: data_corrections(df, *args, **kwargs)
+      :abstractmethod:
+
+
+      Default callback function for data corrections.
+
+      Return with no changes
+
+
+
+   .. py:method:: create_plots(df: pandas.DataFrame) -> List[plotly.graph_objects.Figure | None]
+
+      Default callback for generated figures from dataframes
+
+      Return nothing, as anything else will populate the list that is written
+      out to HTML.
+
+
+
+   .. py:method:: file_identifier(first_lines_of_csv: List[str])
+      :abstractmethod:
+
+
+      Default file identifier callback
+
+      Must return false. True would provide false positives.
+
+
+
+   .. py:method:: date_extractor(first_lines_of_csv: List[str])
+
+      Returns the date of the data sample from a CSV header
+
+      Can be used for an instrument that reports the date in header
+      instead of in the data field.
+
+      Return None if there is nothing to do here
+
+
+
+   .. py:method:: add_device_name_to_columns(df: pandas.DataFrame) -> pandas.DataFrame
+
+      Updates dataframe with column names prefixed by instrument name
+
+
+
+   .. py:property:: housekeeping_columns
+      :type: List[str]
+
+
+      Returns housekeeping columns, prefixed with the instrument name
+
+      If there are no housekeeping variables, return an empty list
+
+
+   .. py:property:: export_columns
+      :type: List[str]
+
+
+      Returns export datafile columns, prefixed with the instrument name
+
+      If there are no variables, return an empty list
+
+      The export data file is a combined output, similar to housekeeping
+
+
+   .. py:method:: set_time_as_index(df: pandas.DataFrame) -> pandas.DataFrame
+      :abstractmethod:
+
+
+      This function is used to set the date in the file to the index
+
+      By default no action is taken, but this can be overridden in the
+      instrument class to set the date as the index.
+
+
+
+   .. py:method:: correct_time_from_config(df: pandas.DataFrame, trim_start: pandas.Timestamp | None = None, trim_end: pandas.Timestamp | None = None) -> pandas.DataFrame
+
+      Correct the time offset and trim from the configuration
+
+
+
+   .. py:method:: set_housekeeping_pressure_offset_variable(df: pandas.DataFrame, column_name=constants.HOUSEKEEPING_VAR_PRESSURE) -> pandas.DataFrame
+
+      Generate variable to offset pressure value for housekeeping
+
+      Using an offset in the configuration, a new variable is created
+      that offset's the instruments pressure variable. This is used to align
+      the pressure value on the plot to help align pressure.
+
+
+
+   .. py:method:: read_data() -> pandas.DataFrame
+      :abstractmethod:
+
+
+      Read data into dataframe
+
+      This allows a custom read function to parse the CSV/TXT into a
+      dataframe, for example cleaning dirty data at the end of the file
+      in memory without altering the input file (see flight computer conf).
+
+
+
+
+   .. py:method:: detect_from_folder(input_folder: str, lines_to_read=constants.QTY_LINES_TO_IDENTIFY_INSTRUMENT, quiet=False)
+
+      Scans an input folder for the instrument file
+
+      If there are two files that match the instrument, the function will
+      raise an error. This is to prevent the program from trying to process
+      the same file twice.
+
+
+
+   .. py:method:: read_from_folder(input_folder: str, quiet=False) -> pandas.DataFrame
+
+      Reads the data from the detected file in the input folder
+
+
+
+   .. py:method:: remove_duplicates(df: pandas.DataFrame) -> pandas.DataFrame
+
+      Remove duplicate rows from the dataframe
+
+
+

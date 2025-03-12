@@ -1,0 +1,74 @@
+helikite.instruments.pops
+=========================
+
+.. py:module:: helikite.instruments.pops
+
+.. autoapi-nested-parse::
+
+   3) POPS ->  HK_20220929x001.csv (has pressure)
+
+   The POPS is an optical particle counter. It provides information on the
+   particle number concentration (how many particles per cubic centimeter)
+   and the size distribution for particles larger than 180 nm roughly.
+   Resolution: 1 sec
+
+   Important variables to keep:
+   DateTime, P, POPS_Flow, b0 -> b15
+
+   PartCon needs to be re-calculated by adding b3 to b15 and deviding by averaged
+   POPS_Flow (b0 -> b15 can be converted to dN/dlogDp values with conversion
+   factors I have)
+
+   Housekeeping variables to look at:
+   POPS_flow -> flow should be just below 3, and check for variability increase
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   helikite.instruments.pops.pops
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   helikite.instruments.pops.POPS
+
+
+Module Contents
+---------------
+
+.. py:class:: POPS(*args, **kwargs)
+
+   Bases: :py:obj:`helikite.instruments.base.Instrument`
+
+
+   .. py:attribute:: name
+      :value: 'pops'
+
+
+
+   .. py:method:: file_identifier(first_lines_of_csv) -> bool
+
+
+   .. py:method:: set_time_as_index(df: pandas.DataFrame) -> pandas.DataFrame
+
+      Set the DateTime as index of the dataframe and correct if needed
+
+      Using values in the time_offset variable, correct DateTime index
+
+
+
+   .. py:method:: data_corrections(df: pandas.DataFrame, *args, **kwargs) -> pandas.DataFrame
+
+
+   .. py:method:: read_data() -> pandas.DataFrame
+
+
+.. py:data:: pops
+

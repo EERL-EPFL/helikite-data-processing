@@ -1,0 +1,149 @@
+helikite.processing.post.altitude
+=================================
+
+.. py:module:: helikite.processing.post.altitude
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   helikite.processing.post.altitude.Air_density
+   helikite.processing.post.altitude.waterpressure
+   helikite.processing.post.altitude.Watersatpress
+   helikite.processing.post.altitude.EstimateAltitude
+   helikite.processing.post.altitude.calculate_altitude_hypsometric_simple
+   helikite.processing.post.altitude.calculate_altitude_for_row
+
+
+Module Contents
+---------------
+
+.. py:function:: Air_density(T, P, RH=0)
+
+   Calculate dry and wet air density using the ideal gas law.
+
+   This function computes the dry air density from the ideal gas law based on
+   a reference state and adjusts for moisture content using the water vapor
+   pressure to yield the wet air density.
+
+   :param T: Temperature in Kelvin.
+   :type T: float
+   :param P: Pressure in hPa.
+   :type P: float
+   :param RH: Relative humidity in percent (default is 0).
+   :type RH: float, optional
+
+   :returns:
+
+             A tuple containing:
+                 - dry air density in kg/m³
+                 - wet air density in kg/m³
+   :rtype: tuple of float
+
+   .. rubric:: Notes
+
+   The calculation uses standard reference conditions (rho0 = 1.29 kg/m³,
+   P0 = 1013.25 hPa, T0 = 273.15 K) and applies an adjustment based on water
+   vapor pressure.
+
+
+.. py:function:: waterpressure(RH, T, P)
+
+   Calculate the partial pressure of water vapor.
+
+   This function determines the water vapor pressure given the relative
+   humidity, temperature, and pressure. It computes the saturation vapor
+   pressure and then scales it by the relative humidity.
+
+   :param RH: Relative humidity in percent.
+   :type RH: float
+   :param T: Temperature in Kelvin.
+   :type T: float
+   :param P: Pressure in hPa.
+   :type P: float
+
+   :returns: Partial pressure of water vapor in hPa.
+   :rtype: float
+
+
+.. py:function:: Watersatpress(press, temp)
+
+   Calculate water saturation vapor pressure for moist air.
+
+   This function computes the saturation vapor pressure for water based on the
+   WMO CIMO guide, valid for temperatures between -45°C and 60°C. The
+   temperature is first converted from Kelvin to Celsius before applying the
+   empirical formula.
+
+   :param press: Pressure in hPa.
+   :type press: float
+   :param temp: Temperature in Kelvin.
+   :type temp: float
+
+   :returns: Saturation vapor pressure of water (H₂O) in hPa.
+   :rtype: float
+
+   .. rubric:: References
+
+   https://www.wmo.int/pages/prog/www/IMOP/CIMO-Guide.html
+
+
+.. py:function:: EstimateAltitude(P0, Pb, T0)
+
+   Estimate the altitude difference using a barometric formula.
+
+   This function calculates the altitude based on the reference pressure, the
+   observed barometric pressure, and the reference temperature. A standard
+   relative humidity of 50% is assumed to compute the wet air density used in
+   the calculation.
+
+   :param P0: Reference pressure in hPa.
+   :type P0: float
+   :param Pb: Observed barometric pressure in hPa.
+   :type Pb: float
+   :param T0: Reference temperature in Kelvin.
+   :type T0: float
+
+   :returns: Estimated altitude in meters.
+   :rtype: float
+
+
+.. py:function:: calculate_altitude_hypsometric_simple(p0, p, t)
+
+   Calculate altitude using a simplified hypsometric equation.
+
+   This function estimates altitude based on the hypsometric formula. It uses
+   the reference pressure (p0), observed pressure (p), and temperature in
+   Celsius (t) to compute the altitude.
+
+   :param p0: Reference pressure in hPa.
+   :type p0: float
+   :param p: Observed pressure in hPa.
+   :type p: float
+   :param t: Temperature in Celsius.
+   :type t: float
+
+   :returns: Estimated altitude in meters.
+   :rtype: float
+
+
+.. py:function:: calculate_altitude_for_row(row)
+
+   Calculate altitude from a data row of meteorological measurements.
+
+   This function extracts pressure and temperature data from a dictionary-like
+   object and computes the altitude using a simplified hypsometric formula.
+
+   :param row:
+               Data structure containing the following keys:
+                   - "Pref": reference pressure in hPa.
+                   - "P_baro": observed barometric pressure in hPa.
+                   - "TEMP1": temperature in Celsius.
+   :type row: dict-like
+
+   :returns: Estimated altitude in meters.
+   :rtype: float
+
+

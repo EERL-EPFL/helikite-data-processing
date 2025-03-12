@@ -1,0 +1,79 @@
+helikite.instruments.smart_tether
+=================================
+
+.. py:module:: helikite.instruments.smart_tether
+
+.. autoapi-nested-parse::
+
+   2) SmartTether -> LOG_20220929_A.csv (has pressure)
+
+   The SmartTether is a weather sonde. time res 2 seconds if lon lat recorded.
+   1 sec if not.
+
+   Important variables to keep:
+   Time, Comment, P (mbar), T (deg C), RH (%), Wind (degrees), Wind (m/s),
+   UTC Time, Latitude (deg), Longitude (deg)
+
+   !!! Date is not reported in the data, but only in the header (yes, it's a pity)
+   -> therefore, I wrote a function that to includes the date but it needs to
+   change date if we pass midnight (not implemented yet).
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   helikite.instruments.smart_tether.logger
+   helikite.instruments.smart_tether.smart_tether
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   helikite.instruments.smart_tether.SmartTether
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:class:: SmartTether(*args, **kwargs)
+
+   Bases: :py:obj:`helikite.instruments.base.Instrument`
+
+
+   .. py:attribute:: name
+      :value: 'smart_tether'
+
+
+
+   .. py:method:: date_extractor(first_lines_of_csv) -> datetime.datetime
+
+
+   .. py:method:: file_identifier(first_lines_of_csv) -> bool
+
+
+   .. py:method:: set_time_as_index(df: pandas.DataFrame) -> pandas.DataFrame
+
+      Set the DateTime as index of the dataframe and correct if needed
+
+      Using values in the time_offset variable, correct DateTime index
+
+      As the rows store only a time variable, a rollover at midnight is
+      possible. This function checks for this and corrects the date if needed
+
+
+
+   .. py:method:: data_corrections(df, *args, **kwargs)
+
+
+   .. py:method:: read_data() -> pandas.DataFrame
+
+
+.. py:data:: smart_tether
+

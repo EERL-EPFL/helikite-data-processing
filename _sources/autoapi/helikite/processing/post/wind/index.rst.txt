@@ -1,0 +1,39 @@
+helikite.processing.post.wind
+=============================
+
+.. py:module:: helikite.processing.post.wind
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   helikite.processing.post.wind.clip_data
+   helikite.processing.post.wind.ewma_fb
+   helikite.processing.post.wind.remove_outliers
+   helikite.processing.post.wind.correction
+
+
+Module Contents
+---------------
+
+.. py:function:: clip_data(unclipped, HIGH_CLIP, LOW_CLIP)
+
+   Clip unclipped between high_clip and low_clip.
+   unclipped contains a single column of unclipped data.
+
+
+.. py:function:: ewma_fb(df_column, span)
+
+   Apply forwards, backwards exponential weighted moving average (EWMA)
+   to df_column.
+
+
+.. py:function:: remove_outliers(spikey, fbewma, delta)
+
+   Remove data from df_spikey that is > delta from fbewma.
+
+
+.. py:function:: correction(indexval, df_level0val, HIGH_CLIP, LOW_CLIP, SPAN, DELTA)
+

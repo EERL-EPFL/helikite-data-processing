@@ -1,0 +1,53 @@
+helikite.processing.post.crosscorrelation
+=========================================
+
+.. py:module:: helikite.processing.post.crosscorrelation
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   helikite.processing.post.crosscorrelation.crosscorr
+   helikite.processing.post.crosscorrelation.df_derived_by_shift
+   helikite.processing.post.crosscorrelation.df_findtimelag
+   helikite.processing.post.crosscorrelation.df_lagshift
+   helikite.processing.post.crosscorrelation.matchpress
+   helikite.processing.post.crosscorrelation.presdetrend
+
+
+Module Contents
+---------------
+
+.. py:function:: crosscorr(datax, datay, lag=10)
+
+   Lag-N cross correlation.
+   :param lag:
+   :type lag: int, default 0
+   :param datax:
+   :type datax: pandas.Series objects of equal length
+   :param datay:
+   :type datay: pandas.Series objects of equal length
+
+   :returns: **crosscorr**
+   :rtype: float
+
+
+.. py:function:: df_derived_by_shift(df_init, lag=0, NON_DER=[])
+
+.. py:function:: df_findtimelag(df, range_list, instname='')
+
+.. py:function:: df_lagshift(df_instrument, df_reference, shift_quantity, instrument_name='')
+
+   Shifts the instrument's dataframe by the given quantity.
+   First, match the instrument with the index of the reference instrument.
+
+
+.. py:function:: matchpress(dfpressure, refpresFC, takeofftimeFL, walktime)
+
+.. py:function:: presdetrend(dfpressure, takeofftimeFL, landingtimeFL)
+
+   detrend instrument pressure measurements
+
+

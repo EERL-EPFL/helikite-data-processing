@@ -1,0 +1,59 @@
+helikite.processing.post.co2
+============================
+
+.. py:module:: helikite.processing.post.co2
+
+.. autoapi-nested-parse::
+
+   These functions are used for CO2 monitor corrections
+
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   helikite.processing.post.co2.stp_convert_dry
+   helikite.processing.post.co2.stp_moist_test
+
+
+Module Contents
+---------------
+
+.. py:function:: stp_convert_dry(x, t, p1)
+
+   Convert a measurement to STP conditions for dry air.
+
+   This function adjusts a measurement from actual conditions to standard
+   temperature and pressure (STP) conditions for dry air. It follows the
+   approach of `stp.convert.dry` by Roman Pohorsky.
+
+   :param x: Measured value to be converted.
+   :type x: float or array-like
+   :param t: Temperature in °C.
+   :type t: float or array-like
+   :param p1: Pressure in hPa.
+   :type p1: float or array-like
+
+   :returns: Measurement converted to STP conditions.
+   :rtype: float or array-like
+
+   .. rubric:: Notes
+
+   The conversion process involves:
+     1. Converting the pressure from hPa to Pa.
+     2. Converting the temperature from °C to Kelvin.
+     3. Calculating the STP conversion factor and applying it to measurement.
+
+   .. rubric:: Examples
+
+   >>> df_level0['FC_CO2_STP'] = stp_convert_dry(
+   ...     df_level0['FC_CO2'],
+   ...     df_level0['T ref'],
+   ...     df_level0['FC_P corr']
+   ... )
+
+
+.. py:function:: stp_moist_test(x, t, p1, rh)
+

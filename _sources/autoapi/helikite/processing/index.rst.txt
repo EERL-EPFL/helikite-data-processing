@@ -1,0 +1,73 @@
+helikite.processing
+===================
+
+.. py:module:: helikite.processing
+
+
+Submodules
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   /autoapi/helikite/processing/conversions/index
+   /autoapi/helikite/processing/helpers/index
+   /autoapi/helikite/processing/post/index
+   /autoapi/helikite/processing/preprocess/index
+   /autoapi/helikite/processing/sorting/index
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   helikite.processing.choose_outliers
+   helikite.processing.choose_flags
+
+
+Package Contents
+----------------
+
+.. py:function:: choose_outliers(df, y, outlier_file='outliers.csv')
+
+   Creates a plot to interactively select outliers in the data.
+
+   A plot is generated where two variables are plotted, and the user can
+   click on points to select or deselect them as outliers, or use Plotly's
+   selection tools to select multiple points at once.
+
+   :param df: The dataframe containing the data
+   :type df: pandas.DataFrame
+   :param y: The column name of the y-axis variable
+   :type y: str
+   :param outlier_file: The path to the CSV file to store the outliers
+   :type outlier_file: str
+
+
+.. py:function:: choose_flags(df, y, flag_file='flags.csv', key='flag', value='selected')
+
+   Creates a plot to interactively select and assign flags to data points.
+
+   A plot is generated where two variables are plotted, and the user can
+   click on points to assign or remove a flag value to a specified key (column).
+   The flags are stored in a CSV file, which can be used to tag the data points
+   later.
+
+
+   :param df: The dataframe containing the data.
+   :type df: pandas.DataFrame
+   :param y: The column name of the y-axis variable.
+   :type y: str
+   :param flag_file: The path to the CSV file to store the flags (default is "flags.csv").
+   :type flag_file: str, optional
+   :param key: The column name to assign flags (default is "flag").
+   :type key: str, optional
+   :param value: The value to assign to the key when points are selected (default is "selected").
+   :type value: str, optional
+
+   :returns: A VBox widget containing the variable dropdown, add/remove toggle button,
+             the interactive plot, and the output widget.
+   :rtype: VBox
+
+

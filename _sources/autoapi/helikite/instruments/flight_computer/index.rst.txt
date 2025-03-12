@@ -1,0 +1,148 @@
+helikite.instruments.flight_computer
+====================================
+
+.. py:module:: helikite.instruments.flight_computer
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   helikite.instruments.flight_computer.logger
+   helikite.instruments.flight_computer.flight_computer_v1
+   helikite.instruments.flight_computer.flight_computer_v2
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   helikite.instruments.flight_computer.FlightComputerV1
+   helikite.instruments.flight_computer.FlightComputerV2
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:class:: FlightComputerV1(*args, **kwargs)
+
+   Bases: :py:obj:`helikite.instruments.base.Instrument`
+
+
+   This flight computer relates to the first version used in campaigns
+   in 2023, 2024. A new version was designed in 2024. See FlightComputerV2.
+
+
+   .. py:attribute:: name
+      :value: 'flight_computer'
+
+
+
+   .. py:attribute:: _csv_header
+      :value: Multiline-String
+
+      .. raw:: html
+
+         <details><summary>Show Value</summary>
+
+      .. code-block:: python
+
+         """SBI,DateTime,PartCon,CO2,P_baro,TEMPbox,mFlow,TEMPsamp,RHsamp,TEMP1,RH1,TEMP2,RH2,vBat
+         """
+
+      .. raw:: html
+
+         </details>
+
+
+
+
+   .. py:method:: file_identifier(first_lines_of_csv) -> bool
+
+      Default file identifier callback
+
+      Must return false. True would provide false positives.
+
+
+
+   .. py:method:: data_corrections(df: pandas.DataFrame, *, start_altitude: float | None = None, start_pressure: float | None = None, start_temperature: float | None = None, start_duration_seconds: int = 10) -> pandas.DataFrame
+
+      Default callback function for data corrections.
+
+      Return with no changes
+
+
+
+   .. py:method:: set_time_as_index(df: pandas.DataFrame) -> pandas.DataFrame
+
+      Set the DateTime as index of the dataframe and correct if needed
+
+      Using values in the time_offset variable, correct DateTime index
+
+
+
+   .. py:method:: read_data() -> pandas.DataFrame
+
+      Read data into dataframe
+
+
+
+.. py:class:: FlightComputerV2(*args, **kwargs)
+
+   Bases: :py:obj:`helikite.instruments.base.Instrument`
+
+
+   This flight computer relates to the second version used in campaigns
+   in 2024. This version uses a new set of metadata and a modified CSV format.
+
+
+   .. py:attribute:: name
+      :value: 'flight_computer'
+
+
+
+   .. py:attribute:: _csv_header_partial
+      :value: 'F_cur_pos,F_cntdown,F_smp_flw,F_smp_tmp,F_smp_prs,F_pump_pw,F_psvolts,F_err_rpt,SO_S,SO_D,SO_U,S...
+
+
+
+   .. py:method:: file_identifier(first_lines_of_csv) -> bool
+
+      Default file identifier callback
+
+      Must return false. True would provide false positives.
+
+
+
+   .. py:method:: read_data() -> pandas.DataFrame
+
+      Read data into dataframe, adjusting for duplicate headers.
+
+
+
+   .. py:method:: data_corrections(df: pandas.DataFrame, **kwargs) -> pandas.DataFrame
+
+      Default callback function for data corrections.
+
+      Return with no changes
+
+
+
+   .. py:method:: set_time_as_index(df: pandas.DataFrame) -> pandas.DataFrame
+
+      Set the DateTime as index of the dataframe and correct if needed
+
+      The DateTime column is represented as YYMMMM-HHMMSS, so we need to
+      convert this to a datetime object.
+      Example: 240926-141516
+
+
+
+.. py:data:: flight_computer_v1
+
+.. py:data:: flight_computer_v2
+

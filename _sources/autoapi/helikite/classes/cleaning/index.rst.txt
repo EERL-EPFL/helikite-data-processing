@@ -1,0 +1,220 @@
+helikite.classes.cleaning
+=========================
+
+.. py:module:: helikite.classes.cleaning
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   helikite.classes.cleaning.parent_process
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   helikite.classes.cleaning.Cleaner
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   helikite.classes.cleaning.function_dependencies
+
+
+Module Contents
+---------------
+
+.. py:data:: parent_process
+
+.. py:function:: function_dependencies(required_operations: list[str] = [], use_once=False)
+
+   A decorator to enforce that a method can only run if the required
+   operations have been completed and not rerun.
+
+   If used without a list, the function can only run once.
+
+
+.. py:class:: Cleaner(instruments: list[helikite.instruments.base.Instrument], reference_instrument: helikite.instruments.base.Instrument, input_folder: str, flight_date: datetime.date, time_takeoff: datetime.datetime | None = None, time_landing: datetime.datetime | None = None, time_offset: datetime.time = datetime.time(0, 0))
+
+   .. py:attribute:: _instruments
+      :type:  list[helikite.instruments.base.Instrument]
+      :value: []
+
+
+
+   .. py:attribute:: input_folder
+      :type:  str
+
+
+   .. py:attribute:: flight_date
+      :type:  datetime.date
+
+
+   .. py:attribute:: time_takeoff
+      :type:  datetime.datetime | None
+      :value: None
+
+
+
+   .. py:attribute:: time_landing
+      :type:  datetime.datetime | None
+      :value: None
+
+
+
+   .. py:attribute:: time_offset
+      :type:  datetime.time
+
+
+   .. py:attribute:: pressure_column
+      :type:  str
+      :value: 'pressure'
+
+
+
+   .. py:attribute:: master_df
+      :type:  pandas.DataFrame | None
+      :value: None
+
+
+
+   .. py:attribute:: housekeeping_df
+      :type:  pandas.DataFrame | None
+      :value: None
+
+
+
+   .. py:attribute:: reference_instrument
+      :type:  helikite.instruments.base.Instrument
+
+
+   .. py:attribute:: _completed_operations
+      :type:  list[str]
+      :value: []
+
+
+
+   .. py:method:: state()
+
+      Prints the current state of the Cleaner class in a tabular format
+
+
+
+   .. py:method:: help()
+
+      Prints available methods in a clean format
+
+
+
+   .. py:method:: _print_instruments() -> None
+
+
+   .. py:method:: set_pressure_column(column_name_override: str | None = None) -> None
+
+      Set the pressure column for each instrument's dataframe
+
+
+
+   .. py:method:: set_time_as_index() -> None
+
+      Set the time column as the index for each instrument dataframe
+
+
+
+   .. py:method:: data_corrections(start_altitude: float = None, start_pressure: float = None, start_temperature: float = None) -> None
+
+
+   .. py:method:: plot_pressure() -> None
+
+      Creates a plot with the pressure measurement of each instrument
+
+      Assumes the pressure column has been set for each instrument
+
+
+
+   .. py:method:: remove_duplicates() -> None
+
+      Remove duplicate rows from each instrument based on time index
+
+
+
+   .. py:method:: _print_success_errors(operation: str, success: list[str], errors: list[tuple[str, Any]]) -> None
+
+
+   .. py:method:: merge_instruments(tolerance_seconds: int = 1, remove_duplicates: bool = True) -> None
+
+      Merges all the dataframes from the instruments into one dataframe.
+
+      All columns from all instruments are included in the merged dataframe,
+      with unique prefixes to avoid column name collisions.
+
+      :param tolerance_seconds: The tolerance in seconds for merging dataframes.
+      :type tolerance_seconds: int
+      :param remove_duplicates: If True, removes duplicate times and keeps the first result.
+      :type remove_duplicates: bool
+
+
+
+   .. py:method:: export_data(filename: str | None = None) -> None
+
+      Export all data columns from all instruments to a single CSV file
+
+
+
+   .. py:method:: _apply_rolling_window_to_pressure(instrument, window_size: int = 20)
+
+      Apply rolling window to the pressure measurements of instrument
+
+      Then plot the pressure measurements with the rolling window applied
+
+
+
+   .. py:method:: define_flight_times()
+
+      Creates a plot to select the start and end of the flight
+
+      Uses the pressure measurements of the reference instrument to select
+      the start and end of the flight. The user can click on the plot to
+      select the points.
+
+
+
+   .. py:method:: correct_time_and_pressure(max_lag=180, walk_time_seconds: int | None = None, apply_rolling_window_to: list[helikite.instruments.base.Instrument] = [], rolling_window_size: int = constants.ROLLING_WINDOW_DEFAULT_SIZE, reference_pressure_thresholds: tuple[float, float] | None = None, detrend_pressure_on: list[helikite.instruments.base.Instrument] = [], offsets: list[tuple[helikite.instruments.base.Instrument, int]] = [], match_adjustment_with: list[tuple[helikite.instruments.base.Instrument, helikite.instruments.base.Instrument]] = [])
+
+      Correct time and pressure for each instrument based on time lag.
+
+      :param max_lag: The maximum time lag to consider for cross-correlation.
+      :type max_lag: int
+      :param walk_time_seconds: The time in seconds to walk the pressure data to match the
+                                reference instrument.
+      :type walk_time_seconds: int
+      :param apply_rolling_window_to: A list of instruments to apply a rolling window to the pressure
+                                      data.
+      :type apply_rolling_window_to: list[Instrument]
+      :param rolling_window_size: The size of the rolling window to apply to the pressure data.
+      :type rolling_window_size: int
+      :param reference_pressure_thresholds: A tuple with two values (low, high) to apply a threshold to the
+                                            reference instrument's pressure data.
+      :type reference_pressure_thresholds: tuple[float, float]
+      :param detrend_pressure_on: A list of instruments to detrend the pressure data.
+      :type detrend_pressure_on: list[Instrument]
+      :param offsets: A list of tuples with an instrument and an offset in seconds to
+                      apply to the time index.
+      :type offsets: list[tuple[Instrument, int]]
+      :param match_adjustment_with: A list of tuples with two instruments, in order to be able to
+                                    to match the same time adjustment. This can be used,
+                                    for example, if an instrument does not have a pressure column,
+                                    and as such, can use the time adjustment from another instrument.
+                                    The first instrument is the one that has the index adjustment, and
+                                    the second instrument is the one that will be adjusted.
+      :type match_adjustment_with: dict[Instrument, list[Instrument]]
+
+
+

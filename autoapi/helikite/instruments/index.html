@@ -1,0 +1,526 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>helikite.instruments &mdash; helikite-data-processing 1.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css?v=4ae1632d" />
+
+  
+      <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../_static/documentation_options.js?v=fc837d61"></script>
+      <script src="../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" />
+    <link rel="next" title="helikite.instruments.base" href="base/index.html" />
+    <link rel="prev" title="helikite.constants" href="../constants/index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            helikite-data-processing
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../../index.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../index.html">helikite</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="../index.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="../classes/index.html">helikite.classes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../constants/index.html">helikite.constants</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">helikite.instruments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../metadata/index.html">helikite.metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../plots/index.html">helikite.plots</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../processing/index.html">helikite.processing</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../index.html#classes">Classes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../index.html#package-contents">Package Contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">helikite-data-processing</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">API Reference</a></li>
+          <li class="breadcrumb-item"><a href="../index.html">helikite</a></li>
+      <li class="breadcrumb-item active">helikite.instruments</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../_sources/autoapi/helikite/instruments/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-helikite.instruments">
+<span id="helikite-instruments"></span><h1>helikite.instruments<a class="headerlink" href="#module-helikite.instruments" title="Link to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Link to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="base/index.html">helikite.instruments.base</a></li>
+<li class="toctree-l1"><a class="reference internal" href="filter/index.html">helikite.instruments.filter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="flight_computer/index.html">helikite.instruments.flight_computer</a></li>
+<li class="toctree-l1"><a class="reference internal" href="mcpc/index.html">helikite.instruments.mcpc</a></li>
+<li class="toctree-l1"><a class="reference internal" href="msems/index.html">helikite.instruments.msems</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ozone/index.html">helikite.instruments.ozone</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pico/index.html">helikite.instruments.pico</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pops/index.html">helikite.instruments.pops</a></li>
+<li class="toctree-l1"><a class="reference internal" href="smart_tether/index.html">helikite.instruments.smart_tether</a></li>
+<li class="toctree-l1"><a class="reference internal" href="stap/index.html">helikite.instruments.stap</a></li>
+</ul>
+</div>
+</section>
+<section id="attributes">
+<h2>Attributes<a class="headerlink" href="#attributes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="stap/index.html#module-helikite.instruments.stap" title="helikite.instruments.stap"><code class="xref py py-obj docutils literal notranslate"><span class="pre">stap</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#helikite.instruments.stap_raw" title="helikite.instruments.stap_raw"><code class="xref py py-obj docutils literal notranslate"><span class="pre">stap_raw</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="mcpc/index.html#module-helikite.instruments.mcpc" title="helikite.instruments.mcpc"><code class="xref py py-obj docutils literal notranslate"><span class="pre">mcpc</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#helikite.instruments.flight_computer_v1" title="helikite.instruments.flight_computer_v1"><code class="xref py py-obj docutils literal notranslate"><span class="pre">flight_computer_v1</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#helikite.instruments.flight_computer_v2" title="helikite.instruments.flight_computer_v2"><code class="xref py py-obj docutils literal notranslate"><span class="pre">flight_computer_v2</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="pico/index.html#module-helikite.instruments.pico" title="helikite.instruments.pico"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pico</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="pops/index.html#module-helikite.instruments.pops" title="helikite.instruments.pops"><code class="xref py py-obj docutils literal notranslate"><span class="pre">pops</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="smart_tether/index.html#module-helikite.instruments.smart_tether" title="helikite.instruments.smart_tether"><code class="xref py py-obj docutils literal notranslate"><span class="pre">smart_tether</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#helikite.instruments.ozone_monitor" title="helikite.instruments.ozone_monitor"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ozone_monitor</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#helikite.instruments.msems_readings" title="helikite.instruments.msems_readings"><code class="xref py py-obj docutils literal notranslate"><span class="pre">msems_readings</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#helikite.instruments.msems_inverted" title="helikite.instruments.msems_inverted"><code class="xref py py-obj docutils literal notranslate"><span class="pre">msems_inverted</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#helikite.instruments.msems_scan" title="helikite.instruments.msems_scan"><code class="xref py py-obj docutils literal notranslate"><span class="pre">msems_scan</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#helikite.instruments.filter" title="helikite.instruments.filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">filter</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="classes">
+<h2>Classes<a class="headerlink" href="#classes" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#helikite.instruments.Instrument" title="helikite.instruments.Instrument"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Instrument</span></code></a></p></td>
+<td><p>Helper class that provides a standard way to create an ABC using</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#helikite.instruments.Filter" title="helikite.instruments.Filter"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Filter</span></code></a></p></td>
+<td><p>Helper class that provides a standard way to create an ABC using</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="package-contents">
+<h2>Package Contents<a class="headerlink" href="#package-contents" title="Link to this heading"></a></h2>
+<dl class="py data">
+<dt class="sig sig-object py" id="helikite.instruments.stap">
+<span class="sig-prename descclassname"><span class="pre">helikite.instruments.</span></span><span class="sig-name descname"><span class="pre">stap</span></span><a class="headerlink" href="#helikite.instruments.stap" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="helikite.instruments.stap_raw">
+<span class="sig-prename descclassname"><span class="pre">helikite.instruments.</span></span><span class="sig-name descname"><span class="pre">stap_raw</span></span><a class="headerlink" href="#helikite.instruments.stap_raw" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="helikite.instruments.mcpc">
+<span class="sig-prename descclassname"><span class="pre">helikite.instruments.</span></span><span class="sig-name descname"><span class="pre">mcpc</span></span><a class="headerlink" href="#helikite.instruments.mcpc" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="helikite.instruments.flight_computer_v1">
+<span class="sig-prename descclassname"><span class="pre">helikite.instruments.</span></span><span class="sig-name descname"><span class="pre">flight_computer_v1</span></span><a class="headerlink" href="#helikite.instruments.flight_computer_v1" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="helikite.instruments.flight_computer_v2">
+<span class="sig-prename descclassname"><span class="pre">helikite.instruments.</span></span><span class="sig-name descname"><span class="pre">flight_computer_v2</span></span><a class="headerlink" href="#helikite.instruments.flight_computer_v2" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="helikite.instruments.pico">
+<span class="sig-prename descclassname"><span class="pre">helikite.instruments.</span></span><span class="sig-name descname"><span class="pre">pico</span></span><a class="headerlink" href="#helikite.instruments.pico" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="helikite.instruments.pops">
+<span class="sig-prename descclassname"><span class="pre">helikite.instruments.</span></span><span class="sig-name descname"><span class="pre">pops</span></span><a class="headerlink" href="#helikite.instruments.pops" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="helikite.instruments.smart_tether">
+<span class="sig-prename descclassname"><span class="pre">helikite.instruments.</span></span><span class="sig-name descname"><span class="pre">smart_tether</span></span><a class="headerlink" href="#helikite.instruments.smart_tether" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="helikite.instruments.ozone_monitor">
+<span class="sig-prename descclassname"><span class="pre">helikite.instruments.</span></span><span class="sig-name descname"><span class="pre">ozone_monitor</span></span><a class="headerlink" href="#helikite.instruments.ozone_monitor" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="helikite.instruments.msems_readings">
+<span class="sig-prename descclassname"><span class="pre">helikite.instruments.</span></span><span class="sig-name descname"><span class="pre">msems_readings</span></span><a class="headerlink" href="#helikite.instruments.msems_readings" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="helikite.instruments.msems_inverted">
+<span class="sig-prename descclassname"><span class="pre">helikite.instruments.</span></span><span class="sig-name descname"><span class="pre">msems_inverted</span></span><a class="headerlink" href="#helikite.instruments.msems_inverted" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="helikite.instruments.msems_scan">
+<span class="sig-prename descclassname"><span class="pre">helikite.instruments.</span></span><span class="sig-name descname"><span class="pre">msems_scan</span></span><a class="headerlink" href="#helikite.instruments.msems_scan" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">helikite.instruments.</span></span><span class="sig-name descname"><span class="pre">Instrument</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">{}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">na_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">header</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">delimiter</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">','</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lineterminator</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">comment</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">names</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">index_col</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols_export</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cols_housekeeping</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">export_order</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pressure_variable</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.instruments.Instrument" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-obj docutils literal notranslate"><span class="pre">abc.ABC</span></code></p>
+<p>Helper class that provides a standard way to create an ABC using
+inheritance.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.dtype">
+<span class="sig-name descname"><span class="pre">dtype</span></span><a class="headerlink" href="#helikite.instruments.Instrument.dtype" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.na_values">
+<span class="sig-name descname"><span class="pre">na_values</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#helikite.instruments.Instrument.na_values" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.header">
+<span class="sig-name descname"><span class="pre">header</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#helikite.instruments.Instrument.header" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.delimiter">
+<span class="sig-name descname"><span class="pre">delimiter</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">','</span></em><a class="headerlink" href="#helikite.instruments.Instrument.delimiter" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.lineterminator">
+<span class="sig-name descname"><span class="pre">lineterminator</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#helikite.instruments.Instrument.lineterminator" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.comment">
+<span class="sig-name descname"><span class="pre">comment</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#helikite.instruments.Instrument.comment" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.names">
+<span class="sig-name descname"><span class="pre">names</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#helikite.instruments.Instrument.names" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.index_col">
+<span class="sig-name descname"><span class="pre">index_col</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#helikite.instruments.Instrument.index_col" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.cols_export">
+<span class="sig-name descname"><span class="pre">cols_export</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[]</span></em><a class="headerlink" href="#helikite.instruments.Instrument.cols_export" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.cols_housekeeping">
+<span class="sig-name descname"><span class="pre">cols_housekeeping</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">[]</span></em><a class="headerlink" href="#helikite.instruments.Instrument.cols_housekeeping" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.export_order">
+<span class="sig-name descname"><span class="pre">export_order</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#helikite.instruments.Instrument.export_order" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.pressure_variable">
+<span class="sig-name descname"><span class="pre">pressure_variable</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#helikite.instruments.Instrument.pressure_variable" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.filename">
+<span class="sig-name descname"><span class="pre">filename</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#helikite.instruments.Instrument.filename" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.date">
+<span class="sig-name descname"><span class="pre">date</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">datetime.datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#helikite.instruments.Instrument.date" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.pressure_offset_housekeeping">
+<span class="sig-name descname"><span class="pre">pressure_offset_housekeeping</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#helikite.instruments.Instrument.pressure_offset_housekeeping" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.time_offset">
+<span class="sig-name descname"><span class="pre">time_offset</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#helikite.instruments.Instrument.time_offset" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#helikite.instruments.Instrument.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.time_range">
+<span class="sig-name descname"><span class="pre">time_range</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#helikite.instruments.Instrument.time_range" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.add_config">
+<span class="sig-name descname"><span class="pre">add_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">yaml_props</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.instruments.Instrument.add_config" title="Link to this definition"></a></dt>
+<dd><p>Adds the application’s config to the Instrument class</p>
+<p>This is called from the main() function in helikite.py</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.data_corrections">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">data_corrections</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.instruments.Instrument.data_corrections" title="Link to this definition"></a></dt>
+<dd><p>Default callback function for data corrections.</p>
+<p>Return with no changes</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.create_plots">
+<span class="sig-name descname"><span class="pre">create_plots</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">plotly.graph_objects.Figure</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#helikite.instruments.Instrument.create_plots" title="Link to this definition"></a></dt>
+<dd><p>Default callback for generated figures from dataframes</p>
+<p>Return nothing, as anything else will populate the list that is written
+out to HTML.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.file_identifier">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">file_identifier</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">first_lines_of_csv</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.instruments.Instrument.file_identifier" title="Link to this definition"></a></dt>
+<dd><p>Default file identifier callback</p>
+<p>Must return false. True would provide false positives.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.date_extractor">
+<span class="sig-name descname"><span class="pre">date_extractor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">first_lines_of_csv</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.instruments.Instrument.date_extractor" title="Link to this definition"></a></dt>
+<dd><p>Returns the date of the data sample from a CSV header</p>
+<p>Can be used for an instrument that reports the date in header
+instead of in the data field.</p>
+<p>Return None if there is nothing to do here</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.add_device_name_to_columns">
+<span class="sig-name descname"><span class="pre">add_device_name_to_columns</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pandas.DataFrame</span></span></span><a class="headerlink" href="#helikite.instruments.Instrument.add_device_name_to_columns" title="Link to this definition"></a></dt>
+<dd><p>Updates dataframe with column names prefixed by instrument name</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.housekeeping_columns">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">housekeeping_columns</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#helikite.instruments.Instrument.housekeeping_columns" title="Link to this definition"></a></dt>
+<dd><p>Returns housekeeping columns, prefixed with the instrument name</p>
+<p>If there are no housekeeping variables, return an empty list</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.export_columns">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">export_columns</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#helikite.instruments.Instrument.export_columns" title="Link to this definition"></a></dt>
+<dd><p>Returns export datafile columns, prefixed with the instrument name</p>
+<p>If there are no variables, return an empty list</p>
+<p>The export data file is a combined output, similar to housekeeping</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.set_time_as_index">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">set_time_as_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pandas.DataFrame</span></span></span><a class="headerlink" href="#helikite.instruments.Instrument.set_time_as_index" title="Link to this definition"></a></dt>
+<dd><p>This function is used to set the date in the file to the index</p>
+<p>By default no action is taken, but this can be overridden in the
+instrument class to set the date as the index.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.correct_time_from_config">
+<span class="sig-name descname"><span class="pre">correct_time_from_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trim_start</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.Timestamp</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">trim_end</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.Timestamp</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pandas.DataFrame</span></span></span><a class="headerlink" href="#helikite.instruments.Instrument.correct_time_from_config" title="Link to this definition"></a></dt>
+<dd><p>Correct the time offset and trim from the configuration</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.set_housekeeping_pressure_offset_variable">
+<span class="sig-name descname"><span class="pre">set_housekeeping_pressure_offset_variable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">column_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">constants.HOUSEKEEPING_VAR_PRESSURE</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pandas.DataFrame</span></span></span><a class="headerlink" href="#helikite.instruments.Instrument.set_housekeeping_pressure_offset_variable" title="Link to this definition"></a></dt>
+<dd><p>Generate variable to offset pressure value for housekeeping</p>
+<p>Using an offset in the configuration, a new variable is created
+that offset’s the instruments pressure variable. This is used to align
+the pressure value on the plot to help align pressure.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.read_data">
+<em class="property"><span class="k"><span class="pre">abstractmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">read_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pandas.DataFrame</span></span></span><a class="headerlink" href="#helikite.instruments.Instrument.read_data" title="Link to this definition"></a></dt>
+<dd><p>Read data into dataframe</p>
+<p>This allows a custom read function to parse the CSV/TXT into a
+dataframe, for example cleaning dirty data at the end of the file
+in memory without altering the input file (see flight computer conf).</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.detect_from_folder">
+<span class="sig-name descname"><span class="pre">detect_from_folder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lines_to_read</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">constants.QTY_LINES_TO_IDENTIFY_INSTRUMENT</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quiet</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.instruments.Instrument.detect_from_folder" title="Link to this definition"></a></dt>
+<dd><p>Scans an input folder for the instrument file</p>
+<p>If there are two files that match the instrument, the function will
+raise an error. This is to prevent the program from trying to process
+the same file twice.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.read_from_folder">
+<span class="sig-name descname"><span class="pre">read_from_folder</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quiet</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pandas.DataFrame</span></span></span><a class="headerlink" href="#helikite.instruments.Instrument.read_from_folder" title="Link to this definition"></a></dt>
+<dd><p>Reads the data from the detected file in the input folder</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Instrument.remove_duplicates">
+<span class="sig-name descname"><span class="pre">remove_duplicates</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pandas.DataFrame</span></span></span><a class="headerlink" href="#helikite.instruments.Instrument.remove_duplicates" title="Link to this definition"></a></dt>
+<dd><p>Remove duplicate rows from the dataframe</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="helikite.instruments.Filter">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">helikite.instruments.</span></span><span class="sig-name descname"><span class="pre">Filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.instruments.Filter" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference internal" href="base/index.html#helikite.instruments.base.Instrument" title="helikite.instruments.base.Instrument"><code class="xref py py-obj docutils literal notranslate"><span class="pre">helikite.instruments.base.Instrument</span></code></a></p>
+<p>Helper class that provides a standard way to create an ABC using
+inheritance.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="helikite.instruments.Filter.name">
+<span class="sig-name descname"><span class="pre">name</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">'filter'</span></em><a class="headerlink" href="#helikite.instruments.Filter.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Filter.file_identifier">
+<span class="sig-name descname"><span class="pre">file_identifier</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">first_lines_of_csv</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#helikite.instruments.Filter.file_identifier" title="Link to this definition"></a></dt>
+<dd><p>Default file identifier callback</p>
+<p>Must return false. True would provide false positives.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Filter.data_corrections">
+<span class="sig-name descname"><span class="pre">data_corrections</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.instruments.Filter.data_corrections" title="Link to this definition"></a></dt>
+<dd><p>Default callback function for data corrections.</p>
+<p>Return with no changes</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Filter.set_time_as_index">
+<span class="sig-name descname"><span class="pre">set_time_as_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">pandas.DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pandas.DataFrame</span></span></span><a class="headerlink" href="#helikite.instruments.Filter.set_time_as_index" title="Link to this definition"></a></dt>
+<dd><p>Set the DateTime as index of the dataframe</p>
+<p>Filter instrument contains date and time separately and appears to
+include an extra whitespace in the field of each of those two columns</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="helikite.instruments.Filter.read_data">
+<span class="sig-name descname"><span class="pre">read_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">pandas.DataFrame</span></span></span><a class="headerlink" href="#helikite.instruments.Filter.read_data" title="Link to this definition"></a></dt>
+<dd><p>Read data into dataframe</p>
+<p>This allows a custom read function to parse the CSV/TXT into a
+dataframe, for example cleaning dirty data at the end of the file
+in memory without altering the input file (see flight computer conf).</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="helikite.instruments.filter">
+<span class="sig-prename descclassname"><span class="pre">helikite.instruments.</span></span><span class="sig-name descname"><span class="pre">filter</span></span><a class="headerlink" href="#helikite.instruments.filter" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../constants/index.html" class="btn btn-neutral float-left" title="helikite.constants" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="base/index.html" class="btn btn-neutral float-right" title="helikite.instruments.base" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Evan Thomas.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

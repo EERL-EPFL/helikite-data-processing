@@ -1,0 +1,106 @@
+helikite.instruments.stap
+=========================
+
+.. py:module:: helikite.instruments.stap
+
+.. autoapi-nested-parse::
+
+   Single Channel Tricolor Absorption Photometer (STAP)
+   The STAP measures the light absorption of particles deposited on a filter.
+
+   Resolution: 1 sec
+
+   Variables to keep: Everything
+
+   Time is is seconds since 1904-01-01 (weird starting date for Igor software)
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   helikite.instruments.stap.stap
+   helikite.instruments.stap.stap_raw
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   helikite.instruments.stap.STAP
+   helikite.instruments.stap.STAPRaw
+
+
+Module Contents
+---------------
+
+.. py:class:: STAP(*args, **kwargs)
+
+   Bases: :py:obj:`helikite.instruments.base.Instrument`
+
+
+   This class is a processed version of the STAP data
+
+   For outputs directly from the instrument, use the STAPRaw class
+
+
+   .. py:attribute:: name
+      :value: 'stap'
+
+
+
+   .. py:method:: file_identifier(first_lines_of_csv) -> bool
+
+
+   .. py:method:: data_corrections(df, *args, **kwargs)
+
+
+   .. py:method:: set_time_as_index(df: pandas.DataFrame) -> pandas.DataFrame
+
+      Set the DateTime as index of the dataframe and correct if needed
+
+      Using values in the time_offset variable, correct DateTime index
+
+
+
+   .. py:method:: read_data() -> pandas.DataFrame
+
+
+.. py:class:: STAPRaw(*args, **kwargs)
+
+   Bases: :py:obj:`helikite.instruments.base.Instrument`
+
+
+   This instrument class is for the raw STAP data
+
+
+   .. py:attribute:: name
+      :value: 'stap_raw'
+
+
+
+   .. py:method:: data_corrections(df, *args, **kwargs)
+
+
+   .. py:method:: file_identifier(first_lines_of_csv) -> bool
+
+
+   .. py:method:: set_time_as_index(df: pandas.DataFrame) -> pandas.DataFrame
+
+      Set the DateTime as index of the dataframe and correct if needed
+
+      Instrument contains date and time separately and appears to
+      include an extra whitespace in the field of each of those two columns
+
+
+
+   .. py:method:: read_data() -> pandas.DataFrame
+
+
+.. py:data:: stap
+
+.. py:data:: stap_raw
+

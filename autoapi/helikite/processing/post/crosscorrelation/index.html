@@ -1,0 +1,206 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../../../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>helikite.processing.post.crosscorrelation &mdash; helikite-data-processing 1.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../../../../_static/graphviz.css?v=4ae1632d" />
+
+  
+      <script src="../../../../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../../../../_static/documentation_options.js?v=fc837d61"></script>
+      <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../../search.html" />
+    <link rel="next" title="helikite.processing.post.tools" href="../tools/index.html" />
+    <link rel="prev" title="helikite.processing.post.co2" href="../co2/index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../../../index.html" class="icon icon-home">
+            helikite-data-processing
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="../../../../index.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../../../index.html">helikite</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="../../../index.html#submodules">Submodules</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="../../../classes/index.html">helikite.classes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../constants/index.html">helikite.constants</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../instruments/index.html">helikite.instruments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../metadata/index.html">helikite.metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plots/index.html">helikite.plots</a></li>
+<li class="toctree-l4 current"><a class="reference internal" href="../../index.html">helikite.processing</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../index.html#classes">Classes</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../index.html#package-contents">Package Contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../../../index.html">helikite-data-processing</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../../../index.html">API Reference</a></li>
+          <li class="breadcrumb-item"><a href="../../../index.html">helikite</a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">helikite.processing</a></li>
+          <li class="breadcrumb-item"><a href="../index.html">helikite.processing.post</a></li>
+      <li class="breadcrumb-item active">helikite.processing.post.crosscorrelation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../../../../../_sources/autoapi/helikite/processing/post/crosscorrelation/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-helikite.processing.post.crosscorrelation">
+<span id="helikite-processing-post-crosscorrelation"></span><h1>helikite.processing.post.crosscorrelation<a class="headerlink" href="#module-helikite.processing.post.crosscorrelation" title="Link to this heading"></a></h1>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading"></a></h2>
+<table class="autosummary longtable docutils align-default">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#helikite.processing.post.crosscorrelation.crosscorr" title="helikite.processing.post.crosscorrelation.crosscorr"><code class="xref py py-obj docutils literal notranslate"><span class="pre">crosscorr</span></code></a>(datax, datay[, lag])</p></td>
+<td><p>Lag-N cross correlation.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#helikite.processing.post.crosscorrelation.df_derived_by_shift" title="helikite.processing.post.crosscorrelation.df_derived_by_shift"><code class="xref py py-obj docutils literal notranslate"><span class="pre">df_derived_by_shift</span></code></a>(df_init[, lag, NON_DER])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#helikite.processing.post.crosscorrelation.df_findtimelag" title="helikite.processing.post.crosscorrelation.df_findtimelag"><code class="xref py py-obj docutils literal notranslate"><span class="pre">df_findtimelag</span></code></a>(df, range_list[, instname])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#helikite.processing.post.crosscorrelation.df_lagshift" title="helikite.processing.post.crosscorrelation.df_lagshift"><code class="xref py py-obj docutils literal notranslate"><span class="pre">df_lagshift</span></code></a>(df_instrument, df_reference, shift_quantity)</p></td>
+<td><p>Shifts the instrument's dataframe by the given quantity.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#helikite.processing.post.crosscorrelation.matchpress" title="helikite.processing.post.crosscorrelation.matchpress"><code class="xref py py-obj docutils literal notranslate"><span class="pre">matchpress</span></code></a>(dfpressure, refpresFC, takeofftimeFL, walktime)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#helikite.processing.post.crosscorrelation.presdetrend" title="helikite.processing.post.crosscorrelation.presdetrend"><code class="xref py py-obj docutils literal notranslate"><span class="pre">presdetrend</span></code></a>(dfpressure, takeofftimeFL, landingtimeFL)</p></td>
+<td><p>detrend instrument pressure measurements</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="module-contents">
+<h2>Module Contents<a class="headerlink" href="#module-contents" title="Link to this heading"></a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="helikite.processing.post.crosscorrelation.crosscorr">
+<span class="sig-prename descclassname"><span class="pre">helikite.processing.post.crosscorrelation.</span></span><span class="sig-name descname"><span class="pre">crosscorr</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datax</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datay</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.processing.post.crosscorrelation.crosscorr" title="Link to this definition"></a></dt>
+<dd><p>Lag-N cross correlation.
+:param lag:
+:type lag: int, default 0
+:param datax:
+:type datax: pandas.Series objects of equal length
+:param datay:
+:type datay: pandas.Series objects of equal length</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>crosscorr</strong></p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="helikite.processing.post.crosscorrelation.df_derived_by_shift">
+<span class="sig-prename descclassname"><span class="pre">helikite.processing.post.crosscorrelation.</span></span><span class="sig-name descname"><span class="pre">df_derived_by_shift</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_init</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lag</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">NON_DER</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.processing.post.crosscorrelation.df_derived_by_shift" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="helikite.processing.post.crosscorrelation.df_findtimelag">
+<span class="sig-prename descclassname"><span class="pre">helikite.processing.post.crosscorrelation.</span></span><span class="sig-name descname"><span class="pre">df_findtimelag</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">range_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instname</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.processing.post.crosscorrelation.df_findtimelag" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="helikite.processing.post.crosscorrelation.df_lagshift">
+<span class="sig-prename descclassname"><span class="pre">helikite.processing.post.crosscorrelation.</span></span><span class="sig-name descname"><span class="pre">df_lagshift</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df_instrument</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">df_reference</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shift_quantity</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">instrument_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.processing.post.crosscorrelation.df_lagshift" title="Link to this definition"></a></dt>
+<dd><p>Shifts the instrument’s dataframe by the given quantity.
+First, match the instrument with the index of the reference instrument.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="helikite.processing.post.crosscorrelation.matchpress">
+<span class="sig-prename descclassname"><span class="pre">helikite.processing.post.crosscorrelation.</span></span><span class="sig-name descname"><span class="pre">matchpress</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dfpressure</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">refpresFC</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">takeofftimeFL</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">walktime</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.processing.post.crosscorrelation.matchpress" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="helikite.processing.post.crosscorrelation.presdetrend">
+<span class="sig-prename descclassname"><span class="pre">helikite.processing.post.crosscorrelation.</span></span><span class="sig-name descname"><span class="pre">presdetrend</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dfpressure</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">takeofftimeFL</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">landingtimeFL</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#helikite.processing.post.crosscorrelation.presdetrend" title="Link to this definition"></a></dt>
+<dd><p>detrend instrument pressure measurements</p>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../co2/index.html" class="btn btn-neutral float-left" title="helikite.processing.post.co2" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../tools/index.html" class="btn btn-neutral float-right" title="helikite.processing.post.tools" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Evan Thomas.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,48 @@
+helikite.processing.helpers
+===========================
+
+.. py:module:: helikite.processing.helpers
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   helikite.processing.helpers.logger
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   helikite.processing.helpers.reduce_column_to_single_unique_value
+   helikite.processing.helpers.remove_duplicates
+
+
+Module Contents
+---------------
+
+.. py:data:: logger
+
+.. py:function:: reduce_column_to_single_unique_value(df: pandas.DataFrame, col: str) -> Any
+
+   Reduce a column to a single value, if possible.
+
+   :param df: Dataframe to reduce.
+   :type df: pd.DataFrame
+   :param col: Column to reduce.
+   :type col: str
+
+   :returns: Single value if possible, else the original column.
+   :rtype: Any
+
+   :raises ValueError: If the column cannot be reduced to a single value.
+
+
+.. py:function:: remove_duplicates(df: pandas.DataFrame) -> pandas.DataFrame
+
+   Removes duplicate rows from a dataframe based on the DateTime column
+
+

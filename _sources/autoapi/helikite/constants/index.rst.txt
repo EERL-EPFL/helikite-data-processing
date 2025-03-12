@@ -1,0 +1,180 @@
+helikite.constants
+==================
+
+.. py:module:: helikite.constants
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   helikite.constants.constants
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   helikite.constants.Constants
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   helikite.constants.get_constants
+
+
+Module Contents
+---------------
+
+.. py:class:: Constants
+
+   Bases: :py:obj:`pydantic_settings.BaseSettings`
+
+
+   .. py:attribute:: APPLICATION_NAME
+      :type:  str
+
+
+   .. py:attribute:: APPLICATION_NAME_PYTHON
+      :type:  str
+
+
+   .. py:attribute:: VERSION
+      :type:  str
+
+
+   .. py:attribute:: DESCRIPTION
+      :type:  str
+
+
+   .. py:attribute:: INPUTS_FOLDER
+      :type:  pathlib.Path
+
+
+   .. py:attribute:: OUTPUTS_FOLDER
+      :type:  pathlib.Path
+
+
+   .. py:attribute:: OUTPUTS_INSTRUMENT_SUBFOLDER
+      :type:  str
+      :value: 'instruments'
+
+
+
+   .. py:attribute:: CONFIG_FILE
+      :type:  str
+      :value: 'config.yaml'
+
+
+
+   .. py:attribute:: MASTER_CSV_FILENAME
+      :type:  str
+      :value: 'helikite-data.csv'
+
+
+
+   .. py:attribute:: HOUSEKEEPING_CSV_FILENAME
+      :type:  str
+      :value: 'helikite-housekeeping.csv'
+
+
+
+   .. py:attribute:: HOUSEKEEPING_VAR_PRESSURE
+      :type:  str
+      :value: 'pressure'
+
+
+
+   .. py:attribute:: LOGFILE_NAME
+      :type:  str
+      :value: 'helikite.log'
+
+
+
+   .. py:attribute:: LOGLEVEL_CONSOLE
+      :type:  str
+      :value: 'INFO'
+
+
+
+   .. py:attribute:: LOGLEVEL_FILE
+      :type:  str
+      :value: 'DEBUG'
+
+
+
+   .. py:attribute:: QTY_LINES_TO_IDENTIFY_INSTRUMENT
+      :type:  int
+      :value: 60
+
+
+
+   .. py:attribute:: CROSSCORRELATION_DEFAULT_LAG
+      :type:  int
+      :value: 10
+
+
+
+   .. py:attribute:: ROLLING_WINDOW_DEFAULT_SIZE
+      :type:  int
+      :value: 20
+
+
+
+   .. py:attribute:: ROLLING_WINDOW_COLUMN_NAME
+      :type:  str
+      :value: 'pressure_rn'
+
+
+
+   .. py:attribute:: ALTITUDE_GROUND_LEVEL_COL
+      :type:  str
+      :value: 'flight_computer_Altitude_agl'
+
+
+
+   .. py:attribute:: ALTITUDE_SEA_LEVEL_COL
+      :type:  str
+      :value: 'flight_computer_Altitude'
+
+
+
+   .. py:attribute:: QUICKLOOK_PLOT_FILENAME
+      :type:  str
+      :value: 'helikite-quicklooks.html'
+
+
+
+   .. py:attribute:: QUALITYCHECK_PLOT_FILENAME
+      :type:  str
+      :value: 'helikite-qualitycheck.html'
+
+
+
+   .. py:attribute:: PLOT_LAYOUT_COMMON
+      :type:  dict
+
+
+   .. py:attribute:: PLOT_MARKER_SIZE
+      :type:  int
+      :value: 8
+
+
+
+   .. py:attribute:: LOGFORMAT_CONSOLE
+      :type:  logging.Formatter
+
+
+   .. py:attribute:: LOGFORMAT_FILE
+      :type:  logging.Formatter
+
+
+.. py:function:: get_constants()
+
+.. py:data:: constants
+

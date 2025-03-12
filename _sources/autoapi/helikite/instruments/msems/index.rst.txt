@@ -1,0 +1,146 @@
+helikite.instruments.msems
+==========================
+
+.. py:module:: helikite.instruments.msems
+
+.. autoapi-nested-parse::
+
+   4) mSEMS ->
+       mSEMS_103_220929_101343_INVERTED.txt (data to be plotted) (has pressure)
+       mSEMS_103_220929_101343_READINGS.txt (high resolution raw data with
+                                             houskeeping info, error messages)
+                                             (has pressure)
+       mSEMS_103_220929_101343_SCANS.txt (raw scan data with some houskeeping
+                                          varaibles)
+
+   The mSEMS measures particles size distribution for particles from 8 nanometers
+   to roughly 300 nm. The number of bins can vary. Typically we use 60 log-spaced
+   bins but it can change. The time resolution depends on the amount of bins and
+   the scan time but it is typically between 1 and 2 minutes. I mormally do not
+   merge this data with the rest because of the courser time resolution and the
+   amount of variables.
+
+   The file provides some information on temperature, pressure etc. It then gives
+   the center diamater of each bin (i.e. Bin_Dia1, Bin_Dia2, ...) and then the
+   numbe rof particles per bin (i.e. Bin_Conc1, Bin_Conc2, ...).
+
+   -> because of the coarser time resolution, data is easier to be displayed as a
+   timeseries (with the addition of total particle concentration and altitude).
+
+   Houskeeping file: Look at READINGS (look at msems_err / cpc_err)
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   helikite.instruments.msems.msems_scan
+   helikite.instruments.msems.msems_readings
+   helikite.instruments.msems.msems_inverted
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   helikite.instruments.msems.MSEMSInverted
+   helikite.instruments.msems.MSEMSReadings
+   helikite.instruments.msems.MSEMSScan
+
+
+Module Contents
+---------------
+
+.. py:class:: MSEMSInverted(*args, **kwargs)
+
+   Bases: :py:obj:`helikite.instruments.base.Instrument`
+
+
+   .. py:attribute:: name
+      :value: 'msems_inverted'
+
+
+
+   .. py:method:: data_corrections(df, **kwargs)
+
+      Create new columns to plot bins
+
+
+
+   .. py:method:: file_identifier(first_lines_of_csv) -> bool
+
+
+   .. py:method:: set_time_as_index(df: pandas.DataFrame) -> pandas.DataFrame
+
+      Set the DateTime as index of the dataframe and correct if needed
+
+      Using values in the time_offset variable, correct DateTime index
+
+
+
+   .. py:method:: read_data() -> pandas.DataFrame
+
+
+.. py:class:: MSEMSReadings(*args, **kwargs)
+
+   Bases: :py:obj:`helikite.instruments.base.Instrument`
+
+
+   .. py:attribute:: name
+      :value: 'msems_readings'
+
+
+
+   .. py:method:: file_identifier(first_lines_of_csv) -> bool
+
+
+   .. py:method:: set_time_as_index(df: pandas.DataFrame) -> pandas.DataFrame
+
+      Set the DateTime as index of the dataframe and correct if needed
+
+      Using values in the time_offset variable, correct DateTime index
+
+
+
+   .. py:method:: data_corrections(df, *args, **kwargs)
+
+
+   .. py:method:: read_data() -> pandas.DataFrame
+
+
+.. py:class:: MSEMSScan(*args, **kwargs)
+
+   Bases: :py:obj:`helikite.instruments.base.Instrument`
+
+
+   .. py:attribute:: name
+      :value: 'msems_scan'
+
+
+
+   .. py:method:: file_identifier(first_lines_of_csv) -> bool
+
+
+   .. py:method:: set_time_as_index(df: pandas.DataFrame) -> pandas.DataFrame
+
+      Set the DateTime as index of the dataframe and correct if needed
+
+      Using values in the time_offset variable, correct DateTime index
+
+
+
+   .. py:method:: data_corrections(df, *args, **kwargs)
+
+
+   .. py:method:: read_data() -> pandas.DataFrame
+
+
+.. py:data:: msems_scan
+
+.. py:data:: msems_readings
+
+.. py:data:: msems_inverted
+

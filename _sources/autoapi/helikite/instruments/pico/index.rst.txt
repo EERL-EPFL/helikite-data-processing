@@ -1,0 +1,70 @@
+helikite.instruments.pico
+=========================
+
+.. py:module:: helikite.instruments.pico
+
+.. autoapi-nested-parse::
+
+   7) Pico -> Pico100217_220204_152813Eng.txt / Pico100217_220219_123139Eng.txt
+   (doesn't have pressure)
+
+   Gas monitor measuring CO, N2O and H2O
+
+   Can operate in two different modes. When it opeartes in differentioal mode,
+   there an additional variable called Differential.CO and should be used for the
+   CO reading.
+
+   In manual mode, look at CO_ppm (however, in this case, the baseline need to be
+   substracted but this might require some more conversation on how to do it.)
+
+   For quality check -> plot the following variables: win1Fit7 and win1Fit8
+   (if win1Fit8 has a sudden jump (very noticeable) this indicates a bad fit)
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   helikite.instruments.pico.pico
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   helikite.instruments.pico.Pico
+
+
+Module Contents
+---------------
+
+.. py:class:: Pico(*args, **kwargs)
+
+   Bases: :py:obj:`helikite.instruments.base.Instrument`
+
+
+   .. py:attribute:: name
+      :value: 'pico'
+
+
+
+   .. py:method:: file_identifier(first_lines_of_csv) -> bool
+
+
+   .. py:method:: set_time_as_index(df: pandas.DataFrame) -> pandas.DataFrame
+
+      Set the DateTime as index of the dataframe
+
+
+
+   .. py:method:: data_corrections(df, *args, **kwargs)
+
+
+   .. py:method:: read_data() -> pandas.DataFrame
+
+
+.. py:data:: pico
+
