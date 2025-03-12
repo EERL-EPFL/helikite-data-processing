@@ -1,5 +1,5 @@
 from helikite.classes.cleaning import Cleaner
-from helikite.tests.cleaner.mock import MockInstrument
+from helikite.tests.level0.mock import MockInstrument
 import datetime
 
 
