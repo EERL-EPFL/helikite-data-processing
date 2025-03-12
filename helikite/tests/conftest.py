@@ -35,6 +35,13 @@ def campaign_data_location_2024():
 
 
 @pytest.fixture
+def campaign_data_location_2025_antarctica_flightcomp2():
+    return os.path.join(
+        os.path.dirname(__file__), "resources", "campaigns", "20250212"
+    )
+
+
+@pytest.fixture
 def fc_data_2022(campaign_data_location_2022: str):
     # Import flight computer data from the campaign data folder
 
@@ -101,12 +108,15 @@ def campaign_file_paths_and_instruments_2022(campaign_data_location_2022):
 
 
 @pytest.fixture
-def campaign_file_paths_and_instruments_2024(campaign_data_location_2024):
+def campaign_file_paths_and_instruments_2025(
+    campaign_data_location_2025_antarctica_flightcomp2,
+):
     instruments = {}
 
     # Assign filenames to instrument objects
     flight_computer_v2.filename = os.path.join(
-        campaign_data_location_2024, "HFC_240926_3.csv"
+        campaign_data_location_2025_antarctica_flightcomp2,
+        "HFC_250212_1_v01.csv",
     )
 
     # Add instruments to dictionary
