@@ -3,7 +3,7 @@ import pandas as pd
 from helikite.constants import constants
 
 
-def test_read_csv(campaign_file_paths_and_instruments_2024: str):
+def test_read_csv(campaign_file_paths_and_instruments_2025: str):
     """Test the reading of a CSV file"""
 
     # Test the reading of a CSV file
@@ -11,12 +11,12 @@ def test_read_csv(campaign_file_paths_and_instruments_2024: str):
 
     assert df is not None, "The DataFrame is None"
     assert (
-        len(df) == 758 - 15 - 1
+        len(df) == 8198 - 34 - 1
     ), "The number of rows in the DataFrame is not correct. "
     "(Total lines of CSV) - (occurrences of errors) - (header line)"
 
 
-def test_set_time(campaign_file_paths_and_instruments_2024: str):
+def test_set_time(campaign_file_paths_and_instruments_2025: str):
     """Test the setting of the time"""
 
     # Test the setting of the time
@@ -28,16 +28,16 @@ def test_set_time(campaign_file_paths_and_instruments_2024: str):
 
     # Assert first value 240926-141333 is 2024-09-26 14:13:33
     assert df.index[0] == pd.Timestamp(
-        "2024-09-26 14:13:33"
+        "2025-02-12 07:55:45"
     ), "The first value is not correct"
 
     # Assert last value 240926-163903 is 2024-09-26 16:39:03
     assert df.index[-1] == pd.Timestamp(
-        "2024-09-26 16:39:03"
+        "2025-02-12 10:19:01"
     ), "The last value is not correct"
 
 
-def test_set_pressure_column(campaign_file_paths_and_instruments_2024: str):
+def test_set_pressure_column(campaign_file_paths_and_instruments_2025: str):
     """Test the setting of the pressure column"""
 
     # Test the setting of the pressure column
@@ -51,10 +51,10 @@ def test_set_pressure_column(campaign_file_paths_and_instruments_2024: str):
 
     # First value 947.0
     assert (
-        df[constants.HOUSEKEEPING_VAR_PRESSURE].iloc[0] == 947.0
+        df[constants.HOUSEKEEPING_VAR_PRESSURE].iloc[0] == 983.0
     ), "The first value is not correct"
 
     # Last value 948.0
     assert (
-        df[constants.HOUSEKEEPING_VAR_PRESSURE].iloc[-1] == 948.0
+        df[constants.HOUSEKEEPING_VAR_PRESSURE].iloc[-1] == 983.0
     ), "The last value is not correct"

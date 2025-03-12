@@ -185,84 +185,78 @@ class FlightComputerV2(Instrument):
     def read_data(self) -> pd.DataFrame:
         """Read data into dataframe, adjusting for duplicate headers."""
 
-        ## Evan 11.05.25: Commented below is attempt to clean the CSV file,
-        ## disabled for now in favour of alternative read code
-        # cleaned_csv = StringIO()
+        """ Evan 11.05.25: Commented below is attempt to clean the CSV file,
+        # disabled for now in favour of alternative read code
+        cleaned_csv = StringIO()
 
-        # # The file needs parsing first:
-        # # 1. The header row starts with a datetime and space, rename it to
-        # #    datetime, remove the space and write to a new StringIO object
-        # # 2. The same applies to each row, replace space with comma, keep the
-        # #    data
-        # # 3. Some lines have been split over two lines, find any rows ending
-        # #    in a comma and append the next line to it
-        # with open(self.filename, "r") as csv_data:
-        #     saved_row = None  # Store the last row if it's split
-        #     for row_index, row in enumerate(csv_data):
-        #         if row_index == 0:
-        #             # Split the space out of the whole header (removing the
-        #             # recorded timestamp), then add "datetime" and a comma
-        #             full_header = row.split(" ")[1]
-        #             fixed_header = f"DateTime,{full_header}"
-        #             cleaned_csv.write(fixed_header)
-        #         else:
-        #             # Replace space with comma in the first 20 chars of line
-        #             fixed_row = row[:20].replace(" ", ",") + row[20:]
+        # The file needs parsing first:
+        # 1. The header row starts with a datetime and space, rename it to
+        #    datetime, remove the space and write to a new StringIO object
+        # 2. The same applies to each row, replace space with comma, keep the
+        #    data
+        # 3. Some lines have been split over two lines, find any rows ending
+        #    in a comma and append the next line to it
+        with open(self.filename, "r") as csv_data:
+            saved_row = None  # Store the last row if it's split
+            for row_index, row in enumerate(csv_data):
+                if row_index == 0:
+                    # Split the space out of the whole header (removing the
+                    # recorded timestamp), then add "datetime" and a comma
+                    full_header = row.split(" ")[1]
+                    fixed_header = f"DateTime,{full_header}"
+                    cleaned_csv.write(fixed_header)
+                else:
+                    # Replace space with comma in the first 20 chars of line
+                    fixed_row = row[:20].replace(" ", ",") + row[20:]
 
-        #             # If the column ends with a comma, it's a split row, so
-        #             # append the next row to it
-        #             if fixed_row[-2] in [",", "-"]:
-        #                 saved_row = fixed_row
-        #                 # If there is a - with no value, remove the sign
-        #                 if fixed_row[-2] == "-":
-        #                     saved_row = saved_row[:-2] + saved_row[-1]
+                    # If the column ends with a comma, it's a split row, so
+                    # append the next row to it
+                    if fixed_row[-2] in [",", "-"]:
+                        saved_row = fixed_row
+                        # If there is a - with no value, remove the sign
+                        if fixed_row[-2] == "-":
+                            saved_row = saved_row[:-2] + saved_row[-1]
 
-        #                 continue
+                        continue
 
-        #             if fixed_row[0] == ",":  # Remove leading comma
-        #                 # Add the saved row to the start of the current row
-        #                 fixed_row = saved_row[:-1] + fixed_row
-        #                 saved_row = None
+                    if fixed_row[0] == ",":  # Remove leading comma
+                        # Add the saved row to the start of the current row
+                        fixed_row = saved_row[:-1] + fixed_row
+                        saved_row = None
 
-        #             # Get all individual columns by splitting on commas then
-        #             # remove any extra columns
-        #             number_of_columns = len(fixed_row.split(","))
-        #             fixed_row = fixed_row.split(",")
+                    # Get all individual columns by splitting on commas then
+                    # remove any extra columns
+                    number_of_columns = len(fixed_row.split(","))
+                    fixed_row = fixed_row.split(",")
 
-        #             # If the number of columns is greater than expected, remove
-        #             # the extra columns
-        #             if number_of_columns > len(self.cols_housekeeping):
-        #                 fixed_row = fixed_row[: len(self.cols_housekeeping)]
+                    # If the number of columns is greater than expected, remove
+                    # the extra columns
+                    if number_of_columns > len(self.cols_housekeeping):
+                        fixed_row = fixed_row[: len(self.cols_housekeeping)]
 
-        #             if number_of_columns < len(self.cols_housekeeping):
-        #                 # If the number of columns is less than expected append
-        #                 # empty columns
-        #                 fixed_row += [
-        #                     ""
-        #                     for _ in range(
-        #                         len(self.cols_housekeeping) - number_of_columns
-        #                     )
-        #                 ]
+                    if number_of_columns < len(self.cols_housekeeping):
+                        # If the number of columns is less than expected append
+                        # empty columns
+                        fixed_row += [
+                            ""
+                            for _ in range(
+                                len(self.cols_housekeeping) - number_of_columns
+                            )
+                        ]
 
-        #             # Join the columns back into a string
-        #             fixed_row = ",".join(fixed_row)
-        #             cleaned_csv.write(fixed_row)
+                    # Join the columns back into a string
+                    fixed_row = ",".join(fixed_row)
+                    cleaned_csv.write(fixed_row)
 
-        #         cleaned_csv.write("\n")
+                cleaned_csv.write("\n")
 
-        # # Return to the start of StringIO for reading
-        # cleaned_csv.seek(0)
-        # print(cleaned_csv.getvalue())
+        # Return to the start of StringIO for reading
+        cleaned_csv.seek(0)
+        print(cleaned_csv.getvalue())'
+        """
+
         df = pd.read_csv(
             self.filename,
-            # dtype=self.dtype,
-            # na_values=self.na_values,
-            # header=self.header,
-            # delimiter=self.delimiter,
-            # lineterminator=self.lineterminator,
-            # comment=self.comment,
-            # names=self.names,
-            # index_col=False,
             on_bad_lines="skip",
             low_memory=False,
             sep=",",

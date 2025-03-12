@@ -28,6 +28,13 @@ Houskeeping file: Look at READINGS (look at msems_err / cpc_err)
 from helikite.instruments.base import Instrument
 import pandas as pd
 import numpy as np
+import logging
+from helikite.constants import constants
+
+
+# Define logger for this file
+logger = logging.getLogger(__name__)
+logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 
 class MSEMSInverted(Instrument):
@@ -117,11 +124,16 @@ class MSEMSInverted(Instrument):
             "#Date\tTime\tTemp(C)\tPress(hPa)\tNumBins\tBin_Dia1\t"
             "Bin_Dia2\tBin_Dia3"
         ) in first_lines_of_csv[0]:
+            logger.info("mSEMS Inverted file detected at header 0")
+            self.header = 0
+
             return True
         if (
             "#Date\tTime\tTemp(C)\tPress(hPa)\tNumBins\tBin_Dia1\t"
             "Bin_Dia2\tBin_Dia3"
         ) in first_lines_of_csv[55]:
+            logger.info("mSEMS Inverted file detected at header 55")
+            self.header = 55
             return True
 
         return False
