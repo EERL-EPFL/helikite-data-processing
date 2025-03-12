@@ -14,7 +14,7 @@ extensions = [
     # "sphinx.ext.viewcode",
     "sphinx.ext.githubpages",
     "autoapi.extension",
-    "sphinxcontrib.autodoc_pydantic",
+    # "sphinxcontrib.autodoc_pydantic",
 ]
 
 html_theme = "sphinx_rtd_theme"
