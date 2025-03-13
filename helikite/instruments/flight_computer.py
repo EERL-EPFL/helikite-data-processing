@@ -597,5 +597,5 @@ flight_computer_v2 = FlightComputerV2(
         "GNSSqty",
     ],
     export_order=100,
-    pressure_variable="F_smp_prs",
+    pressure_variable="BME_P",
 )
