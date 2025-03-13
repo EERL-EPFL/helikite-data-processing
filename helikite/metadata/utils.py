@@ -1,10 +1,10 @@
-from helikite.metadata.models import Flight
+from helikite.metadata.models import Level0
 import pandas as pd
 import pyarrow.parquet as pq
-import json
+import orjson
 
 
-def load_parquet(filepath: str) -> tuple[pd.DataFrame, Flight]:
+def load_parquet(filepath: str) -> tuple[pd.DataFrame, Level0]:
     """
     Load a Parquet file, extract pandas DataFrame and metadata.
     """
@@ -13,15 +13,13 @@ def load_parquet(filepath: str) -> tuple[pd.DataFrame, Flight]:
     table = pq.read_table(filepath)
     df = table.to_pandas()
 
-    # Extract metadata and decode keys and values
-    metadata = {
-        k.decode("utf8"): v.decode("utf8")
-        for k, v in table.schema.metadata.items()
-    }
+    # Extract level0 metadata and decode keys and values
+    metadata = orjson.loads(
+        table.schema.metadata.get(b"level0", b"{}").decode("utf8")
+    )
 
-    print(metadata)
-    # Create Flight object
-    flight = Flight(
+    # Unpack into level0 metadata object
+    level0_md = Level0(
         flight=metadata.get("flight"),
         flight_date=(
             pd.Timestamp(metadata.get("flight_date")).date()
@@ -40,10 +38,8 @@ def load_parquet(filepath: str) -> tuple[pd.DataFrame, Flight]:
         ),
         reference_instrument=metadata.get("reference_instrument"),
         instruments=(
-            json.loads(metadata.get("instruments"))
-            if metadata.get("instruments")
-            else []
+            metadata.get("instruments") if metadata.get("instruments") else []
         ),
     )
 
-    return df, flight
+    return df, level0_md

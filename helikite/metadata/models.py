@@ -2,7 +2,7 @@ from pydantic import BaseModel
 import datetime
 
 
-class Flight(BaseModel):
+class Level0(BaseModel):
     flight: str | None = None
     flight_date: datetime.date
     takeoff_time: datetime.datetime

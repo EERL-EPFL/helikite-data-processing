@@ -12,8 +12,9 @@ from ipywidgets import Output, VBox
 import psutil
 from itertools import cycle
 import plotly.colors
-from helikite.metadata.models import Flight
+from helikite.metadata.models import Level0
 import pyarrow
+import orjson
 import pyarrow.parquet as pq
 
 parent_process = psutil.Process().parent().cmdline()[-1]
@@ -525,9 +526,8 @@ class Cleaner:
                 .strftime("%Y-%m-%dT%H-%M")
             )
             filename = f"level0_{time}"  # noqa
-        import orjson
 
-        metadata = Flight(
+        metadata = Level0(
             flight_date=self.flight_date,
             takeoff_time=self.time_takeoff,
             landing_time=self.time_landing,
@@ -535,19 +535,22 @@ class Cleaner:
             instruments=[instrument.name for instrument in self._instruments],
         ).model_dump()
 
-        # Combine all columns from all instruments
         all_columns = list(self.master_df.columns)
 
-        # Serialize metadata using orjson, and all the lists too
-        metadata_dict = {
-            k: (orjson.dumps(v).decode() if isinstance(v, list) else v)
-            for k, v in orjson.loads(orjson.dumps(metadata)).items()
-            if v is not None
-        }
+        # Convert the master dataframe to a PyArrow Table
+        table = pyarrow.Table.from_pandas(
+            self.master_df[all_columns], preserve_index=True
+        )
 
+        # We can only replace metadata so we need to merge with existing
+        level0_metadata = orjson.dumps(metadata)
+        existing_metadata = table.schema.metadata
+        merged_metadata = {
+            **{"level0": level0_metadata},
+            **existing_metadata,
+        }
         # Save the metadata to the Parquet file
-        table = pyarrow.Table.from_pandas(self.master_df[all_columns])
-        table = table.replace_schema_metadata(metadata_dict)
+        table = table.replace_schema_metadata(merged_metadata)
         pq.write_table(table, f"{filename}.parquet")
 
         self.master_df[all_columns].to_csv(f"{filename}.csv")
