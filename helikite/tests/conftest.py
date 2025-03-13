@@ -116,7 +116,7 @@ def campaign_file_paths_and_instruments_2025(
     # Assign filenames to instrument objects
     flight_computer_v2.filename = os.path.join(
         campaign_data_location_2025_antarctica_flightcomp2,
-        "HFC_250212_1_v01.csv",
+        "HFC_250212_1.csv",
     )
 
     # Add instruments to dictionary

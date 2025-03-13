@@ -12,6 +12,10 @@ from ipywidgets import Output, VBox
 import psutil
 from itertools import cycle
 import plotly.colors
+from helikite.metadata.models import Level0
+import pyarrow
+import orjson
+import pyarrow.parquet as pq
 
 parent_process = psutil.Process().parent().cmdline()[-1]
 
@@ -496,7 +500,15 @@ class Cleaner:
         self,
         filename: str | None = None,
     ) -> None:
-        """Export all data columns from all instruments to a single CSV file"""
+        """Export all data columns from all instruments to local files
+
+        The function will export a CSV and a Parquet file with all columns
+        from all instruments. The files will be saved in the current working
+        directory unless a filename is provided.
+
+        The Parquet file will include the metadata from the class.
+
+        """
 
         # Raise error if the dataframes have not been merged
         if self.master_df is None or self.master_df.empty:
@@ -508,13 +520,45 @@ class Cleaner:
         if filename is None:
             # Include the date and time of the first row of the reference
             # instrument in the filename
-            filename = f'level0_{self.master_df.index[0].to_pydatetime().strftime("%Y-%m-%dT%H-%M")}.csv'  # noqa
+            time = (
+                self.master_df.index[0]
+                .to_pydatetime()
+                .strftime("%Y-%m-%dT%H-%M")
+            )
+            filename = f"level0_{time}"  # noqa
 
-        # Combine all columns from all instruments
+        metadata = Level0(
+            flight_date=self.flight_date,
+            takeoff_time=self.time_takeoff,
+            landing_time=self.time_landing,
+            reference_instrument=self.reference_instrument.name,
+            instruments=[instrument.name for instrument in self._instruments],
+        ).model_dump()
+
         all_columns = list(self.master_df.columns)
-        self.master_df[all_columns].to_csv(filename)
 
-        print(f"\nDone. The file '{filename}' contains all instrument data.")
+        # Convert the master dataframe to a PyArrow Table
+        table = pyarrow.Table.from_pandas(
+            self.master_df[all_columns], preserve_index=True
+        )
+
+        # We can only replace metadata so we need to merge with existing
+        level0_metadata = orjson.dumps(metadata)
+        existing_metadata = table.schema.metadata
+        merged_metadata = {
+            **{"level0": level0_metadata},
+            **existing_metadata,
+        }
+        # Save the metadata to the Parquet file
+        table = table.replace_schema_metadata(merged_metadata)
+        pq.write_table(table, f"{filename}.parquet")
+
+        self.master_df[all_columns].to_csv(f"{filename}.csv")
+
+        print(
+            f"\nDone. The file '{filename}'.{{csv|parquet}} contains all "
+            "instrument data. The metadata is stored in the Parquet file."
+        )
 
     @function_dependencies(
         [

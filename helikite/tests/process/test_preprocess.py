@@ -64,7 +64,7 @@ def test_detect_file(
                     for x in range(constants.QTY_LINES_TO_IDENTIFY_INSTRUMENT)
                 ]
 
-            if filename == "HFC_250212_1_v01.csv":
+            if filename == "HFC_250212_1.csv":
                 assert flight_computer_v2.file_identifier(header_lines) is True
 
 
