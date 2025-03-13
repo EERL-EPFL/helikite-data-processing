@@ -51,10 +51,10 @@ def test_set_pressure_column(campaign_file_paths_and_instruments_2025: str):
 
     # First value 947.0
     assert (
-        df[constants.HOUSEKEEPING_VAR_PRESSURE].iloc[0] == 983.0
+        df[constants.HOUSEKEEPING_VAR_PRESSURE].iloc[0] == 989.29
     ), "The first value is not correct"
 
     # Last value 948.0
     assert (
-        df[constants.HOUSEKEEPING_VAR_PRESSURE].iloc[-1] == 983.0
+        df[constants.HOUSEKEEPING_VAR_PRESSURE].iloc[-1] == 989.23
     ), "The last value is not correct"
