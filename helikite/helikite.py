@@ -1,4 +1,5 @@
 import sys
+from . import __version__, __name__, __description__
 from helikite.processing import preprocess, sorting
 from helikite.constants import constants
 from helikite import instruments
@@ -249,7 +250,7 @@ def main(
 
 
 def version_cb(value: bool) -> None:
-    f"""Prints the version number of {constants.APPLICATION_NAME}
+    f"""Prints the version number of {__name__}
 
     Parameters
     ----------
@@ -258,13 +259,13 @@ def version_cb(value: bool) -> None:
     """
 
     if value:  # Only run on when --version is set
-        typer.echo(f"{constants.APPLICATION_NAME} {constants.VERSION}")
+        typer.echo(f"{__name__} {__version__}")
         sys.exit()
 
 
 @app.callback(
     help=f"""
-    {constants.APPLICATION_NAME} - {constants.DESCRIPTION}
+    {__name__} - {__description__}
 
     Use the --help option on a subcommand to see more information about it.
     """
@@ -273,7 +274,7 @@ def menu(
     version: bool = typer.Option(
         False,
         "--version",
-        help=f"Prints the version number of {constants.APPLICATION_NAME}",
+        help=f"Prints the version number of {__name__}",
         callback=version_cb,
         is_eager=True,
     ),

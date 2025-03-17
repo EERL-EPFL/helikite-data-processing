@@ -1,5 +1,5 @@
 from typer.testing import CliRunner
-from helikite import app
+from helikite.helikite import app
 import os
 
 runner = CliRunner()
@@ -53,4 +53,3 @@ def test_cli_preprocess(tmpdir: str):
     assert result.exit_code == 0
     assert os.path.exists(input_folder) is True
     assert os.path.exists(config_file_path) is True
-
