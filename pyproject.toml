@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "helikite-data-processing"
-version = "1.1.0"
+version = "1.1.1"
 description = "Library to generate quicklooks and data quality checks on Helikite campaigns"
 authors = ["Evan Thomas <evan.thomas@epfl.ch>"]
 readme = "README.md"
