@@ -17,7 +17,8 @@ from helikite.instruments import (  # noqa
 
 
 def test_detect_file(
-    campaign_data_location_2022: str, campaign_data_location_2024: str
+    campaign_data_location_2022: str,
+    campaign_data_location_2025_antarctica_flightcomp2: str,
 ):
     """Test that the correct file type is detected"""
 
@@ -47,18 +48,23 @@ def test_detect_file(
             if filename == "STAP_220929A0_processed.txt":
                 assert stap.file_identifier(header_lines) is True
 
-    for filename in os.listdir(campaign_data_location_2024):
+    for filename in os.listdir(
+        campaign_data_location_2025_antarctica_flightcomp2
+    ):
         if not os.path.isdir(filename):
-            full_path = os.path.join(campaign_data_location_2024, filename)
+            full_path = os.path.join(
+                campaign_data_location_2025_antarctica_flightcomp2, filename
+            )
 
             with open(full_path) as in_file:
                 # Read the first set of lines for headers
+                print(f"Reading {filename}")
                 header_lines = [
                     next(in_file)
                     for x in range(constants.QTY_LINES_TO_IDENTIFY_INSTRUMENT)
                 ]
 
-            if filename == "HFC_240926_3.csv":
+            if filename == "HFC_250212_1.csv":
                 assert flight_computer_v2.file_identifier(header_lines) is True
 
 
