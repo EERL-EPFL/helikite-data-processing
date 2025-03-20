@@ -1,6 +1,6 @@
-FROM python:3.10.10-slim-buster
+FROM python:3.11.11-slim-bullseye
 
-ARG POETRY_VERSION=1.4.0
+ARG POETRY_VERSION=2.1.1
 
 
 # Install Poetry
@@ -14,7 +14,7 @@ COPY pyproject.toml poetry.lock /app/
 
 # Install project dependencies
 RUN poetry config virtualenvs.create false && \
-    poetry install --no-dev --no-root
+    poetry install --no-root
 
 # Copy the rest of the application code into the container
 COPY ./helikite /app

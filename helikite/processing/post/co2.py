@@ -1,22 +1,44 @@
-""" These functions are used for CO2 monitor corrections """
+"""These functions are used for CO2 monitor corrections"""
 
 import numpy as np
 
 
 def stp_convert_dry(x, t, p1):
-    """Converts a scalar measurement to STP conditions
+    """
+    Convert a measurement to STP conditions for dry air.
 
-    Function: `stp.convert.dry` from Roman Pohorsky
+    This function adjusts a measurement from actual conditions to standard
+    temperature and pressure (STP) conditions for dry air. It follows the
+    approach of `stp.convert.dry` by Roman Pohorsky.
 
-    Pressure in hPa
-    Temperature in °C
+    Parameters
+    ----------
+    x : float or array-like
+        Measured value to be converted.
+    t : float or array-like
+        Temperature in °C.
+    p1 : float or array-like
+        Pressure in hPa.
 
-    Usage example:
-    CO2_dry = stp_convert_dry(
-        df_level0['FC_CO2'],
-        df_level0['T ref'],
-        df_level0['FC_P corr']
-    )
+    Returns
+    -------
+    float or array-like
+        Measurement converted to STP conditions.
+
+    Notes
+    -----
+    The conversion process involves:
+      1. Converting the pressure from hPa to Pa.
+      2. Converting the temperature from °C to Kelvin.
+      3. Calculating the STP conversion factor and applying it to measurement.
+
+    Examples
+    --------
+    >>> df_level0['FC_CO2_STP'] = stp_convert_dry(
+    ...     df_level0['FC_CO2'],
+    ...     df_level0['T ref'],
+    ...     df_level0['FC_P corr']
+    ... )
     """
 
     p = p1 * 100

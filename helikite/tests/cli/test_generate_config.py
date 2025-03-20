@@ -1,5 +1,5 @@
 from typer.testing import CliRunner
-from helikite import app
+from helikite.helikite import app
 import os
 
 runner = CliRunner()

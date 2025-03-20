@@ -1,4 +1,5 @@
 import sys
+from . import __version__, __appname__, __description__
 from helikite.processing import preprocess, sorting
 from helikite.constants import constants
 from helikite import instruments
@@ -18,7 +19,7 @@ console_handler.setFormatter(constants.LOGFORMAT_CONSOLE)
 logging.getLogger().addHandler(console_handler)
 
 # Define logger for this file
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__appname__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 
@@ -249,7 +250,7 @@ def main(
 
 
 def version_cb(value: bool) -> None:
-    f"""Prints the version number of {constants.APPLICATION_NAME}
+    f"""Prints the version number of {__appname__}
 
     Parameters
     ----------
@@ -258,13 +259,13 @@ def version_cb(value: bool) -> None:
     """
 
     if value:  # Only run on when --version is set
-        typer.echo(f"{constants.APPLICATION_NAME} {constants.VERSION}")
+        typer.echo(f"{__appname__} {__version__}")
         sys.exit()
 
 
 @app.callback(
     help=f"""
-    {constants.APPLICATION_NAME} - {constants.DESCRIPTION}
+    {__appname__} - {__description__}
 
     Use the --help option on a subcommand to see more information about it.
     """
@@ -273,7 +274,7 @@ def menu(
     version: bool = typer.Option(
         False,
         "--version",
-        help=f"Prints the version number of {constants.APPLICATION_NAME}",
+        help=f"Prints the version number of {__appname__}",
         callback=version_cb,
         is_eager=True,
     ),
@@ -281,5 +282,5 @@ def menu(
     pass
 
 
-if __name__ == "__main__":
+if __appname__ == "__main__":
     app()  # Execute the Typer CLI application

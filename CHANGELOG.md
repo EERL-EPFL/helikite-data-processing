@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-03-17
+
+### Added
+- Sphinxdocs auto-generated documentation to github pages on push to the `main` branch.
+- Automated PyPi publishing to the `helikite-data-processing` package on version bump.
+
+### Changed
+- The version property to be conventionally accessible with the __version__
+  attribute in __init__.py instead of parsed from `pyproject.toml`.
+
 ## [1.1.0] - 2025-01-14
 
 ### Changed
@@ -32,7 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v1.0.1] - 2023-05-18
 ## [v1.0.0] - 2023-05-02
 
-[unreleased]: https://github.com/EERL-EPFL/helikite-data-processing/compare/1.1.0...HEAD
+[unreleased]: https://github.com/EERL-EPFL/helikite-data-processing/compare/1.1.1...HEAD
+[1.1.1]: https://github.com/EERL-EPFL/helikite-data-processing/compare/v1.1.0...1.1.1
 [1.1.0]: https://github.com/EERL-EPFL/helikite-data-processing/compare/v1.0.3...1.1.0
 [v1.0.3]: https://github.com/EERL-EPFL/helikite-data-processing/compare/v1.0.2...v1.0.3
 [v1.0.2]: https://github.com/EERL-EPFL/helikite-data-processing/compare/v1.0.1...v1.0.2
