@@ -214,3 +214,16 @@ pops = POPS(
     ],
     pressure_variable="P",
 )
+
+def dNdlogDp_calculation(df_pops,dp_notes):
+    
+    # Adjust dN_pops and calculate dNdlogDp
+    popsflow_mean = df_pops['pops_POPS_Flow'].mean()#2.9866
+    dN_pops = df_pops.filter(like='pops_b') / popsflow_mean
+    df_pops.loc[:,'pops_total_conc'] = dN_pops.loc[:, 'pops_b3':'pops_b15'].sum(axis=1)
+    dNdlogDp = dN_pops.loc[:, 'pops_b3':'pops_b15'].div(dp_notes['dlogdp'].iloc[3:].values, axis=1).add_suffix('_dlogDp')
+    
+    # Add dNdlogDp columns to df
+    df_pops = pd.concat([df_pops, dNdlogDp], axis=1)
+    return df_pops
+

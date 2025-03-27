@@ -1,5 +1,5 @@
 import numpy as np
-
+import pandas as pd
 
 def Air_density(T, P, RH=0):
     """
@@ -195,3 +195,62 @@ def calculate_altitude_for_row(row):
     altitude = calculate_altitude_hypsometric_simple(p0, p, t)
 
     return altitude
+
+
+def calculate_ground(df, takeoff_time, landing_time, time_col, pressure_col, temp_col):
+    """
+    Interpolates pressure and temperature between takeoff and landing times,
+    filling NaN values before takeoff and after landing.
+    
+    Parameters:
+        df (pd.DataFrame): DataFrame containing flight data.
+        takeoff_time (datetime): Timestamp of takeoff.
+        landing_time (datetime): Timestamp of landing.
+        time_col (str): Column name containing timestamps.
+        pressure_col (str): Column name containing pressure data.
+        temp_col (str): Column name containing temperature data.
+        
+    Returns:
+        pd.DataFrame: DataFrame with 'Pressure_ground' and 'Temperature_ground' columns.
+    """
+    # Ensure DateTime column exists
+    df = df.copy()  # Avoid modifying the original DataFrame
+    # # Ensure index is a DatetimeIndex
+    if not isinstance(df.index, pd.DatetimeIndex):
+        raise ValueError("DataFrame index must be a DatetimeIndex.")
+
+
+    # Extract takeoff and landing pressure & temperature (convert temp to Kelvin)
+    Pground = [df.loc[takeoff_time, pressure_col], 
+               df.loc[landing_time, pressure_col]]
+    Tground = [df.loc[takeoff_time, temp_col] + 273.15,  
+               df.loc[landing_time, temp_col] + 273.15]  # convert to Kelvin
+
+    # Create DataFrame for interpolation
+    interp_df = pd.DataFrame({'Pressure': Pground, 'Temperature': Tground}, index=[takeoff_time, landing_time])
+
+    # Ensure interpolation range is correctly set
+    if time_col not in df.columns:
+        raise ValueError(f"Column '{time_col}' not found in DataFrame.")
+
+    time_range = df.loc[takeoff_time:landing_time, time_col]
+
+    # Reindex and interpolate
+    interp_df = interp_df.reindex(interp_df.index.union(time_range)).interpolate(method='time')
+
+
+    # Map interpolated values back to the original DataFrame
+    df['Pressure_ground'] = df['DateTime'].map(interp_df['Pressure']).astype(float)
+    df['Temperature_ground'] = df['DateTime'].map(interp_df['Temperature']).astype(float)
+
+    # Ensure first and last values are correctly set
+    df.at[df.index[0], 'Pressure_ground'] = Pground[0]
+    df.at[df.index[-1], 'Pressure_ground'] = Pground[1]
+    df.at[df.index[0], 'Temperature_ground'] = Tground[0]
+    df.at[df.index[-1], 'Temperature_ground'] = Tground[1]
+
+    # Fill NaN values before takeoff and after landing
+    df[['Pressure_ground', 'Temperature_ground']] = df[['Pressure_ground', 'Temperature_ground']].ffill().bfill()
+
+    return df[['Pressure_ground', 'Temperature_ground']]
+
