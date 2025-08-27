@@ -2,8 +2,11 @@ from helikite.instruments.base import Instrument
 from helikite.processing.conversions import pressure_to_altitude
 from io import StringIO
 from helikite.constants import constants
+from helikite.processing.post import altitude
 import logging
+import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 # Define logger for this file
@@ -115,6 +118,9 @@ class FlightComputerV1(Instrument):
         # Define the datetime column as the index
         df.set_index("DateTime", inplace=True)
 
+        # Set to index type to seconds
+        df.index = df.index.floor('s') #astype("datetime64[s]")
+
         return df
 
     def read_data(self) -> pd.DataFrame:
@@ -168,16 +174,16 @@ class FlightComputerV2(Instrument):
 
         # Datetime is prefixed with space, so we need to account for that
         header_partial = (
-            "_cur_pos,F_cntdown,F_smp_flw,F_smp_tmp,F_smp_prs,F_pump_pw,"
+            "Time,F_cur_pos,F_cntdown,F_smp_flw,F_smp_tmp,F_smp_prs,F_pump_pw,"
             "F_psvolts,F_err_rpt,SO_S,SO_D,SO_U,SO_V,SO_W,SO_T,SO_H,SO_P,"
             "SO_PI,SO_RO,SO_MD,POPID,POPCHAIN,POPtot,POPf,POPT,POPc1,POPc2,"
             "POPc3,POPc4,POPc5,POPc6,POPc7,POPc8,Ubat,CO2,BME_T,BME_H,BME_P,"
-            "CPUTEMP,RPiT,RPiS,IYaw,IPitch,IRoll,ILat,ILong,IVX,IVY,IVZ,IAX,"
-            "IAY,IAZ,IARX,IARY,IARZ,Out1_T,Out1_H,Out2_T,Out2_H,Inlet2_T,"
-            "Inlet2_H,UTCTime,Status,Lat,LatDir,Long,LongDir,Speed,Course,"
-            "Date,MagVar,MVdir,GLat,GLatDir,GLong,GLongDir,GPSQ,GNSats,"
-            "Hprec,GAlt,AltU,Geoidal,UTCTime2,Heading,HeadTrue,Roll,Pitch,"
-            "Heave,RollAcc,PitchAcc,HeadAcc,GNSSqty"
+            #"CPUTEMP,RPiT,RPiS,IYaw,IPitch,IRoll,ILat,ILong,IVX,IVY,IVZ,IAX,"
+            #"IAY,IAZ,IARX,IARY,IARZ,Out1_T,Out1_H,Out2_T,Out2_H,Inlet2_T,"
+            #"Inlet2_H,UTCTime,Status,Lat,LatDir,Long,LongDir,Speed,Course,"
+            #"Date,MagVar,MVdir,GLat,GLatDir,GLong,GLongDir,GPSQ,GNSats,"
+            #"Hprec,GAlt,AltU,Geoidal,UTCTime2,Heading,HeadTrue,Roll,Pitch,"
+            #"Heave,RollAcc,PitchAcc,HeadAcc,GNSSqty"
         )
 
         return header_partial in first_lines_of_csv[0]
@@ -329,7 +335,7 @@ class FlightComputerV2(Instrument):
         df.set_index("DateTime", inplace=True)
 
         # Set to index type to seconds
-        df.index = df.index.astype("datetime64[s]")
+        df.index = df.index.floor('s') #astype("datetime64[s]")
 
         return df
 
