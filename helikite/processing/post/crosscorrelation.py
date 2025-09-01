@@ -68,6 +68,9 @@ def df_lagshift(
     df_reference_index = df_reference_index.rename_axis(None, axis=1)
 
     df_shifted = df_original.shift(periods=shift_quantity, axis=0)
+    # Ensure both indices have the same datetime dtype before merging
+    df_reference_index.index = df_reference_index.index.astype('datetime64[ns]')
+    df_shifted.index = df_shifted.index.astype('datetime64[ns]')
     # Get only the index of the reference and merge with instrument
     df_synchronised = pd.merge_asof(
         df_reference_index,
