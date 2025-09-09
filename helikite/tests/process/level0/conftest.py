@@ -7,7 +7,7 @@ import os
 def campaign_data(tmpdir):
     # Use absolute path for the source directory
     source_dir = os.path.join(
-        os.path.dirname(__file__), "..", "resources", "campaigns"
+        os.path.dirname(__file__), "..", "..", "resources", "campaigns"
     )
 
     # Verify the path

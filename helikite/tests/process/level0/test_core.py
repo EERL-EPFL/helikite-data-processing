@@ -1,5 +1,5 @@
 from helikite.classes.cleaning import Cleaner
-from helikite.tests.level0.mock import MockInstrument
+from helikite.tests.process.level0.mock import MockInstrument
 import pandas as pd
 import datetime
 
