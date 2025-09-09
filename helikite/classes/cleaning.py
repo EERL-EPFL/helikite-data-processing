@@ -1,6 +1,7 @@
 import pandas as pd
 from typing import Any
 import datetime
+import warnings
 from helikite.instruments.base import Instrument
 from helikite.constants import constants
 from helikite.processing.post import crosscorrelation
@@ -76,12 +77,14 @@ class Cleaner:
         reference_instrument: Instrument,
         input_folder: str,
         flight_date: datetime.date,
+        flight: str | None = None,
         time_takeoff: datetime.datetime | None = None,
         time_landing: datetime.datetime | None = None,
         time_offset: datetime.time = datetime.time(0, 0),
     ) -> None:
         self._instruments: list[Instrument] = []  # For managing in batches
         self.input_folder: str = input_folder
+        self.flight = flight
         self.flight_date: datetime.date = flight_date
         self.time_takeoff: datetime.datetime | None = time_takeoff
         self.time_landing: datetime.datetime | None = time_landing
@@ -389,20 +392,64 @@ class Cleaner:
 
         fig.show()
 
+
     @function_dependencies(["set_time_as_index"], use_once=True)
     def remove_duplicates(self) -> None:
-        """Remove duplicate rows from each instrument based on time index"""
-
+        """Remove duplicate rows from each instrument based on time index,
+        and clear repeated values in 'msems_scan_', 'msems_inverted_' columns,
+        and specific 'mcda_*' columns, keeping only the first instance.
+        """
+    
         success = []
         errors = []
+    
         for instrument in self._instruments:
             try:
-                instrument.df = instrument.remove_duplicates(instrument.df)
-                success.append(instrument.name)
-            except Exception as e:
-                errors.append((instrument.name, e))
+                # Step 1: Remove duplicate rows based on the time index
+                #instrument.df = instrument.remove_duplicates(instrument.df)
 
+                # Step 2: Handle repeated values in msems_scan
+                if 'scan_direction' in self.msems_scan.df.columns:
+                    # Compare current value with previous value to detect changes
+                    is_change = self.msems_scan.df['scan_direction'] != self.msems_scan.df['scan_direction'].shift(1)
+                    # Nullify repeated rows (set to NaN) where there's no change
+                    self.msems_scan.df.loc[~is_change, self.msems_scan.df.columns != self.msems_scan.df.index.name] = np.nan
+    
+                else:
+                    print(f"No 'scan_direction' column found in {self.msems_scan.name}.")
+    
+                # Step 3: Handle repeated values in msems_inverted
+                if 'scan_direction' in self.msems_inverted.df.columns:
+                    # Compare current value with previous value to detect changes
+                    is_change_inverted = self.msems_inverted.df['scan_direction'] != self.msems_inverted.df['scan_direction'].shift(1)
+                    # Nullify repeated rows (set to NaN) where there's no change
+                    self.msems_inverted.df.loc[~is_change_inverted, self.msems_inverted.df.columns != self.msems_inverted.df.index.name] = np.nan
+                else:
+                    print(f"No 'scan_direction' column found in {self.msems_inverted.name}.")
+
+                # Step 4: Handle repeated values in mcda
+                if 'measurement_nbr' in self.mcda.df.columns:
+                    # Compare current value with previous value to detect changes in measurement_nbr
+                    is_change_mcd = self.mcda.df['measurement_nbr'] != self.mcda.df['measurement_nbr'].shift(1)
+                    # List of target columns where you want to nullify repetitive data
+                    target_columns_mcda = [
+                        'Temperature', 'Pressure', 'RH', 'pmav', 'offset1', 'offset2',
+                        'calib1', 'calib2', 'measurement_nbr', 'pressure'
+                    ]
+                    # Nullify repeated rows (set to NaN) where there's no change
+                    self.mcda.df.loc[~is_change_mcd, target_columns_mcda] = np.nan
+                
+                else:
+                    print(f"No 'measurement_nbr' column found in {self.mcda.name}.")
+                
+                success.append("cleaner")
+    
+            except Exception as e:
+                errors.append(("cleaner", e))
+    
         self._print_success_errors("duplicate removal", success, errors)
+
+
 
     def _print_success_errors(
         self,
@@ -425,6 +472,8 @@ class Cleaner:
         ],
         use_once=False,
     )
+
+    
     def merge_instruments(
         self, tolerance_seconds: int = 1, remove_duplicates: bool = True
     ) -> None:
@@ -451,6 +500,11 @@ class Cleaner:
             )
 
         print("Using merge_asof to align and merge instrument dataframes.")
+
+        # Create a full 1s-spaced datetime index to preserve in the final master_df
+        start = self.reference_instrument.df.index.min()
+        end = self.reference_instrument.df.index.max()
+        full_index = pd.date_range(start=start, end=end, freq="1s")
 
         # Start with the reference instrument dataframe
         self.master_df = self.reference_instrument.df.copy()
@@ -496,6 +550,8 @@ class Cleaner:
         ],
         use_once=False,
     )
+
+    
     def export_data(
         self,
         filename: str | None = None,
@@ -528,6 +584,7 @@ class Cleaner:
             filename = f"level0_{time}"  # noqa
 
         metadata = Level0(
+            flight=self.flight,
             flight_date=self.flight_date,
             takeoff_time=self.time_takeoff,
             landing_time=self.time_landing,
@@ -567,6 +624,8 @@ class Cleaner:
         ],
         use_once=False,
     )
+
+    
     def _apply_rolling_window_to_pressure(
         self,
         instrument,
@@ -600,6 +659,8 @@ class Cleaner:
         ],
         use_once=False,
     )
+
+    
     def define_flight_times(self):
         """Creates a plot to select the start and end of the flight
 
@@ -750,6 +811,8 @@ class Cleaner:
         ],
         use_once=False,
     )
+
+    
     def correct_time_and_pressure(
         self,
         max_lag=180,
@@ -803,7 +866,7 @@ class Cleaner:
                 seconds=offset_seconds,
                 unit="s",
             )
-            instrument.df.index = instrument.df.index.astype("datetime64[s]")
+            instrument.df.index = instrument.df.index.floor('s')
 
         if reference_pressure_thresholds:
             # Assert the tuple has two values (low, high)
@@ -1095,3 +1158,85 @@ class Cleaner:
             or "jupyter-notebook" in parent_process
         ):
             fig.show()
+
+    
+    def shift_msems_columns_by_90s(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Shift all 'msems_inverted_' and 'msems_scan_' columns by 90 seconds in time.
+    
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The DataFrame containing the time-indexed data to shift.
+    
+        Returns
+        -------
+        pd.DataFrame
+            The DataFrame with specified columns time-shifted by 90 seconds.
+        """
+        if not isinstance(df.index, pd.DatetimeIndex):
+            raise ValueError("DataFrame index must be a DateTimeIndex to apply a time-based shift.")
+    
+        cols_to_shift = [
+            col for col in df.columns
+            if col.startswith("msems_inverted_") or col.startswith("msems_scan_")
+        ]
+    
+        if not cols_to_shift:
+            print("No msems_inverted_ or msems_scan_ columns found to shift.")
+            return df
+    
+        df_shifted = df.copy()
+        df_shifted[cols_to_shift] = df_shifted[cols_to_shift].shift(freq="90s")
+    
+        print("Shifted msems_inverted and msems_scan columns by 90 seconds.")
+    
+        return df_shifted
+
+
+    def fill_missing_timestamps(
+        self,
+        df: pd.DataFrame,
+        freq: str = "1S",
+        fill_method: str | None = None  # Optional: "ffill", "bfill", or None
+    ) -> pd.DataFrame:
+        """
+        Reindex the DataFrame to fill in missing timestamps at the specified frequency.
+        Optionally forward- or backward-fill missing values.
+        Prints the number of timestamps added.
+    
+        Parameters
+        ----------
+        df : pd.DataFrame
+            The input DataFrame with a DateTimeIndex.
+        freq : str
+            The desired frequency for the DateTimeIndex (e.g., "1S" for 1 second).
+        fill_method : str or None
+            Method to fill missing values: "ffill", "bfill", or None (default: None).
+    
+        Returns
+        -------
+        pd.DataFrame
+            A DataFrame with missing timestamps added and values optionally filled.
+        """
+        if not isinstance(df.index, pd.DatetimeIndex):
+            raise ValueError("DataFrame index must be a DateTimeIndex.")
+    
+        # Create full time range
+        full_index = pd.date_range(start=df.index.min(), end=df.index.max(), freq=freq) #.astype("datetime64[s]")
+        full_index.name = "DateTime"
+        
+        num_missing = len(full_index.difference(df.index))
+        print(f"Added {num_missing} missing timestamps.")
+    
+        # Reindex
+        df_full = df.reindex(full_index)
+    
+        # Optionally fill
+        if fill_method == "ffill":
+            df_full = df_full.ffill()
+        elif fill_method == "bfill":
+            df_full = df_full.bfill()
+    
+        return df_full
+
