@@ -1046,7 +1046,6 @@ class Cleaner:
             lag=max_lag,
             NON_DER=[self.reference_instrument.name],
         )
-        df_new = df_new.dropna()
         self.df_corr = df_new.corr()
 
         print("Cross correlation:")
@@ -1070,6 +1069,11 @@ class Cleaner:
                 instrument.corr_df = crosscorrelation.df_findtimelag(
                     self.df_corr, rangelag, instname=f"{instrument.name}_"
                 )
+                if instrument.corr_df.isna().all():
+                    raise ValueError(
+                        f"All correlation values are NaN for instrument {instrument.name}. Please check "
+                        f"that time ranges of {instrument.name} and {self.reference_instrument.name} overlap."
+                    )
 
                 instrument.corr_max_val = max(instrument.corr_df)
                 instrument.corr_max_idx = instrument.corr_df.idxmax(axis=0)
