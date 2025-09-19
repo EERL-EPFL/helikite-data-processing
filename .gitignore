@@ -130,10 +130,8 @@ dmypy.json
 
 # Outputs
 *.html
-*.txt
 *.csv
-*.TXT
-*.txt
+
 
 inputs/
 outputs/
