@@ -29,7 +29,6 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
     )
     df = df.copy()
 
-    # Initialize x with the first numerical column other than y
     df = df.fillna("")
     # Add the index as a column to allow it to be used on the x-axis and place
     # it as the first column
@@ -42,6 +41,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
         + [col for col in df.columns if col != index_column_name]
     ]
 
+    # Initialize x with the first numerical column other than y
     variable_options = [var for var in df.columns if var != y]
     x = variable_options[1]  # Set first non-index var to the first in the list
 
@@ -51,9 +51,17 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
         outliers = pd.read_csv(
             outlier_file, index_col=0, parse_dates=True
         ).fillna(False)
+
+        # Old version of outliers file doesn't have index saved as a separate column
+        if index_column_name not in outliers.columns:
+            outliers.insert(loc=0, column=index_column_name, value=False)
+
     except FileNotFoundError:
         print(f"Outlier file not found. Creating new one at {outlier_file}")
         outliers = pd.DataFrame(columns=df.columns).fillna(False)
+
+        # Store outliers file even if no outliers were selected
+        outliers.to_csv(outlier_file, date_format="%Y-%m-%d %H:%M:%S")
 
     # Ensure the indices are aligned and of the same type
     outliers.index = pd.to_datetime(outliers.index)
@@ -142,11 +150,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
                 outliers.loc[selected_index.name, current_x] = True
                 print("Added 1 outlier")
 
-            outliers_without_index_column = outliers.drop(
-                columns=[index_column_name]
-            )
-
-            outliers_without_index_column.to_csv(
+            outliers.to_csv(
                 outlier_file, date_format="%Y-%m-%d %H:%M:%S"
             )
 
@@ -190,11 +194,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
                         count += 1
                 print(f"Removed {count} outliers")
 
-            outliers_without_index_column = outliers.drop(
-                columns=[index_column_name]
-            )
-
-            outliers_without_index_column.to_csv(
+            outliers.to_csv(
                 outlier_file, date_format="%Y-%m-%d %H:%M:%S"
             )
 
