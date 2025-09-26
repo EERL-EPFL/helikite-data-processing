@@ -3,7 +3,7 @@ from ipywidgets import Output, VBox, Dropdown, ToggleButton
 import pandas as pd
 
 
-def choose_outliers(df, y, outlier_file="outliers.csv"):
+def choose_outliers(df, y, coupled_columns=None, outlier_file="outliers.csv"):
     """Creates a plot to interactively select outliers in the data.
 
     A plot is generated where two variables are plotted, and the user can
@@ -14,6 +14,9 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
         df (pandas.DataFrame): The dataframe containing the data
         y (str): The column name of the y-axis variable
         outlier_file (str): The path to the CSV file to store the outliers
+        coupled_columns (List[Tuple[str, ...]], optional):
+            List of column names; if any column in a tuple is marked as an outlier,
+            all other columns in the same tuple should also be marked as outliers
     """
     # Create a figure widget for interactive plotting
     fig = go.FigureWidget()
@@ -82,6 +85,25 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
         icon="plus",  # You can use 'minus' for remove mode
     )
 
+    if coupled_columns is None:
+        coupled_columns = []
+
+    # Build a dictionary mapping each column to its coupled group
+    # Columns not coupled to any others are excluded
+    coupled_columns_dict = {}
+    for coupled_columns_group in coupled_columns:
+        for column in coupled_columns_group:
+            if column in set(coupled_columns_dict):
+                raise ValueError(f"{column} is present in multiple coupled columns groups:"
+                                 f"\n\t{coupled_columns_group}"
+                                 f"\n\t{coupled_columns_dict[column]}")
+            coupled_columns_dict[column] = coupled_columns_group
+
+    def process_outlier(selected_index, current_x, value):
+        all_x_to_set = (current_x,) if not current_x in coupled_columns_dict else coupled_columns_dict[current_x]
+        for x_to_set in all_x_to_set:
+            outliers.loc[selected_index, x_to_set] = value
+
     def on_toggle_change(change):
         if change["new"]:
             add_remove_toggle.description = "Add Mode"
@@ -137,7 +159,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
                 and outliers.loc[selected_index.name, current_x]
             ):
                 # Remove the outlier
-                outliers.loc[selected_index.name, current_x] = False
+                process_outlier(selected_index.name, current_x, value=False)
                 # Remove the row if all entries are False
                 if not outliers.loc[selected_index.name].any():
                     outliers = outliers.drop(selected_index.name)
@@ -147,7 +169,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
                 if selected_index.name not in outliers.index:
                     # Initialize a new row with False values
                     outliers.loc[selected_index.name] = False
-                outliers.loc[selected_index.name, current_x] = True
+                process_outlier(selected_index.name, current_x, value=True)
                 print("Added 1 outlier")
 
             outliers.to_csv(
@@ -176,7 +198,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
                         # Initialize a new row with False values
                         outliers.loc[index] = False
                     if not outliers.loc[index, current_x]:
-                        outliers.loc[index, current_x] = True
+                        process_outlier(index, current_x, value=True)
                         count += 1
                 print(f"Added {count} outliers")
             elif mode == "remove":
@@ -187,7 +209,7 @@ def choose_outliers(df, y, outlier_file="outliers.csv"):
                         and current_x in outliers.columns
                         and outliers.loc[index, current_x]
                     ):
-                        outliers.loc[index, current_x] = False
+                        process_outlier(index, current_x, value=False)
                         # Remove the row if all entries are False
                         if not outliers.loc[index].any():
                             outliers = outliers.drop(index)
