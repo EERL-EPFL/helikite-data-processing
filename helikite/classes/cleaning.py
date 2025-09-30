@@ -231,22 +231,6 @@ class Cleaner:
                 if use_once:
                     print("\tNote: Can only be run once")
 
-    def _print_instruments(self) -> None:
-        print(
-            f"Helikite Cleaner has been initialised with "
-            f"{len(self._instruments)} instruments."
-        )
-        for instrument in self._instruments:
-            print(
-                f"- Cleaner.{instrument.name}.df "
-                f"({len(instrument.df)} records)",
-                end="",
-            )
-            if instrument == self.reference_instrument:
-                print(" (reference)")
-            else:
-                print()
-
     @function_dependencies(use_once=True)
     def set_pressure_column(
         self,
