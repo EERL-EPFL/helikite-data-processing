@@ -1,76 +1,27 @@
-import pandas as pd
-from typing import Any
 import datetime
-import warnings
-from helikite.instruments.base import Instrument
-from helikite.constants import constants
-from helikite.processing.post import crosscorrelation
-import plotly.graph_objects as go
-import numpy as np
-import inspect
-from functools import wraps
-from ipywidgets import Output, VBox
-import psutil
 from itertools import cycle
-import plotly.colors
-from helikite.metadata.models import Level0
-import pyarrow
+from typing import List
+
+import numpy as np
 import orjson
+import pandas as pd
+import plotly.colors
+import plotly.graph_objects as go
+import psutil
+import pyarrow
 import pyarrow.parquet as pq
+from ipywidgets import Output, VBox
+
+from helikite.classes.base import BaseProcessor, function_dependencies
+from helikite.constants import constants
+from helikite.instruments.base import Instrument
+from helikite.metadata.models import Level0
+from helikite.processing.post import crosscorrelation
 
 parent_process = psutil.Process().parent().cmdline()[-1]
 
 
-def function_dependencies(required_operations: list[str] = [], use_once=False):
-    """A decorator to enforce that a method can only run if the required
-    operations have been completed and not rerun.
-
-    If used without a list, the function can only run once.
-    """
-
-    def decorator(func):
-        @wraps(func)  # This will preserve the original docstring and signature
-        def wrapper(self, *args, **kwargs):
-            # Check if the function has already been completed
-            if use_once and func.__name__ in self._completed_operations:
-                print(
-                    f"The operation '{func.__name__}' has already been "
-                    "completed and cannot be run again."
-                )
-                return
-
-            functions_required = []
-            # Ensure all required operations have been completed
-            for operation in required_operations:
-                if operation not in self._completed_operations:
-                    functions_required.append(operation)
-
-            if functions_required:
-                print(
-                    f"This function '{func.__name__}()' requires the "
-                    "following operations first: "
-                    f"{'(), '.join(functions_required)}()."
-                )
-                return  # Halt execution of the function if dependency missing
-
-            # Run the function
-            result = func(self, *args, **kwargs)
-
-            # Mark the function as completed
-            self._completed_operations.append(func.__name__)
-
-            return result
-
-        # Store dependencies and use_once information in the wrapper function
-        wrapper.__dependencies__ = required_operations
-        wrapper.__use_once__ = use_once
-
-        return wrapper
-
-    return decorator
-
-
-class Cleaner:
+class Cleaner(BaseProcessor):
     def __init__(
         self,
         instruments: list[Instrument],
@@ -82,6 +33,8 @@ class Cleaner:
         time_landing: datetime.datetime | None = None,
         time_offset: datetime.time = datetime.time(0, 0),
     ) -> None:
+        super(Cleaner, self).__init__()
+
         self._instruments: list[Instrument] = []  # For managing in batches
         self.input_folder: str = input_folder
         self.flight = flight
@@ -93,8 +46,6 @@ class Cleaner:
         self.master_df: pd.DataFrame | None = None
         self.housekeeping_df: pd.DataFrame | None = None
         self.reference_instrument: Instrument = reference_instrument
-
-        self._completed_operations: list[str] = []
 
         # Create an attribute from each instrument.name
         for instrument in instruments:
@@ -121,10 +72,7 @@ class Cleaner:
             "available methods."
         )
 
-    def state(self):
-        """Prints the current state of the Cleaner class in a tabular format"""
-
-        # Create a list to store the state in a formatted way
+    def _data_state_info(self) -> List[str]:
         state_info = []
 
         # Add instrument information
@@ -146,6 +94,7 @@ class Cleaner:
         state_info.append(f"{'Property':<25}{'Value':<30}")
         state_info.append("-" * 55)
         state_info.append(f"{'Input folder':<25}{self.input_folder:<30}")
+        state_info.append(f"{'Flight':<25}{self.flight}")
         state_info.append(f"{'Flight date':<25}{self.flight_date}")
         state_info.append(
             f"{'Time trim from':<25}{str(self.time_takeoff):<30}"
@@ -181,55 +130,7 @@ class Cleaner:
         state_info.append(
             f"{'Selected pressure points':<25}{selected_points_status:<30}"
         )
-
-        # Add the functions that have been called and completed
-        state_info.append("\nCompleted operations")
-        state_info.append("-" * 30)
-
-        if len(self._completed_operations) == 0:
-            state_info.append("No operations have been completed.")
-
-        for operation in self._completed_operations:
-            state_info.append(f"{operation:<25}")
-
-        # Print all the collected info in a nicely formatted layout
-        print("\n".join(state_info))
-        print()
-
-    def help(self):
-        """Prints available methods in a clean format"""
-
-        print("\nThere are several methods available to clean the data:")
-
-        methods = inspect.getmembers(self, predicate=inspect.ismethod)
-        for name, method in methods:
-            if not name.startswith("_"):
-                # Get method signature (arguments)
-                signature = inspect.signature(method)
-                func_wrapper = getattr(self.__class__, name)
-
-                # Extract func dependencies and use_once details from decorator
-                dependencies = getattr(func_wrapper, "__dependencies__", [])
-                use_once = getattr(func_wrapper, "__use_once__", False)
-
-                # Print method name and signature
-                print(f"- {name}{signature}")
-
-                # Get the first line of the method docstring
-                docstring = inspect.getdoc(method)
-                if docstring:
-                    first_line = docstring.splitlines()[
-                        0
-                    ]  # Get only the first line
-                    print(f"\t{first_line}")
-                else:
-                    print("\tNo docstring available.")
-
-                # Print function dependencies and use_once details
-                if dependencies:
-                    print(f"\tDependencies: {', '.join(dependencies)}")
-                if use_once:
-                    print("\tNote: Can only be run once")
+        return state_info
 
     @function_dependencies(use_once=True)
     def set_pressure_column(
@@ -397,7 +298,7 @@ class Cleaner:
                     is_change = self.msems_scan.df['scan_direction'] != self.msems_scan.df['scan_direction'].shift(1)
                     # Nullify repeated rows (set to NaN) where there's no change
                     self.msems_scan.df.loc[~is_change, self.msems_scan.df.columns != self.msems_scan.df.index.name] = np.nan
-    
+
                 else:
                     print(f"No 'scan_direction' column found in {self.msems_scan.name}.")
 
@@ -431,20 +332,6 @@ class Cleaner:
                 errors.append(("cleaner", e))
 
         self._print_success_errors("duplicate removal", success, errors)
-
-    def _print_success_errors(
-        self,
-        operation: str,
-        success: list[str],
-        errors: list[tuple[str, Any]],
-    ) -> None:
-        print(
-            f"Set {operation} for "
-            f"({len(success)}/{len(self._instruments)}): {', '.join(success)}"
-        )
-        print(f"Errors ({len(errors)}/{len(self._instruments)}):")
-        for error in errors:
-            print(f"Error ({error[0]}): {error[1]}")
 
     @function_dependencies(
         [

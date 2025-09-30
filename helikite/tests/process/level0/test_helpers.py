@@ -31,6 +31,6 @@ def test_cleaner_help(capfd, campaign_data):
     cleaner.help()
     captured = capfd.readouterr()
     assert (
-        "There are several methods available to clean the data:"
+        "There are several methods available to process the data:"
         in captured.out
     )
