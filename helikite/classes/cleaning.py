@@ -163,7 +163,7 @@ class Cleaner:
         housekeeping_df_status = (
             f"{len(self.housekeeping_df)} records"
             if self.housekeeping_df is not None
-            and not self.housekeeping_df.empty
+               and not self.housekeeping_df.empty
             else "Not available"
         )
 
@@ -392,21 +392,20 @@ class Cleaner:
 
         fig.show()
 
-
     @function_dependencies(["set_time_as_index"], use_once=True)
     def remove_duplicates(self) -> None:
         """Remove duplicate rows from each instrument based on time index,
         and clear repeated values in 'msems_scan_', 'msems_inverted_' columns,
         and specific 'mcda_*' columns, keeping only the first instance.
         """
-    
+
         success = []
         errors = []
-    
+
         for instrument in self._instruments:
             try:
                 # Step 1: Remove duplicate rows based on the time index
-                #instrument.df = instrument.remove_duplicates(instrument.df)
+                # instrument.df = instrument.remove_duplicates(instrument.df)
 
                 # Step 2: Handle repeated values in msems_scan
                 if 'scan_direction' in self.msems_scan.df.columns:
@@ -417,7 +416,7 @@ class Cleaner:
     
                 else:
                     print(f"No 'scan_direction' column found in {self.msems_scan.name}.")
-    
+
                 # Step 3: Handle repeated values in msems_inverted
                 if 'scan_direction' in self.msems_inverted.df.columns:
                     # Compare current value with previous value to detect changes
@@ -438,18 +437,16 @@ class Cleaner:
                     ]
                     # Nullify repeated rows (set to NaN) where there's no change
                     self.mcda.df.loc[~is_change_mcd, target_columns_mcda] = np.nan
-                
+
                 else:
                     print(f"No 'measurement_nbr' column found in {self.mcda.name}.")
-                
+
                 success.append("cleaner")
-    
+
             except Exception as e:
                 errors.append(("cleaner", e))
-    
+
         self._print_success_errors("duplicate removal", success, errors)
-
-
 
     def _print_success_errors(
         self,
@@ -472,8 +469,6 @@ class Cleaner:
         ],
         use_once=False,
     )
-
-    
     def merge_instruments(
         self, tolerance_seconds: int = 1, remove_duplicates: bool = True
     ) -> None:
@@ -550,8 +545,6 @@ class Cleaner:
         ],
         use_once=False,
     )
-
-    
     def export_data(
         self,
         filename: str | None = None,
@@ -624,8 +617,6 @@ class Cleaner:
         ],
         use_once=False,
     )
-
-    
     def _apply_rolling_window_to_pressure(
         self,
         instrument,
@@ -659,8 +650,6 @@ class Cleaner:
         ],
         use_once=False,
     )
-
-    
     def define_flight_times(self):
         """Creates a plot to select the start and end of the flight
 
@@ -811,8 +800,6 @@ class Cleaner:
         ],
         use_once=False,
     )
-
-    
     def correct_time_and_pressure(
         self,
         max_lag=180,
@@ -1053,8 +1040,8 @@ class Cleaner:
             print("\tWorking on instrument:", instrument.name)
             instrument_is_matched_with = None
             for (
-                primary_instrument,
-                secondary_instrument,
+                    primary_instrument,
+                    secondary_instrument,
             ) in match_adjustment_with:
                 # If the instrument is in the match_adjustment_with list,
                 # then it will be matched with the match_with instrument
@@ -1163,7 +1150,6 @@ class Cleaner:
         ):
             fig.show()
 
-    
     def shift_msems_columns_by_90s(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Shift all 'msems_inverted_' and 'msems_scan_' columns by 90 seconds in time.
@@ -1180,23 +1166,22 @@ class Cleaner:
         """
         if not isinstance(df.index, pd.DatetimeIndex):
             raise ValueError("DataFrame index must be a DateTimeIndex to apply a time-based shift.")
-    
+
         cols_to_shift = [
             col for col in df.columns
             if col.startswith("msems_inverted_") or col.startswith("msems_scan_")
         ]
-    
+
         if not cols_to_shift:
             print("No msems_inverted_ or msems_scan_ columns found to shift.")
             return df
-    
+
         df_shifted = df.copy()
         df_shifted[cols_to_shift] = df_shifted[cols_to_shift].shift(freq="90s")
-    
-        print("Shifted msems_inverted and msems_scan columns by 90 seconds.")
-    
-        return df_shifted
 
+        print("Shifted msems_inverted and msems_scan columns by 90 seconds.")
+
+        return df_shifted
 
     def fill_missing_timestamps(
         self,
@@ -1225,22 +1210,21 @@ class Cleaner:
         """
         if not isinstance(df.index, pd.DatetimeIndex):
             raise ValueError("DataFrame index must be a DateTimeIndex.")
-    
+
         # Create full time range
-        full_index = pd.date_range(start=df.index.min(), end=df.index.max(), freq=freq) #.astype("datetime64[s]")
+        full_index = pd.date_range(start=df.index.min(), end=df.index.max(), freq=freq)  # .astype("datetime64[s]")
         full_index.name = "DateTime"
-        
+
         num_missing = len(full_index.difference(df.index))
         print(f"Added {num_missing} missing timestamps.")
-    
+
         # Reindex
         df_full = df.reindex(full_index)
-    
+
         # Optionally fill
         if fill_method == "ffill":
             df_full = df_full.ffill()
         elif fill_method == "bfill":
             df_full = df_full.bfill()
-    
-        return df_full
 
+        return df_full
