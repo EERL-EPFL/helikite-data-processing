@@ -18,6 +18,7 @@ class Instrument(ABC):
         dtype: Dict[Any, Any] = {},  # Mapping of column to data type
         na_values: List[Any] | None = None,  # List of values to consider null
         header: int | None = 0,  # Row ID for the header
+        expected_header_value: str | None = None, # Expected value of the header row
         delimiter: str = ",",  # String delimiter
         lineterminator: str | None = None,  # The character to define EOL
         comment: str | None = None,  # Ignore anything after set char
@@ -34,6 +35,7 @@ class Instrument(ABC):
         self.dtype = dtype
         self.na_values = na_values
         self.header = header
+        self.expected_header_value = expected_header_value
         self.delimiter = delimiter
         self.lineterminator = lineterminator
         self.comment = comment
@@ -81,14 +83,11 @@ class Instrument(ABC):
 
         return []
 
-    @abstractmethod
-    def file_identifier(self, first_lines_of_csv: List[str]):
+    def file_identifier(self, first_lines_of_csv: List[str]) -> bool:
         """Default file identifier callback
-
-        Must return false. True would provide false positives.
         """
 
-        return False
+        return first_lines_of_csv[0] == self.expected_header_value
 
     def date_extractor(self, first_lines_of_csv: List[str]):
         """Returns the date of the data sample from a CSV header

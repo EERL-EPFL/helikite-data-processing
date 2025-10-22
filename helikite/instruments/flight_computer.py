@@ -1,3 +1,5 @@
+from typing import List
+
 from helikite.instruments.base import Instrument
 from helikite.processing.conversions import pressure_to_altitude
 from io import StringIO
@@ -23,16 +25,6 @@ class FlightComputerV1(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.name = "flight_computer"
-        self._csv_header = (
-            "SBI,DateTime,PartCon,CO2,P_baro,TEMPbox,mFlow,TEMPsamp,RHsamp,"
-            "TEMP1,RH1,TEMP2,RH2,vBat\n"
-        )
-
-    def file_identifier(self, first_lines_of_csv) -> bool:
-        if first_lines_of_csv[0] == self._csv_header:
-            return True
-
-        return False
 
     def data_corrections(
         self,
@@ -132,7 +124,7 @@ class FlightComputerV1(Instrument):
 
         with open(self.filename, "r") as csv_data:
             for row in csv_data:
-                if row == self._csv_header:
+                if row == self.expected_header_value:
                     if header_counter == 0:
                         # Only append the first header, ignore all others
                         cleaned_csv.write(row)
@@ -357,6 +349,10 @@ flight_computer_v1 = FlightComputerV1(
         "RH2": "Float64",
         "vBat": "Float64",
     },
+    expected_header_value=(
+        "SBI,DateTime,PartCon,CO2,P_baro,TEMPbox,mFlow,TEMPsamp,RHsamp,"
+        "TEMP1,RH1,TEMP2,RH2,vBat\n"
+    ),
     na_values=["NA", "-9999.00"],
     comment="#",
     cols_export=[

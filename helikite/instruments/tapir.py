@@ -22,14 +22,6 @@ class TAPIR(Instrument):
         super().__init__(*args, **kwargs)
         self.name = "tapir"
 
-    def file_identifier(self, first_lines_of_csv) -> bool:
-        if first_lines_of_csv[0] == (
-            "ST,YrMoDy,HrMnSd;GT,YrMoDy,HrMnSd;GL,Lat,Le,Lon,Lm,speed,route;TP,Tproc1,Tproc2,Tproc3,Tproc4;TH,Thead1,Thead2,Thead3,Thead4;TB,Tbox\n"
-        ):
-            return True
-    
-        return False
-
     def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
         try:
             # Combine GT date and time into a single datetime
@@ -84,6 +76,10 @@ tapir = TAPIR(
         "Thead4": "Float64",
         "Tbox": "Float64",
     },
+    expected_header_value=(
+        "ST,YrMoDy,HrMnSd;GT,YrMoDy,HrMnSd;GL,Lat,Le,Lon,Lm,speed,route;TP,Tproc1,Tproc2,Tproc3,Tproc4;"
+        "TH,Thead1,Thead2,Thead3,Thead4;TB,Tbox\n"
+    ),
     header=0,  # Adjust if header starts lower
     export_order=620,
     cols_export=[

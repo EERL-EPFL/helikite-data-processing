@@ -22,15 +22,6 @@ class STAP(Instrument):
         super().__init__(*args, **kwargs)
         self.name = "stap"
 
-    def file_identifier(self, first_lines_of_csv) -> bool:
-        if first_lines_of_csv[0] == (
-            "datetimes,sample_press_mbar,sample_temp_C,sigmab,sigmag,sigmar,"
-            "sigmab_smth,sigmag_smth,sigmar_smth\n"
-        ):
-            return True
-
-        return False
-
     def data_corrections(self, df, *args, **kwargs):
         return df
 
@@ -135,6 +126,10 @@ stap = STAP(
         "sigmag_smth": "Float64",
         "sigmar_smth": "Float64",
     },
+    expected_header_value=(
+        "datetimes,sample_press_mbar,sample_temp_C,sigmab,sigmag,sigmar,"
+        "sigmab_smth,sigmag_smth,sigmar_smth\n"
+    ),
     na_values=["NAN"],
     export_order=500,
     cols_export=[

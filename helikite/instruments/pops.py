@@ -16,6 +16,7 @@ factors I have)
 Housekeeping variables to look at:
 POPS_flow -> flow should be just below 3, and check for variability increase
 """
+from typing import List
 
 from helikite.instruments.base import Instrument
 import pandas as pd
@@ -34,18 +35,6 @@ class POPS(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.name = "pops"
-
-    def file_identifier(self, first_lines_of_csv) -> bool:
-        if first_lines_of_csv[0] == (
-            "DateTime, Status, PartCt, PartCon, BL, BLTH, STD, P, TofP, "
-            "POPS_Flow, PumpFB, LDTemp, LaserFB, LD_Mon, Temp, BatV, "
-            "Laser_Current, Flow_Set,PumpLife_hrs, BL_Start, TH_Mult, nbins, "
-            "logmin, logmax, Skip_Save, MinPeakPts,MaxPeakPts, RawPts,b0,b1,"
-            "b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15\n"
-        ):
-            return True
-
-        return False
 
     def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
         """Set the DateTime as index of the dataframe and correct if needed
@@ -154,6 +143,11 @@ pops = POPS(
         "b14": "Int64",
         "b15": "Int64",
     },
+    expected_header_value="DateTime, Status, PartCt, PartCon, BL, BLTH, STD, P, TofP, "
+                          "POPS_Flow, PumpFB, LDTemp, LaserFB, LD_Mon, Temp, BatV, "
+                          "Laser_Current, Flow_Set,PumpLife_hrs, BL_Start, TH_Mult, nbins, "
+                          "logmin, logmax, Skip_Save, MinPeakPts,MaxPeakPts, RawPts,b0,b1,"
+                          "b2,b3,b4,b5,b6,b7,b8,b9,b10,b11,b12,b13,b14,b15\n",
     export_order=400,
     cols_export=[
         "P",
