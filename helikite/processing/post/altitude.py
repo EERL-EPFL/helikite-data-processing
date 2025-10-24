@@ -308,7 +308,7 @@ def calculate_ground_average(df, takeoff_time, landing_time, time_col, pressure_
     return df[['Pressure_ground', 'Temperature_ground']]
 
 
-def altitude_calculation_barometric(df, metadata):
+def altitude_calculation_barometric(df, metadata) -> pd.DataFrame:
     """
     Calculates altitude using barometric formula based on ground pressure/temperature interpolation
     and pressure readings during flight.

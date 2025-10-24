@@ -3,7 +3,7 @@ from ipywidgets import Output, VBox, Dropdown, ToggleButton
 import pandas as pd
 
 
-def choose_outliers(df, y, coupled_columns=None, outlier_file="outliers.csv"):
+def choose_outliers(df, y, coupled_columns=None, outlier_file="outliers.csv") -> VBox:
     """Creates a plot to interactively select outliers in the data.
 
     A plot is generated where two variables are plotted, and the user can
@@ -32,7 +32,7 @@ def choose_outliers(df, y, coupled_columns=None, outlier_file="outliers.csv"):
     )
     df = df.copy()
 
-    df = df.fillna("")
+    # df = df.fillna("")
     # Add the index as a column to allow it to be used on the x-axis and place
     # it as the first column
     index_column_name = (
