@@ -20,7 +20,6 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 class TAPIR(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "tapir"
 
     def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
         try:
@@ -57,23 +56,32 @@ class TAPIR(Instrument):
 
 
 tapir = TAPIR(
+    name="tapir",
     dtype={
+        "ST": "str",
+        "YrMoDy": "str",
+        "HrMnSd": "str",
+        "GT": "str",
         "GT_YrMoDy": "str",
         "GT_HrMnSd": "str",
+        "GL": "str",
         "Lat": "Float64",
         "Le": "Float64",
         "Lon": "Float64",
         "Lm": "Float64",
         "speed": "Float64",
         "route": "Float64",
+        "TP": "str",
         "Tproc1": "Float64",
         "Tproc2": "Float64",
         "Tproc3": "Float64",
         "Tproc4": "Float64",
+        "TH": "str",
         "Thead1": "Float64",
         "Thead2": "Float64",
         "Thead3": "Float64",
         "Thead4": "Float64",
+        "TB": "str",
         "Tbox": "Float64",
     },
     expected_header_value=(

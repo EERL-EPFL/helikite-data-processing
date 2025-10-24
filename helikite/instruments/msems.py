@@ -45,7 +45,6 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 class MSEMSInverted(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "msems_inverted"
 
     def data_corrections(self, df, **kwargs):
         """Create new columns to plot bins"""
@@ -201,7 +200,6 @@ class MSEMSReadings(Instrument):
     # To match a "...READINGS.txt" file
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "msems_readings"
 
     def file_identifier(self, first_lines_of_csv) -> bool:
         if (
@@ -254,7 +252,6 @@ class MSEMSScan(Instrument):
     # To match a "...SCAN.txt" file
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "msems_scan"
 
     def file_identifier(self, first_lines_of_csv) -> bool:
         if (
@@ -312,6 +309,7 @@ class MSEMSScan(Instrument):
 
 
 msems_scan = MSEMSScan(
+    name="msems_scan",
     header=55,
     delimiter="\t",
     dtype={
@@ -406,6 +404,7 @@ msems_scan = MSEMSScan(
 
 # To match a "...READINGS.txt" file
 msems_readings = MSEMSReadings(
+    name="msems_readings",
     header=31,
     delimiter="\t",
     dtype={
@@ -446,6 +445,7 @@ msems_readings = MSEMSReadings(
 
 # To match a "...INVERTED.txt" file
 msems_inverted = MSEMSInverted(
+    name="msems_inverted",
     header=55,
     delimiter="\t",
     dtype={

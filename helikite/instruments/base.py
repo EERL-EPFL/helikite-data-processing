@@ -13,8 +13,11 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 
 class Instrument(ABC):
+    REGISTRY = {}
+
     def __init__(
         self,
+        name: str,  # Used as a prefix for instrument columns in processed data
         dtype: Dict[Any, Any] = {},  # Mapping of column to data type
         na_values: List[Any] | None = None,  # List of values to consider null
         header: int | None = 0,  # Row ID for the header
@@ -27,11 +30,10 @@ class Instrument(ABC):
         cols_export: List[str] = [],  # Columns to export
         cols_housekeeping: List[str] = [],  # Columns to use for housekeeping
         export_order: int | None = None,  # Order hierarchy in export file
-        pressure_variable: (
-            str | None
-        ) = None,  # The variable measuring pressure
+        pressure_variable: str | None = None,  # The variable measuring pressure
+        registry_name: str | None = None,
     ) -> None:
-
+        self.name = name
         self.dtype = dtype
         self.na_values = na_values
         self.header = header
@@ -51,8 +53,13 @@ class Instrument(ABC):
         self.date: datetime | None = None
         self.pressure_offset_housekeeping: float | None = None
         self.time_offset: Dict[str, int] = {}
-        self.name: str | None = None
         self.time_range: Tuple[Any, Any] | None = None
+
+        # Register every new instrument instance in the registry
+        self.registry_name = registry_name if registry_name else self.name
+        if self.registry_name in self.REGISTRY:
+            raise ValueError(f"{self.name} is already registered by {self.REGISTRY[self.name].__class__}")
+        self.REGISTRY[self.registry_name] = self
 
     def add_config(self, yaml_props: Dict[str, Any]):
         """Adds the application's config to the Instrument class

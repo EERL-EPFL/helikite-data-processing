@@ -20,7 +20,6 @@ class STAP(Instrument):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "stap"
 
     def data_corrections(self, df, *args, **kwargs):
         return df
@@ -65,7 +64,6 @@ class STAPRaw(Instrument):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "stap_raw"
 
     def data_corrections(self, df, *args, **kwargs):
         return df
@@ -115,6 +113,7 @@ class STAPRaw(Instrument):
 
 
 stap = STAP(
+    name="stap",
     dtype={
         "datetimes": "Int64",
         "sample_press_mbar": "Float64",
@@ -157,6 +156,7 @@ stap = STAP(
 
 
 stap_raw = STAPRaw(
+    name="stap_raw",
     header=29,
     delimiter="\t",
     dtype={

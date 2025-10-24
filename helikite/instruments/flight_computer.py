@@ -24,7 +24,6 @@ class FlightComputerV1(Instrument):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "flight_computer"
 
     def data_corrections(
         self,
@@ -158,7 +157,6 @@ class FlightComputerV2(Instrument):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "flight_computer"
 
     def file_identifier(self, first_lines_of_csv) -> bool:
         # In V2, datetime is prefixed with a space, check partial is within
@@ -333,6 +331,8 @@ class FlightComputerV2(Instrument):
 
 
 flight_computer_v1 = FlightComputerV1(
+    name="flight_computer",
+    registry_name="flight_computer_v1",
     dtype={
         "SBI": "str",
         "DateTime": "Int64",
@@ -390,6 +390,8 @@ flight_computer_v1 = FlightComputerV1(
 )
 
 flight_computer_v2 = FlightComputerV2(
+    name="flight_computer",
+    registry_name="flight_computer_v2",
     dtype={
         "DateTime": "str",
         "Time": "str",

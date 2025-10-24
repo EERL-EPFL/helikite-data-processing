@@ -5,8 +5,7 @@ from helikite.instruments.base import Instrument
 # Mock Instrument class for testing purposes
 class MockInstrument(Instrument):
     def __init__(self, name, data=None, **kwargs):
-        super().__init__(**kwargs)
-        self.name = name
+        super().__init__(name, **kwargs)
         self.df_raw = pd.DataFrame(
             data if data else {"time": [], "pressure": []}
         )

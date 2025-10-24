@@ -28,7 +28,6 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 class SmartTether(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "smart_tether"
 
     def date_extractor(self, first_lines_of_csv) -> datetime.datetime:
         date_line = first_lines_of_csv[1]
@@ -112,6 +111,7 @@ class SmartTether(Instrument):
 
 
 smart_tether = SmartTether(
+    name="smart_tether",
     dtype={
         "Time": "str",
         "Comment": "str",

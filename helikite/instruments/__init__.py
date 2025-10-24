@@ -11,3 +11,4 @@ from .base import Instrument
 from .filter import Filter, filter
 from .mcda_instrument import mcda
 from .cpc3007 import CPC
+from .tapir import tapir

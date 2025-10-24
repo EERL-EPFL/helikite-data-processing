@@ -16,12 +16,10 @@ class CPC(Instrument):
     """
     Instrument definition for the cpc3007 sensor system.
     """
-    
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "cpc"
-        
-    
+
     def CPC_STP_normalization(df):
         """
         Normalize CPC3007 concentrations to STP conditions and insert the results

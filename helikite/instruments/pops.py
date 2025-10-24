@@ -34,7 +34,6 @@ from pathlib import Path
 class POPS(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "pops"
 
     def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
         """Set the DateTime as index of the dataframe and correct if needed
@@ -97,6 +96,7 @@ class POPS(Instrument):
 
 
 pops = POPS(
+    name="pops",
     dtype={
         "DateTime": "Float64",
         "Status": "Int64",
