@@ -1,4 +1,5 @@
 import datetime
+import pathlib
 from itertools import cycle
 from typing import List
 
@@ -26,7 +27,7 @@ class Cleaner(BaseProcessor):
         self,
         instruments: list[Instrument],
         reference_instrument: Instrument,
-        input_folder: str,
+        input_folder: str | pathlib.Path,
         flight_date: datetime.date,
         flight: str | None = None,
         time_takeoff: datetime.datetime | None = None,
@@ -36,7 +37,7 @@ class Cleaner(BaseProcessor):
         super(Cleaner, self).__init__()
 
         self._instruments: list[Instrument] = []  # For managing in batches
-        self.input_folder: str = input_folder
+        self.input_folder: str = input_folder if isinstance(input_folder, str) else str(input_folder)
         self.flight = flight
         self.flight_date: datetime.date = flight_date
         self.time_takeoff: datetime.datetime | None = time_takeoff
@@ -50,7 +51,7 @@ class Cleaner(BaseProcessor):
         # Create an attribute from each instrument.name
         for instrument in instruments:
             instrument.df_raw = instrument.read_from_folder(
-                input_folder, quiet=True
+                self.input_folder, quiet=True
             )
             instrument.df = instrument.df_raw.copy(deep=True)
             instrument.df_before_timeshift = pd.DataFrame()
