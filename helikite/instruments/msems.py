@@ -597,41 +597,31 @@ def calcN(df, start_column, end_column, start_conc, end_conc):
         pd.DataFrame: DataFrame containing dN values and total concentration.
     """
 
-    bin_diams = df.loc[:, start_column:end_column]  # iloc[:,4:63]#[:,4:44]
+    bin_diams = df.loc[:, start_column:end_column].astype(np.float64)  # iloc[:,4:63]#[:,4:44]
     # print(bin_diams.columns)
-    bin_concs = df.loc[:, start_conc:end_conc]  # iloc[:,64:123]#[:,44:84]
+    bin_concs = df.loc[:, start_conc:end_conc].astype(np.float64)  # iloc[:,64:123]#[:,44:84]
     # print(bin_concs.columns)
-    CMD = df.loc[:, start_column:end_column]  # .iloc[:,3:63]
+    CMD = df.loc[:, start_column:end_column].astype(np.float64)  # .iloc[:,3:63]
+
     diff_df = CMD.diff(axis=1)
     delta = diff_df / 2
     upper_boundary = CMD + delta
     lower_boundary = CMD - delta
+
     log_lower = np.log10(lower_boundary)
     log_upper = np.log10(upper_boundary)
     dlogDp = log_upper - log_lower
+
     BD1_upper = lower_boundary["msems_inverted_Bin_Dia2"]
-    BD1_lower = (
-        df["msems_inverted_Bin_Dia1"] - delta["msems_inverted_Bin_Dia2"]
-    )
-    BD1 = np.log10(BD1_upper.replace(0, np.nan)) - np.log10(
-        BD1_lower.replace(0, np.nan)
-    )
+    BD1_lower = df["msems_inverted_Bin_Dia1"] - delta["msems_inverted_Bin_Dia2"]
+    BD1 = np.log10(BD1_upper) - np.log10(BD1_lower)
     dlogDp["msems_inverted_Bin_Dia1"] = BD1
 
     # Compute dN
-    dlogDp_array = dlogDp.fillna(
-        0
-    ).to_numpy()  # Convert to array & handle NaNs
-    dN = bin_concs.mul(dlogDp_array, axis=1)
+    dN = bin_concs.mul(dlogDp.values).astype("Float64")
 
     # Sum without NaN issues
-    dN["msems_inverted_totalconc"] = dN.sum(axis=1, skipna=True)
-    # dN["msems_inverted_totalconc"]=dN["msems_inverted_totalconc"].replace(0, np.nan, inplace=True)
-    dN = dN.assign(
-        msems_inverted_totalconc=dN["msems_inverted_totalconc"].replace(
-            0, np.nan
-        )
-    ).infer_objects(copy=False)
+    dN["msems_inverted_totalconc"] = dN.sum(axis=1, skipna=True).replace(0, pd.NA)
 
     return dN
 
