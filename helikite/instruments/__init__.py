@@ -10,5 +10,5 @@ from .msems import msems_readings, msems_inverted, msems_scan
 from .base import Instrument
 from .filter import Filter, filter
 from .mcda_instrument import mcda
-from .cpc3007 import CPC
+from .cpc3007 import cpc
 from .tapir import tapir

@@ -17,10 +17,19 @@ class CPC(Instrument):
     Instrument definition for the cpc3007 sensor system.
     """
 
+    def data_corrections(self, df, *args, **kwargs):
+        pass
+
+    def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
+        pass
+
+    def read_data(self) -> pd.DataFrame:
+        pass
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def CPC_STP_normalization(df):
+    def CPC_STP_normalization(self, df):
         """
         Normalize CPC3007 concentrations to STP conditions and insert the results
         right after the existing CPC columns.
@@ -75,3 +84,7 @@ class CPC(Instrument):
         plt.show()
     
         return df
+
+cpc = CPC(
+    name="cpc",
+)
