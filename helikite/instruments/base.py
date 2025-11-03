@@ -1,12 +1,15 @@
-from typing import Dict, Any, List, Tuple
-from pandas import DataFrame
-from plotly.graph_objects import Figure
-from datetime import datetime
-import pandas as pd
+import inspect
 import logging
-from helikite.constants import constants
 import os
 from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import Dict, Any, List, Tuple
+
+import pandas as pd
+from pandas import DataFrame
+from plotly.graph_objects import Figure
+
+from helikite.constants import constants
 
 logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
@@ -21,7 +24,7 @@ class Instrument(ABC):
         dtype: Dict[Any, Any] = {},  # Mapping of column to data type
         na_values: List[Any] | None = None,  # List of values to consider null
         header: int | None = 0,  # Row ID for the header
-        expected_header_value: str | None = None, # Expected value of the header row
+        expected_header_value: str | None = None,  # Expected value of the header row
         delimiter: str = ",",  # String delimiter
         lineterminator: str | None = None,  # The character to define EOL
         comment: str | None = None,  # Ignore anything after set char
@@ -56,9 +59,16 @@ class Instrument(ABC):
         self.time_range: Tuple[Any, Any] | None = None
 
         # Register every new instrument instance in the registry
+        self._instantiation_info = self._get_instantiation_info()
         self.registry_name = registry_name if registry_name else self.name
         if self.registry_name in self.REGISTRY:
-            raise ValueError(f"{self.name} is already registered by {self.REGISTRY[self.name].__class__}")
+            registered = self.REGISTRY[self.registry_name]
+            # allow reregistering an instrument when working in .ipynb with autoreload
+            if self._instantiation_info != registered._instantiation_info:
+                raise ValueError(f"{self.registry_name} is already registered by {self.REGISTRY[self.registry_name].__class__}.\n"
+                                 f"Please use a different name for this instrument.\n")
+            else:
+                print("Reregistering instrument")
         self.REGISTRY[self.registry_name] = self
 
     def add_config(self, yaml_props: Dict[str, Any]):
@@ -320,3 +330,10 @@ class Instrument(ABC):
         )
 
         return df_unique
+
+    def _get_instantiation_info(self) -> tuple[str, str | None] | None:
+        """Returns the filename and the line of the instrument instantiation"""
+        for frame in inspect.stack()[:4]:
+            if frame.code_context is not None and self.__class__.__name__ in frame.code_context[0]:
+                return frame.filename, frame.code_context[0]
+        return None
