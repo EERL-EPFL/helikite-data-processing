@@ -24,16 +24,19 @@ class TAPIR(Instrument):
     def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
         try:
             # Combine GT date and time into a single datetime
-            df["DateTime"] = pd.to_datetime(df["GT_YrMoDy"].astype(str) + df["GT_HrMnSd"].astype(str), format="%Y%m%d%H%M%S")
+            df["DateTime"] = pd.to_datetime(df["YrMoDy"].astype(str) + df["HrMnSd"].astype(str), format="%Y%m%d%H%M%S")
             df.set_index("DateTime", inplace=True)
             df.index = df.index.astype("datetime64[s]")
-            df.drop(columns=["GT_YrMoDy", "GT_HrMnSd"], inplace=True)
+            # df.drop(columns=["YrMoDy", "HrMnSd"], inplace=True)
         except Exception as e:
             logger.error(f"Failed to convert date and time to datetime index: {e}")
             raise
         return df
 
     def data_corrections(self, df, *args, **kwargs):
+        df = df.resample("1s").asfreq()
+        df.insert(0, "DateTime", df.index)
+
         return df
 
     def read_data(self) -> pd.DataFrame:
@@ -41,6 +44,7 @@ class TAPIR(Instrument):
             df = pd.read_csv(
                 self.filename,
                 dtype=self.dtype,
+                engine="python",
                 header=self.header,
                 na_values=self.na_values,
                 delimiter=self.delimiter,
@@ -62,13 +66,11 @@ tapir = TAPIR(
         "YrMoDy": "str",
         "HrMnSd": "str",
         "GT": "str",
-        "GT_YrMoDy": "str",
-        "GT_HrMnSd": "str",
         "GL": "str",
         "Lat": "Float64",
-        "Le": "Float64",
+        "Le": "str",
         "Lon": "Float64",
-        "Lm": "Float64",
+        "Lm": "str",
         "speed": "Float64",
         "route": "Float64",
         "TP": "str",
@@ -88,13 +90,14 @@ tapir = TAPIR(
         "ST,YrMoDy,HrMnSd;GT,YrMoDy,HrMnSd;GL,Lat,Le,Lon,Lm,speed,route;TP,Tproc1,Tproc2,Tproc3,Tproc4;"
         "TH,Thead1,Thead2,Thead3,Thead4;TB,Tbox\n"
     ),
+    delimiter=r"[;,]",
     header=0,  # Adjust if header starts lower
     export_order=620,
     cols_export=[
         "Lat", "Lon", "Le", "speed", "route", "Tproc1", "Tproc2", "Tproc3", "Tproc4", "Thead1", "Thead2", "Thead3", "Thead4", "Tbox"
     ],
     cols_housekeeping=[
-        "GT_YrMoDy", "GT_HrMnSd", "Lat", "Lon", "Le", "speed", "route", "Tproc1", "Tproc2", "Tproc3", "Tproc4", "Thead1", "Thead2", "Thead3", "Thead4", "Tbox"
+        "YrMoDy", "HrMnSd", "Lat", "Lon", "Le", "speed", "route", "Tproc1", "Tproc2", "Tproc3", "Tproc4", "Thead1", "Thead2", "Thead3", "Thead4", "Tbox"
     ],
     pressure_variable=None  # Add if TAPIR has pressure data
 )

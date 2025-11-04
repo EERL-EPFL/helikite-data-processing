@@ -266,7 +266,7 @@ class Instrument(ABC):
 
         for filename in os.listdir(input_folder):
             # Ignore any yaml or keep files
-            if not filename.lower().endswith((".csv", ".txt")):
+            if not filename.lower().endswith((".csv", ".txt", ".dat")):
                 continue
 
             full_path = os.path.join(input_folder, filename)

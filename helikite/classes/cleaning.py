@@ -342,7 +342,7 @@ class Cleaner(BaseProcessor):
         use_once=False,
     )
     def merge_instruments(
-        self, tolerance_seconds: int = 1, remove_duplicates: bool = True
+        self, tolerance_seconds: int = 0, remove_duplicates: bool = True
     ) -> None:
         """Merges all the dataframes from the instruments into one dataframe.
 
