@@ -16,10 +16,13 @@ change date if we pass midnight (not implemented yet).
 """
 
 from .base import Instrument
+from helikite.constants import constants
 import datetime
+import numpy as np
 import pandas as pd
 import logging
-from helikite.constants import constants
+import matplotlib.pyplot as plt
+
 
 logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
@@ -85,7 +88,7 @@ class SmartTether(Instrument):
         df.set_index("DateTime", inplace=True)
 
         # Set to index type to seconds
-        df.index = df.index.astype("datetime64[s]")
+        df.index = df.index.floor('s') #astype("datetime64[s]")
 
         return df
 
@@ -159,3 +162,71 @@ smart_tether = SmartTether(
     ],
     pressure_variable="P (mbar)",
 )
+
+
+def wind_outlier_removal(df, 
+                         col='smart_tether_Wind (m/s)', 
+                         dir_col='smart_tether_Wind (degrees)', 
+                         threshold=0.35, 
+                         window_size=10):
+    """
+    Removes outliers from wind speed using a median filter and synchronously removes corresponding wind direction values.
+    Plots both original and filtered wind speed and direction vs altitude.
+
+    Parameters:
+        df (pd.DataFrame): Input dataframe with wind speed and direction data.
+        col (str): Wind speed column name.
+        dir_col (str): Wind direction column name.
+        threshold (float): Relative deviation threshold for outlier detection.
+        window_size (int): Size of sliding window for median filtering.
+
+    Returns:
+        pd.DataFrame: A filtered copy of the input DataFrame with outliers replaced by NaN.
+    """
+    plt.close('all')
+
+    df_filtered = df.copy()
+    num_replaced = 0
+
+    for i in range(len(df)):
+        value = df[col].iloc[i]
+
+        if pd.isna(value):
+            continue
+
+        start = max(0, i - window_size)
+        end = min(len(df), i + window_size + 1)
+        window = df[col].iloc[start:end].dropna()
+
+        if len(window) > 0:
+            median = np.median(window)
+            if abs(value - median) > threshold * abs(median):
+                index = df.index[i]
+                df_filtered.at[index, col] = np.nan
+                if dir_col in df.columns:
+                    df_filtered.at[index, dir_col] = np.nan
+                num_replaced += 1
+
+    print(f"Number of wind speed outliers replaced with NaN: {num_replaced}")
+
+    fig, axs = plt.subplots(1, 2, figsize=(12, 6), sharey=True, constrained_layout=True)
+
+    # Wind Speed
+    axs[0].plot(df[col], df['Altitude'], label='Original', color='red', linestyle='none', marker='.')
+    axs[0].plot(df_filtered[col], df['Altitude'], label='Filtered', color='thistle', linestyle='none', marker='.')
+    axs[0].set_xlabel('Wind Speed (m/s)', fontsize=12)
+    axs[0].set_ylabel('Altitude (m)', fontsize=12)
+    axs[0].legend()
+    axs[0].grid(True, linestyle='--')
+
+    # Wind Direction
+    axs[1].plot(df[dir_col], df['Altitude'], label='Original', color='red', linestyle='none', marker='.')
+    axs[1].plot(df_filtered[dir_col], df['Altitude'], label='Filtered', color='olivedrab', linestyle='none', marker='.')
+    axs[1].set_xlabel('Wind Direction (°)', fontsize=12)
+    axs[1].set_xticks([0, 90, 180, 270, 360])
+    axs[1].legend()
+    axs[1].grid(True, linestyle='--')
+
+    plt.show()
+
+    return df_filtered

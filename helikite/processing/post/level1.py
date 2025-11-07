@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 from matplotlib.lines import Line2D
+from matplotlib.patches import Patch
+
 
 
 def create_level1_dataframe(df):
@@ -385,6 +387,74 @@ def flight_profiles_2(df, metadata, xlims=None, xticks=None, fig_title=None):
         twin_ax.xaxis.set_ticks_position('bottom')
         twin_ax.xaxis.set_label_position('bottom')
         twin_ax.spines['bottom'].set_position(('outward', 40))
+
+    # Shade clouds separately for ascent and descent
+    if 'flag_cloud' in df.columns:
+        cloud_points = df[df['flag_cloud'] == 1]
+        if not cloud_points.empty:
+            label_added = False
+            delta_alt = 5  # meters to extend single-point shading
+    
+            # Find the position of max altitude
+            max_alt_pos = df.index.get_loc(df['Altitude'].idxmax())
+            
+            # Split ascent and descent using iloc (integer positions)
+            df_up = df.iloc[:max_alt_pos + 1]
+            df_down = df.iloc[max_alt_pos + 1:]
+    
+            def shade_cloud_segment(df_segment, ax_list):
+                cloud_times_seg = df_segment[df_segment['flag_cloud'] == 1].index
+                if not cloud_times_seg.empty:
+                    start_idx = cloud_times_seg[0]
+                    label_added = False  # define inside the function
+                    for i in range(1, len(cloud_times_seg)):
+                        if (cloud_times_seg[i] - cloud_times_seg[i-1]) > pd.Timedelta(seconds=20):
+                            ymin = df_segment.loc[start_idx, 'Altitude']
+                            ymax = df_segment.loc[cloud_times_seg[i-1], 'Altitude']
+                            delta_alt = 5  # for single-point shading
+                            if ymin == ymax:
+                                ymin -= delta_alt
+                                ymax += delta_alt
+                            for ax in ax_list:
+                                ax.axhspan(ymin, ymax, color='lightblue', alpha=0.3,
+                                           label='Cloud' if not label_added else None)
+                            label_added = True
+                            start_idx = cloud_times_seg[i]
+            
+                    # Final segment
+                    ymin = df_segment.loc[start_idx, 'Altitude']
+                    ymax = df_segment.loc[cloud_times_seg[-1], 'Altitude']
+                    delta_alt = 5
+                    if ymin == ymax:
+                        ymin -= delta_alt
+                        ymax += delta_alt
+                    for ax in ax_list:
+                        ax.axhspan(ymin, ymax, color='lightblue', alpha=0.3,
+                                   label='Cloud' if not label_added else None)
+    
+            # Apply separately for ascent and descent
+            shade_cloud_segment(df_up, [ax3, ax5])
+            shade_cloud_segment(df_down, [ax3, ax5])
+
+
+    # Shade areas for pollution on ax3 (altitude-based)
+    if 'flag_pollution' in df.columns:
+        pollution_times = df[df['flag_pollution'] == 1].index
+        if not pollution_times.empty:
+            start_idx = pollution_times[0]
+            label_added = False
+            for i in range(1, len(pollution_times)):
+                if (pollution_times[i] - pollution_times[i-1]) > pd.Timedelta(seconds=1):
+                    ymin = df.loc[start_idx, 'Altitude']
+                    ymax = df.loc[pollution_times[i-1], 'Altitude']
+                    ax3.axhspan(ymin, ymax, color='lightcoral', alpha=0.3,
+                                label='Pollution' if not label_added else None)
+                    label_added = True
+                    start_idx = pollution_times[i]
+            ymin = df.loc[start_idx, 'Altitude']
+            ymax = df.loc[pollution_times[-1], 'Altitude']
+            ax3.axhspan(ymin, ymax, color='lightcoral', alpha=0.3,
+                        label='Pollution' if not label_added else None)
     
     # Plot ascent data
     ax1.plot(df_up["TEMP"], df_up["Altitude"], color="brown", linewidth=3.0)
@@ -498,8 +568,11 @@ def flight_profiles_2(df, metadata, xlims=None, xticks=None, fig_title=None):
     ax[4].axis('off')
     legend_lines = [
         Line2D([0], [0], color='darkgrey', lw=4, label='Ascent'),
-        Line2D([0], [0], color='lightgrey', lw=4, label='Descent')
+        Line2D([0], [0], color='lightgrey', lw=4, label='Descent'),
+        Patch(facecolor='lightblue', alpha=0.3, label='Cloud'),
+        Patch(facecolor='lightcoral', alpha=0.3, label='Pollution')
     ]
+    
     ax[4].legend(
         handles=legend_lines,
         loc='upper right',
