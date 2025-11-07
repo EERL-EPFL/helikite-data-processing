@@ -15,7 +15,6 @@ import pandas as pd
 class OzoneMonitor(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "ozone"
 
     def file_identifier(self, first_lines_of_csv) -> bool:
         # This one is tricky. There is no header! May run into conflicts later
@@ -65,6 +64,7 @@ class OzoneMonitor(Instrument):
 
 
 ozone_monitor = OzoneMonitor(
+    name="ozone",
     na_values=["-"],
     index_col=0,
     header=None,

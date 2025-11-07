@@ -42,6 +42,13 @@ def campaign_data_location_2025_antarctica_flightcomp2():
 
 
 @pytest.fixture
+def campaign_data_location_2025():
+    return os.path.join(
+        os.path.dirname(__file__), "resources", "campaigns", "20250214"
+    )
+
+
+@pytest.fixture
 def fc_data_2022(campaign_data_location_2022: str):
     # Import flight computer data from the campaign data folder
 

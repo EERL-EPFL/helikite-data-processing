@@ -30,7 +30,6 @@ class mCDA(Instrument):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "mcda"
         
 
     def file_identifier(self, first_lines_of_csv) -> bool:
@@ -108,6 +107,7 @@ class mCDA(Instrument):
 
 
 mcda = mCDA(
+    name="mcda",
     dtype={
         "DateTime": "Float64",
         "timestamp_x": "Float64",

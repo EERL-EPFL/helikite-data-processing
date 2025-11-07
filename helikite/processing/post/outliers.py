@@ -71,7 +71,7 @@ def plot_outliers_check(df):
 
 
 def plot_gps_on_map(df, lat_col='flight_computer_Lat', lon_col='flight_computer_Long', 
-                    lat_dir='S', lon_dir='W', center_coords=(-70.6587, -8.2850), zoom_start=13):
+                    lat_dir='S', lon_dir='W', center_coords=(-70.6587, -8.2850), zoom_start=13) -> folium.Map:
     
     def convert_dm_to_dd(dm_value, direction):
         if pd.isna(dm_value):

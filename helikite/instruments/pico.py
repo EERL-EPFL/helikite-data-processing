@@ -22,7 +22,6 @@ import pandas as pd
 class Pico(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "pico"
 
     def file_identifier(self, first_lines_of_csv) -> bool:
         if (
@@ -70,6 +69,7 @@ class Pico(Instrument):
 
 
 pico = Pico(
+    name="pico",
     dtype={
         "Time Stamp": "str",
         "Inlet Number": "Int64",

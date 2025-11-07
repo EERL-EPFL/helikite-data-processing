@@ -1,23 +1,30 @@
-from typing import Dict, Any, List, Tuple
-from pandas import DataFrame
-from plotly.graph_objects import Figure
-from datetime import datetime
-import pandas as pd
+import inspect
 import logging
-from helikite.constants import constants
 import os
 from abc import ABC, abstractmethod
+from datetime import datetime
+from typing import Dict, Any, List, Tuple
+
+import pandas as pd
+from pandas import DataFrame
+from plotly.graph_objects import Figure
+
+from helikite.constants import constants
 
 logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 
 class Instrument(ABC):
+    REGISTRY = {}
+
     def __init__(
         self,
+        name: str,  # Used as a prefix for instrument columns in processed data
         dtype: Dict[Any, Any] = {},  # Mapping of column to data type
         na_values: List[Any] | None = None,  # List of values to consider null
         header: int | None = 0,  # Row ID for the header
+        expected_header_value: str | None = None,  # Expected value of the header row
         delimiter: str = ",",  # String delimiter
         lineterminator: str | None = None,  # The character to define EOL
         comment: str | None = None,  # Ignore anything after set char
@@ -26,14 +33,14 @@ class Instrument(ABC):
         cols_export: List[str] = [],  # Columns to export
         cols_housekeeping: List[str] = [],  # Columns to use for housekeeping
         export_order: int | None = None,  # Order hierarchy in export file
-        pressure_variable: (
-            str | None
-        ) = None,  # The variable measuring pressure
+        pressure_variable: str | None = None,  # The variable measuring pressure
+        registry_name: str | None = None,
     ) -> None:
-
+        self.name = name
         self.dtype = dtype
         self.na_values = na_values
         self.header = header
+        self.expected_header_value = expected_header_value
         self.delimiter = delimiter
         self.lineterminator = lineterminator
         self.comment = comment
@@ -49,8 +56,20 @@ class Instrument(ABC):
         self.date: datetime | None = None
         self.pressure_offset_housekeeping: float | None = None
         self.time_offset: Dict[str, int] = {}
-        self.name: str | None = None
         self.time_range: Tuple[Any, Any] | None = None
+
+        # Register every new instrument instance in the registry
+        self._instantiation_info = self._get_instantiation_info()
+        self.registry_name = registry_name if registry_name else self.name
+        if self.registry_name in self.REGISTRY:
+            registered = self.REGISTRY[self.registry_name]
+            # allow reregistering an instrument when working in .ipynb with autoreload
+            if self._instantiation_info != registered._instantiation_info:
+                raise ValueError(f"{self.registry_name} is already registered by {self.REGISTRY[self.registry_name].__class__}.\n"
+                                 f"Please use a different name for this instrument.\n")
+            else:
+                print("Reregistering instrument")
+        self.REGISTRY[self.registry_name] = self
 
     def add_config(self, yaml_props: Dict[str, Any]):
         """Adds the application's config to the Instrument class
@@ -64,7 +83,7 @@ class Instrument(ABC):
         self.pressure_offset_housekeeping = yaml_props["pressure_offset"]
 
     @abstractmethod
-    def data_corrections(self, df, *args, **kwargs):
+    def data_corrections(self, df, *args, **kwargs) -> pd.DataFrame:
         """Default callback function for data corrections.
 
         Return with no changes
@@ -81,14 +100,11 @@ class Instrument(ABC):
 
         return []
 
-    @abstractmethod
-    def file_identifier(self, first_lines_of_csv: List[str]):
+    def file_identifier(self, first_lines_of_csv: List[str]) -> bool:
         """Default file identifier callback
-
-        Must return false. True would provide false positives.
         """
 
-        return False
+        return first_lines_of_csv[0] == self.expected_header_value
 
     def date_extractor(self, first_lines_of_csv: List[str]):
         """Returns the date of the data sample from a CSV header
@@ -250,7 +266,7 @@ class Instrument(ABC):
 
         for filename in os.listdir(input_folder):
             # Ignore any yaml or keep files
-            if not filename.lower().endswith((".csv", ".txt")):
+            if not filename.lower().endswith((".csv", ".txt", ".dat")):
                 continue
 
             full_path = os.path.join(input_folder, filename)
@@ -314,3 +330,40 @@ class Instrument(ABC):
         )
 
         return df_unique
+
+    def get_expected_columns(self, level: float | None, is_reference: bool) -> list[str]:
+        match level:
+            case None:
+                return list(self.dtype.keys())
+
+            case 0:
+                df = pd.DataFrame({c: pd.Series(dtype=t) for c, t in self.dtype.items()})
+                df = self.set_time_as_index(df)
+
+                # TODO: Remove this once addition of `scan_direction` is integrated in the cleaning pipeline
+                if self.name == "msems_inverted":
+                    df.insert(len(df.columns), "scan_direction", pd.Series([], dtype="Int64"))
+
+                df = self.data_corrections(df)
+
+                if self.pressure_variable is not None:
+                    df = self.set_housekeeping_pressure_offset_variable(df, constants.HOUSEKEEPING_VAR_PRESSURE)
+
+                if not is_reference and self.pressure_variable is not None:
+                    df.insert(0, "DateTime", df.index)
+
+                return [f"{self.name}_{column}" for column in df.columns]
+
+            case 1 | 1.5 | 2:
+                raise ValueError(f"Unsupported level: {level}")
+
+            case _:
+                raise ValueError(f"Unexpected level: {level}")
+
+
+    def _get_instantiation_info(self) -> tuple[str, str | None] | None:
+        """Returns the filename and the line of the instrument instantiation"""
+        for frame in inspect.stack()[:4]:
+            if frame.code_context is not None and self.__class__.__name__ in frame.code_context[0]:
+                return frame.filename, frame.code_context[0]
+        return None

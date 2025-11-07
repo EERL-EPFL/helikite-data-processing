@@ -20,16 +20,6 @@ class STAP(Instrument):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "stap"
-
-    def file_identifier(self, first_lines_of_csv) -> bool:
-        if first_lines_of_csv[0] == (
-            "datetimes,sample_press_mbar,sample_temp_C,sigmab,sigmag,sigmar,"
-            "sigmab_smth,sigmag_smth,sigmar_smth\n"
-        ):
-            return True
-
-        return False
 
     def data_corrections(self, df, *args, **kwargs):
         return df
@@ -74,7 +64,6 @@ class STAPRaw(Instrument):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "stap_raw"
 
     def data_corrections(self, df, *args, **kwargs):
         return df
@@ -124,6 +113,7 @@ class STAPRaw(Instrument):
 
 
 stap = STAP(
+    name="stap",
     dtype={
         "datetimes": "Int64",
         "sample_press_mbar": "Float64",
@@ -135,6 +125,10 @@ stap = STAP(
         "sigmag_smth": "Float64",
         "sigmar_smth": "Float64",
     },
+    expected_header_value=(
+        "datetimes,sample_press_mbar,sample_temp_C,sigmab,sigmag,sigmar,"
+        "sigmab_smth,sigmag_smth,sigmar_smth\n"
+    ),
     na_values=["NAN"],
     export_order=500,
     cols_export=[
@@ -162,6 +156,7 @@ stap = STAP(
 
 
 stap_raw = STAPRaw(
+    name="stap_raw",
     header=29,
     delimiter="\t",
     dtype={

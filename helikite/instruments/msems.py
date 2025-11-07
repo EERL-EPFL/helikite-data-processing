@@ -45,21 +45,12 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 class MSEMSInverted(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "msems_inverted"
 
     def data_corrections(self, df, **kwargs):
         """Create new columns to plot bins"""
-        bins = df.groupby("NumBins").all().index.to_list()
-        if len(bins) != 1:
-            # Check that there is only one single value.
-            raise ValueError(
-                "There are multiple bins in this dataset. " "Cannot proceed"
-            )
-        else:
-            # Unpack the single value list to a single integer
-            bins = bins[0]
+
         # Form column names of all bins
-        bin_diameter_columns = [f"Bin_Dia{i}" for i in range(1, bins + 1)]
+        bin_diameter_columns = [col for col in df.columns if col.startswith("Bin_Dia")]
 
         # Calculate the mean of the bin diameters
         bin_diameter_average = df[bin_diameter_columns].mean()
@@ -87,7 +78,7 @@ class MSEMSInverted(Instrument):
 
         # Create the bin limit columns and add the first limit column
         # (so there are total n_bins + 1)
-        bin_limit_columns = [f"Bin_Lim{i}" for i in range(1, bins + 1)]
+        bin_limit_columns = [f"Bin_Lim{col.removeprefix("Bin_Dia")}" for col in bin_diameter_columns]
         bin_limit_columns.insert(0, "Bin_Lim0")
 
         # Add first and last bins
@@ -113,9 +104,10 @@ class MSEMSInverted(Instrument):
         df["EndTime"] = pd.to_datetime(df["EndTime"])
 
         # The last row needs an end date, just add 1 minute
-        df.loc[df.index[-1], "EndTime"] = df.loc[
-            df.index[-1], "StartTime"
-        ] + pd.DateOffset(minutes=1)
+        if not df.empty:
+            df.loc[df.index[-1], "EndTime"] = df.loc[
+                df.index[-1], "StartTime"
+            ] + pd.DateOffset(minutes=1)
 
         # Set the EndTime as one second less so that the bin end date does not
         # equal the start of the next bin start
@@ -127,19 +119,20 @@ class MSEMSInverted(Instrument):
         df = df.resample("1s").ffill()
 
         # Repeat last timestamp for addditional 3 minutes in 1-second intervals
-        last_time = df.index[-1]
-        extended_index = pd.date_range(
-            start=last_time + pd.Timedelta(seconds=1),
-            end=last_time + pd.Timedelta(minutes=3),
-            freq="1s",
-        )
-        last_row = df.iloc[[-1]].copy()
-        extension = pd.DataFrame(
-            [last_row.values[0]] * len(extended_index),
-            index=extended_index,
-            columns=df.columns,
-        )
-        df = pd.concat([df, extension])
+        if not df.empty:
+            last_time = df.index[-1]
+            extended_index = pd.date_range(
+                start=last_time + pd.Timedelta(seconds=1),
+                end=last_time + pd.Timedelta(minutes=3),
+                freq="1s",
+            )
+            last_row = df.iloc[[-1]].copy()
+            extension = pd.DataFrame(
+                [last_row.values[0]] * len(extended_index),
+                index=extended_index,
+                columns=df.columns,
+            )
+            df = pd.concat([df, extension])
 
         return df
 
@@ -201,7 +194,6 @@ class MSEMSReadings(Instrument):
     # To match a "...READINGS.txt" file
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "msems_readings"
 
     def file_identifier(self, first_lines_of_csv) -> bool:
         if (
@@ -254,7 +246,6 @@ class MSEMSScan(Instrument):
     # To match a "...SCAN.txt" file
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "msems_scan"
 
     def file_identifier(self, first_lines_of_csv) -> bool:
         if (
@@ -312,6 +303,7 @@ class MSEMSScan(Instrument):
 
 
 msems_scan = MSEMSScan(
+    name="msems_scan",
     header=55,
     delimiter="\t",
     dtype={
@@ -406,6 +398,7 @@ msems_scan = MSEMSScan(
 
 # To match a "...READINGS.txt" file
 msems_readings = MSEMSReadings(
+    name="msems_readings",
     header=31,
     delimiter="\t",
     dtype={
@@ -446,6 +439,7 @@ msems_readings = MSEMSReadings(
 
 # To match a "...INVERTED.txt" file
 msems_inverted = MSEMSInverted(
+    name="msems_inverted",
     header=55,
     delimiter="\t",
     dtype={
@@ -597,41 +591,31 @@ def calcN(df, start_column, end_column, start_conc, end_conc):
         pd.DataFrame: DataFrame containing dN values and total concentration.
     """
 
-    bin_diams = df.loc[:, start_column:end_column]  # iloc[:,4:63]#[:,4:44]
+    bin_diams = df.loc[:, start_column:end_column].astype(np.float64)  # iloc[:,4:63]#[:,4:44]
     # print(bin_diams.columns)
-    bin_concs = df.loc[:, start_conc:end_conc]  # iloc[:,64:123]#[:,44:84]
+    bin_concs = df.loc[:, start_conc:end_conc].astype(np.float64)  # iloc[:,64:123]#[:,44:84]
     # print(bin_concs.columns)
-    CMD = df.loc[:, start_column:end_column]  # .iloc[:,3:63]
+    CMD = df.loc[:, start_column:end_column].astype(np.float64)  # .iloc[:,3:63]
+
     diff_df = CMD.diff(axis=1)
     delta = diff_df / 2
     upper_boundary = CMD + delta
     lower_boundary = CMD - delta
+
     log_lower = np.log10(lower_boundary)
     log_upper = np.log10(upper_boundary)
     dlogDp = log_upper - log_lower
+
     BD1_upper = lower_boundary["msems_inverted_Bin_Dia2"]
-    BD1_lower = (
-        df["msems_inverted_Bin_Dia1"] - delta["msems_inverted_Bin_Dia2"]
-    )
-    BD1 = np.log10(BD1_upper.replace(0, np.nan)) - np.log10(
-        BD1_lower.replace(0, np.nan)
-    )
+    BD1_lower = df["msems_inverted_Bin_Dia1"] - delta["msems_inverted_Bin_Dia2"]
+    BD1 = np.log10(BD1_upper) - np.log10(BD1_lower)
     dlogDp["msems_inverted_Bin_Dia1"] = BD1
 
     # Compute dN
-    dlogDp_array = dlogDp.fillna(
-        0
-    ).to_numpy()  # Convert to array & handle NaNs
-    dN = bin_concs.mul(dlogDp_array, axis=1)
+    dN = bin_concs.mul(dlogDp.values).astype("Float64")
 
     # Sum without NaN issues
-    dN["msems_inverted_totalconc"] = dN.sum(axis=1, skipna=True)
-    # dN["msems_inverted_totalconc"]=dN["msems_inverted_totalconc"].replace(0, np.nan, inplace=True)
-    dN = dN.assign(
-        msems_inverted_totalconc=dN["msems_inverted_totalconc"].replace(
-            0, np.nan
-        )
-    ).infer_objects(copy=False)
+    dN["msems_inverted_totalconc"] = dN.sum(axis=1, skipna=True).replace(0, pd.NA)
 
     return dN
 

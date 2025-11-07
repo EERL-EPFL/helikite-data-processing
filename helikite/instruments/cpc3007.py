@@ -2,27 +2,67 @@
 CPC3007
 Total particle concentration in size range of 7 - 2000 nm.
 """
+from typing import List
+
+import matplotlib.pyplot as plt
+import pandas as pd
 
 from helikite.instruments.base import Instrument
-from helikite.constants import constants
-import pandas as pd
-import numpy as np
-import logging
-import matplotlib.pyplot as plt
-import matplotlib.colors as mcols
-import matplotlib.dates as mdates
+
 
 class CPC(Instrument):
     """
     Instrument definition for the cpc3007 sensor system.
     """
-    
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "cpc"
-        
-    
-    def CPC_STP_normalization(df):
+
+    def data_corrections(self, df, *args, **kwargs) -> pd.DataFrame:
+        df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+        df = df.rename(columns={'Concentration (#/cm3)': 'totalconc_raw'})
+
+        df = df.resample("1s").asfreq()
+        df.insert(0, "DateTime", df.index)
+
+        return df
+
+    def file_identifier(self, first_lines_of_csv: List[str]) -> bool:
+        if self.expected_header_value in first_lines_of_csv[17]:
+            return True
+
+        return False
+
+    def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
+        if self.date is None:
+            raise ValueError(
+                "No flight date provided. Necessary for CPC"
+            )
+
+        df["DateTime"] = df["Time"].apply(lambda t: pd.to_datetime(f"{self.date} {t}"))
+        df.set_index("DateTime", inplace=True)
+        df.index = df.index.astype("datetime64[s]")
+
+        return df
+
+    def read_data(self) -> pd.DataFrame:
+        df = pd.read_csv(
+            self.filename,
+            dtype=self.dtype,
+            engine="python",
+            skiprows=17,
+            skipfooter=1,
+            na_values=self.na_values,
+            header=self.header,
+            delimiter=self.delimiter,
+            lineterminator=self.lineterminator,
+            comment=self.comment,
+            names=self.names,
+            index_col=self.index_col,
+        )
+
+        return df
+
+    def CPC_STP_normalization(self, df):
         """
         Normalize CPC3007 concentrations to STP conditions and insert the results
         right after the existing CPC columns.
@@ -77,3 +117,14 @@ class CPC(Instrument):
         plt.show()
     
         return df
+
+cpc = CPC(
+    name="cpc",
+    dtype={
+        "Time": "str",
+        "Concentration (#/cm3)": "Int64"
+    },
+    expected_header_value="Time,Concentration (#/cm3),\n",
+    header=0,
+    pressure_variable=None,
+)

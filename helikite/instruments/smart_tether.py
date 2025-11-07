@@ -28,7 +28,6 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 class SmartTether(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "smart_tether"
 
     def date_extractor(self, first_lines_of_csv) -> datetime.datetime:
         date_line = first_lines_of_csv[1]
@@ -71,11 +70,10 @@ class SmartTether(Instrument):
 
         # Check for midnight rollover. Can assume that the data will never be
         # longer than a day, so just check once for a midnight rollover
-        start_time = pd.Timestamp(df.iloc[0]["Time"])
         for i, row in df.iterrows():
             # check if the timestamp is earlier than the start time (i.e. it's
             # the next day)
-            if pd.Timestamp(row["Time"]) < start_time:
+            if pd.Timestamp(row["Time"]) < pd.Timestamp(df.iloc[0]["Time"]):
                 # add a day to the date column
                 logger.info("SmartTether date passes midnight. Correcting...")
                 logger.info(f"Adding a day at: {df.at[i, 'DateTime']}")
@@ -112,6 +110,7 @@ class SmartTether(Instrument):
 
 
 smart_tether = SmartTether(
+    name="smart_tether",
     dtype={
         "Time": "str",
         "Comment": "str",

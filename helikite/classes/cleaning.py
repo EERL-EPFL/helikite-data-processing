@@ -1,89 +1,43 @@
-import pandas as pd
-from typing import Any
 import datetime
-import warnings
-from helikite.instruments.base import Instrument
-from helikite.constants import constants
-from helikite.processing.post import crosscorrelation
-import plotly.graph_objects as go
-import numpy as np
-import inspect
-from functools import wraps
-from ipywidgets import Output, VBox
-import psutil
+import pathlib
 from itertools import cycle
-import plotly.colors
-from helikite.metadata.models import Level0
-import pyarrow
+from typing import List
+
+import numpy as np
 import orjson
+import pandas as pd
+import plotly.colors
+import plotly.graph_objects as go
+import psutil
+import pyarrow
 import pyarrow.parquet as pq
+from ipywidgets import Output, VBox
+
+from helikite.classes.base import BaseProcessor, function_dependencies
+from helikite.constants import constants
+from helikite.instruments.base import Instrument
+from helikite.metadata.models import Level0
+from helikite.processing.post import crosscorrelation
 
 parent_process = psutil.Process().parent().cmdline()[-1]
 
 
-def function_dependencies(required_operations: list[str] = [], use_once=False):
-    """A decorator to enforce that a method can only run if the required
-    operations have been completed and not rerun.
-
-    If used without a list, the function can only run once.
-    """
-
-    def decorator(func):
-        @wraps(func)  # This will preserve the original docstring and signature
-        def wrapper(self, *args, **kwargs):
-            # Check if the function has already been completed
-            if use_once and func.__name__ in self._completed_operations:
-                print(
-                    f"The operation '{func.__name__}' has already been "
-                    "completed and cannot be run again."
-                )
-                return
-
-            functions_required = []
-            # Ensure all required operations have been completed
-            for operation in required_operations:
-                if operation not in self._completed_operations:
-                    functions_required.append(operation)
-
-            if functions_required:
-                print(
-                    f"This function '{func.__name__}()' requires the "
-                    "following operations first: "
-                    f"{'(), '.join(functions_required)}()."
-                )
-                return  # Halt execution of the function if dependency missing
-
-            # Run the function
-            result = func(self, *args, **kwargs)
-
-            # Mark the function as completed
-            self._completed_operations.append(func.__name__)
-
-            return result
-
-        # Store dependencies and use_once information in the wrapper function
-        wrapper.__dependencies__ = required_operations
-        wrapper.__use_once__ = use_once
-
-        return wrapper
-
-    return decorator
-
-
-class Cleaner:
+class Cleaner(BaseProcessor):
     def __init__(
         self,
         instruments: list[Instrument],
         reference_instrument: Instrument,
-        input_folder: str,
+        input_folder: str | pathlib.Path,
         flight_date: datetime.date,
         flight: str | None = None,
         time_takeoff: datetime.datetime | None = None,
         time_landing: datetime.datetime | None = None,
         time_offset: datetime.time = datetime.time(0, 0),
     ) -> None:
+        super(Cleaner, self).__init__()
+
         self._instruments: list[Instrument] = []  # For managing in batches
-        self.input_folder: str = input_folder
+        self.input_folder: str = input_folder if isinstance(input_folder, str) else str(input_folder)
         self.flight = flight
         self.flight_date: datetime.date = flight_date
         self.time_takeoff: datetime.datetime | None = time_takeoff
@@ -94,12 +48,10 @@ class Cleaner:
         self.housekeeping_df: pd.DataFrame | None = None
         self.reference_instrument: Instrument = reference_instrument
 
-        self._completed_operations: list[str] = []
-
         # Create an attribute from each instrument.name
         for instrument in instruments:
             instrument.df_raw = instrument.read_from_folder(
-                input_folder, quiet=True
+                self.input_folder, quiet=True
             )
             instrument.df = instrument.df_raw.copy(deep=True)
             instrument.df_before_timeshift = pd.DataFrame()
@@ -121,10 +73,7 @@ class Cleaner:
             "available methods."
         )
 
-    def state(self):
-        """Prints the current state of the Cleaner class in a tabular format"""
-
-        # Create a list to store the state in a formatted way
+    def _data_state_info(self) -> List[str]:
         state_info = []
 
         # Add instrument information
@@ -146,6 +95,7 @@ class Cleaner:
         state_info.append(f"{'Property':<25}{'Value':<30}")
         state_info.append("-" * 55)
         state_info.append(f"{'Input folder':<25}{self.input_folder:<30}")
+        state_info.append(f"{'Flight':<25}{self.flight}")
         state_info.append(f"{'Flight date':<25}{self.flight_date}")
         state_info.append(
             f"{'Time trim from':<25}{str(self.time_takeoff):<30}"
@@ -163,7 +113,7 @@ class Cleaner:
         housekeeping_df_status = (
             f"{len(self.housekeeping_df)} records"
             if self.housekeeping_df is not None
-            and not self.housekeeping_df.empty
+               and not self.housekeeping_df.empty
             else "Not available"
         )
 
@@ -181,71 +131,7 @@ class Cleaner:
         state_info.append(
             f"{'Selected pressure points':<25}{selected_points_status:<30}"
         )
-
-        # Add the functions that have been called and completed
-        state_info.append("\nCompleted operations")
-        state_info.append("-" * 30)
-
-        if len(self._completed_operations) == 0:
-            state_info.append("No operations have been completed.")
-
-        for operation in self._completed_operations:
-            state_info.append(f"{operation:<25}")
-
-        # Print all the collected info in a nicely formatted layout
-        print("\n".join(state_info))
-        print()
-
-    def help(self):
-        """Prints available methods in a clean format"""
-
-        print("\nThere are several methods available to clean the data:")
-
-        methods = inspect.getmembers(self, predicate=inspect.ismethod)
-        for name, method in methods:
-            if not name.startswith("_"):
-                # Get method signature (arguments)
-                signature = inspect.signature(method)
-                func_wrapper = getattr(self.__class__, name)
-
-                # Extract func dependencies and use_once details from decorator
-                dependencies = getattr(func_wrapper, "__dependencies__", [])
-                use_once = getattr(func_wrapper, "__use_once__", False)
-
-                # Print method name and signature
-                print(f"- {name}{signature}")
-
-                # Get the first line of the method docstring
-                docstring = inspect.getdoc(method)
-                if docstring:
-                    first_line = docstring.splitlines()[
-                        0
-                    ]  # Get only the first line
-                    print(f"\t{first_line}")
-                else:
-                    print("\tNo docstring available.")
-
-                # Print function dependencies and use_once details
-                if dependencies:
-                    print(f"\tDependencies: {', '.join(dependencies)}")
-                if use_once:
-                    print("\tNote: Can only be run once")
-
-    def _print_instruments(self) -> None:
-        print(
-            f"Helikite Cleaner has been initialised with "
-            f"{len(self._instruments)} instruments."
-        )
-        for instrument in self._instruments:
-            print(
-                f"- Cleaner.{instrument.name}.df "
-                f"({len(instrument.df)} records)",
-                end="",
-            )
-            if instrument == self.reference_instrument:
-                print(" (reference)")
-            else:
-                print()
+        return state_info
 
     @function_dependencies(use_once=True)
     def set_pressure_column(
@@ -392,21 +278,20 @@ class Cleaner:
 
         fig.show()
 
-
     @function_dependencies(["set_time_as_index"], use_once=True)
     def remove_duplicates(self) -> None:
         """Remove duplicate rows from each instrument based on time index,
         and clear repeated values in 'msems_scan_', 'msems_inverted_' columns,
         and specific 'mcda_*' columns, keeping only the first instance.
         """
-    
+
         success = []
         errors = []
-    
+
         for instrument in self._instruments:
             try:
                 # Step 1: Remove duplicate rows based on the time index
-                #instrument.df = instrument.remove_duplicates(instrument.df)
+                # instrument.df = instrument.remove_duplicates(instrument.df)
 
                 # Step 2: Handle repeated values in msems_scan
                 if 'scan_direction' in self.msems_scan.df.columns:
@@ -414,10 +299,10 @@ class Cleaner:
                     is_change = self.msems_scan.df['scan_direction'] != self.msems_scan.df['scan_direction'].shift(1)
                     # Nullify repeated rows (set to NaN) where there's no change
                     self.msems_scan.df.loc[~is_change, self.msems_scan.df.columns != self.msems_scan.df.index.name] = np.nan
-    
+
                 else:
                     print(f"No 'scan_direction' column found in {self.msems_scan.name}.")
-    
+
                 # Step 3: Handle repeated values in msems_inverted
                 if 'scan_direction' in self.msems_inverted.df.columns:
                     # Compare current value with previous value to detect changes
@@ -438,32 +323,16 @@ class Cleaner:
                     ]
                     # Nullify repeated rows (set to NaN) where there's no change
                     self.mcda.df.loc[~is_change_mcd, target_columns_mcda] = np.nan
-                
+
                 else:
                     print(f"No 'measurement_nbr' column found in {self.mcda.name}.")
-                
+
                 success.append("cleaner")
-    
+
             except Exception as e:
                 errors.append(("cleaner", e))
-    
+
         self._print_success_errors("duplicate removal", success, errors)
-
-
-
-    def _print_success_errors(
-        self,
-        operation: str,
-        success: list[str],
-        errors: list[tuple[str, Any]],
-    ) -> None:
-        print(
-            f"Set {operation} for "
-            f"({len(success)}/{len(self._instruments)}): {', '.join(success)}"
-        )
-        print(f"Errors ({len(errors)}/{len(self._instruments)}):")
-        for error in errors:
-            print(f"Error ({error[0]}): {error[1]}")
 
     @function_dependencies(
         [
@@ -472,10 +341,8 @@ class Cleaner:
         ],
         use_once=False,
     )
-
-    
     def merge_instruments(
-        self, tolerance_seconds: int = 1, remove_duplicates: bool = True
+        self, tolerance_seconds: int = 0, remove_duplicates: bool = True
     ) -> None:
         """Merges all the dataframes from the instruments into one dataframe.
 
@@ -550,8 +417,6 @@ class Cleaner:
         ],
         use_once=False,
     )
-
-    
     def export_data(
         self,
         filename: str | None = None,
@@ -624,8 +489,6 @@ class Cleaner:
         ],
         use_once=False,
     )
-
-    
     def _apply_rolling_window_to_pressure(
         self,
         instrument,
@@ -659,8 +522,6 @@ class Cleaner:
         ],
         use_once=False,
     )
-
-    
     def define_flight_times(self):
         """Creates a plot to select the start and end of the flight
 
@@ -811,8 +672,6 @@ class Cleaner:
         ],
         use_once=False,
     )
-
-    
     def correct_time_and_pressure(
         self,
         max_lag=180,
@@ -1046,7 +905,6 @@ class Cleaner:
             lag=max_lag,
             NON_DER=[self.reference_instrument.name],
         )
-        df_new = df_new.dropna()
         self.df_corr = df_new.corr()
 
         print("Cross correlation:")
@@ -1054,8 +912,8 @@ class Cleaner:
             print("\tWorking on instrument:", instrument.name)
             instrument_is_matched_with = None
             for (
-                primary_instrument,
-                secondary_instrument,
+                    primary_instrument,
+                    secondary_instrument,
             ) in match_adjustment_with:
                 # If the instrument is in the match_adjustment_with list,
                 # then it will be matched with the match_with instrument
@@ -1070,6 +928,11 @@ class Cleaner:
                 instrument.corr_df = crosscorrelation.df_findtimelag(
                     self.df_corr, rangelag, instname=f"{instrument.name}_"
                 )
+                if instrument.corr_df.isna().all():
+                    raise ValueError(
+                        f"All correlation values are NaN for instrument {instrument.name}. Please check "
+                        f"that time ranges of {instrument.name} and {self.reference_instrument.name} overlap."
+                    )
 
                 instrument.corr_max_val = max(instrument.corr_df)
                 instrument.corr_max_idx = instrument.corr_df.idxmax(axis=0)
@@ -1159,7 +1022,6 @@ class Cleaner:
         ):
             fig.show()
 
-    
     def shift_msems_columns_by_90s(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Shift all 'msems_inverted_' and 'msems_scan_' columns by 90 seconds in time.
@@ -1176,23 +1038,22 @@ class Cleaner:
         """
         if not isinstance(df.index, pd.DatetimeIndex):
             raise ValueError("DataFrame index must be a DateTimeIndex to apply a time-based shift.")
-    
+
         cols_to_shift = [
             col for col in df.columns
             if col.startswith("msems_inverted_") or col.startswith("msems_scan_")
         ]
-    
+
         if not cols_to_shift:
             print("No msems_inverted_ or msems_scan_ columns found to shift.")
             return df
-    
+
         df_shifted = df.copy()
         df_shifted[cols_to_shift] = df_shifted[cols_to_shift].shift(freq="90s")
-    
-        print("Shifted msems_inverted and msems_scan columns by 90 seconds.")
-    
-        return df_shifted
 
+        print("Shifted msems_inverted and msems_scan columns by 90 seconds.")
+
+        return df_shifted
 
     def fill_missing_timestamps(
         self,
@@ -1221,22 +1082,21 @@ class Cleaner:
         """
         if not isinstance(df.index, pd.DatetimeIndex):
             raise ValueError("DataFrame index must be a DateTimeIndex.")
-    
+
         # Create full time range
-        full_index = pd.date_range(start=df.index.min(), end=df.index.max(), freq=freq) #.astype("datetime64[s]")
+        full_index = pd.date_range(start=df.index.min(), end=df.index.max(), freq=freq)  # .astype("datetime64[s]")
         full_index.name = "DateTime"
-        
+
         num_missing = len(full_index.difference(df.index))
         print(f"Added {num_missing} missing timestamps.")
-    
+
         # Reindex
         df_full = df.reindex(full_index)
-    
+
         # Optionally fill
         if fill_method == "ffill":
             df_full = df_full.ffill()
         elif fill_method == "bfill":
             df_full = df_full.bfill()
-    
-        return df_full
 
+        return df_full

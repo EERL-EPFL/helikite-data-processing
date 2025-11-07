@@ -2,6 +2,8 @@ import pytest
 import shutil
 import os
 
+from helikite.instruments import Instrument
+
 
 @pytest.fixture
 def campaign_data(tmpdir):
@@ -21,3 +23,8 @@ def campaign_data(tmpdir):
     shutil.copytree(source_dir, str(temp_campaign_dir), dirs_exist_ok=True)
 
     return temp_campaign_dir
+
+@pytest.fixture(autouse=True)
+def global_setup_teardown():
+    Instrument.REGISTRY.clear()
+    yield

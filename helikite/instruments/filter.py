@@ -16,7 +16,6 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 class Filter(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.name = "filter"
 
     def file_identifier(self, first_lines_of_csv) -> bool:
         if "cur_pos	cntdown	smp_flw	smp_tmp	smp_prs" in first_lines_of_csv[13]:
@@ -64,6 +63,7 @@ class Filter(Instrument):
 
 
 filter = Filter(
+    name="filter",
     header=13,
     delimiter="\t",
     dtype={
