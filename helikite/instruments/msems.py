@@ -48,17 +48,9 @@ class MSEMSInverted(Instrument):
 
     def data_corrections(self, df, **kwargs):
         """Create new columns to plot bins"""
-        bins = df.groupby("NumBins").all().index.to_list()
-        if len(bins) != 1:
-            # Check that there is only one single value.
-            raise ValueError(
-                "There are multiple bins in this dataset. " "Cannot proceed"
-            )
-        else:
-            # Unpack the single value list to a single integer
-            bins = bins[0]
+
         # Form column names of all bins
-        bin_diameter_columns = [f"Bin_Dia{i}" for i in range(1, bins + 1)]
+        bin_diameter_columns = [col for col in df.columns if col.startswith("Bin_Dia")]
 
         # Calculate the mean of the bin diameters
         bin_diameter_average = df[bin_diameter_columns].mean()
@@ -86,7 +78,7 @@ class MSEMSInverted(Instrument):
 
         # Create the bin limit columns and add the first limit column
         # (so there are total n_bins + 1)
-        bin_limit_columns = [f"Bin_Lim{i}" for i in range(1, bins + 1)]
+        bin_limit_columns = [f"Bin_Lim{col.removeprefix("Bin_Dia")}" for col in bin_diameter_columns]
         bin_limit_columns.insert(0, "Bin_Lim0")
 
         # Add first and last bins
@@ -112,9 +104,10 @@ class MSEMSInverted(Instrument):
         df["EndTime"] = pd.to_datetime(df["EndTime"])
 
         # The last row needs an end date, just add 1 minute
-        df.loc[df.index[-1], "EndTime"] = df.loc[
-            df.index[-1], "StartTime"
-        ] + pd.DateOffset(minutes=1)
+        if not df.empty:
+            df.loc[df.index[-1], "EndTime"] = df.loc[
+                df.index[-1], "StartTime"
+            ] + pd.DateOffset(minutes=1)
 
         # Set the EndTime as one second less so that the bin end date does not
         # equal the start of the next bin start
@@ -126,19 +119,20 @@ class MSEMSInverted(Instrument):
         df = df.resample("1s").ffill()
 
         # Repeat last timestamp for addditional 3 minutes in 1-second intervals
-        last_time = df.index[-1]
-        extended_index = pd.date_range(
-            start=last_time + pd.Timedelta(seconds=1),
-            end=last_time + pd.Timedelta(minutes=3),
-            freq="1s",
-        )
-        last_row = df.iloc[[-1]].copy()
-        extension = pd.DataFrame(
-            [last_row.values[0]] * len(extended_index),
-            index=extended_index,
-            columns=df.columns,
-        )
-        df = pd.concat([df, extension])
+        if not df.empty:
+            last_time = df.index[-1]
+            extended_index = pd.date_range(
+                start=last_time + pd.Timedelta(seconds=1),
+                end=last_time + pd.Timedelta(minutes=3),
+                freq="1s",
+            )
+            last_row = df.iloc[[-1]].copy()
+            extension = pd.DataFrame(
+                [last_row.values[0]] * len(extended_index),
+                index=extended_index,
+                columns=df.columns,
+            )
+            df = pd.concat([df, extension])
 
         return df
 

@@ -1,12 +1,15 @@
+import datetime
 import importlib
 import inspect
+import pathlib
 import pkgutil
 import re
 
 import pandas as pd
 
 import helikite.instruments
-from helikite.instruments import Instrument
+from helikite.classes.data_processing import OutputSchemas
+from helikite.instruments import Instrument, cpc, smart_tether
 
 
 def test_read_data(campaign_file_paths_and_instruments_2022):
@@ -62,3 +65,34 @@ def test_columns_consistency():
 
             assert not unexpected_cols, (f"Columns from `expected_header_value` are not present in `dtype` of "
                                          f"`{name}`: {unexpected_cols}")
+
+
+def test_expected_columns_level0_oracles(
+    campaign_data_location_2025: str
+):
+    df = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level0_2025-02-14T16-16_header.csv")
+    df_cpc = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level0_2025-02-14T18-32_header.csv")
+
+    # in the old version of processing "cpc_DateTime" was the last CPC column
+    cpc_columns = [col for col in df_cpc.columns if col.startswith("cpc_")]
+    cpc_columns = ["cpc_DateTime"] + cpc_columns[:-1]
+
+    columns = df.columns.to_list() + cpc_columns
+
+    date = datetime.date(2025, 2, 14)
+    cpc.date = date
+    smart_tether.date = date
+
+    for instrument in OutputSchemas.ORACLES.instruments:
+        # TODO: remove this once inconsistency with flight computer is resolved
+        if instrument.name == "flight_computer":
+            continue
+
+        # TODO: remove once filter is integrated in the pipeline
+        if instrument.name == "filter":
+            continue
+
+        expected_columns = [col for col in columns if col.startswith(f"{instrument.name}_")]
+        actual_columns = instrument.get_expected_columns(level=0, is_reference=False)
+
+        assert set(expected_columns) == set(actual_columns)

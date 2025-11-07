@@ -331,6 +331,36 @@ class Instrument(ABC):
 
         return df_unique
 
+    def get_expected_columns(self, level: float | None, is_reference: bool) -> list[str]:
+        match level:
+            case None:
+                return list(self.dtype.keys())
+
+            case 0:
+                df = pd.DataFrame({c: pd.Series(dtype=t) for c, t in self.dtype.items()})
+                df = self.set_time_as_index(df)
+
+                # TODO: Remove this once addition of `scan_direction` is integrated in the cleaning pipeline
+                if self.name == "msems_inverted":
+                    df.insert(len(df.columns), "scan_direction", pd.Series([], dtype="Int64"))
+
+                df = self.data_corrections(df)
+
+                if self.pressure_variable is not None:
+                    df = self.set_housekeeping_pressure_offset_variable(df, constants.HOUSEKEEPING_VAR_PRESSURE)
+
+                if not is_reference and self.pressure_variable is not None:
+                    df.insert(0, "DateTime", df.index)
+
+                return [f"{self.name}_{column}" for column in df.columns]
+
+            case 1 | 1.5 | 2:
+                raise ValueError(f"Unsupported level: {level}")
+
+            case _:
+                raise ValueError(f"Unexpected level: {level}")
+
+
     def _get_instantiation_info(self) -> tuple[str, str | None] | None:
         """Returns the filename and the line of the instrument instantiation"""
         for frame in inspect.stack()[:4]:

@@ -66,6 +66,8 @@ tapir = TAPIR(
         "YrMoDy": "str",
         "HrMnSd": "str",
         "GT": "str",
+        "YrMoDy.1": "str",
+        "HrMnSd.1": "str",
         "GL": "str",
         "Lat": "Float64",
         "Le": "str",
