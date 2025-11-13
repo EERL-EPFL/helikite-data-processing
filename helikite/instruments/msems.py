@@ -78,7 +78,7 @@ class MSEMSInverted(Instrument):
 
         # Create the bin limit columns and add the first limit column
         # (so there are total n_bins + 1)
-        bin_limit_columns = [f"Bin_Lim{col.removeprefix("Bin_Dia")}" for col in bin_diameter_columns]
+        bin_limit_columns = [f"Bin_Lim{col.removeprefix('Bin_Dia')}" for col in bin_diameter_columns]
         bin_limit_columns.insert(0, "Bin_Lim0")
 
         # Add first and last bins
