@@ -43,7 +43,7 @@ class mCDA(Instrument):
         ]
         
         # Split the first line of the CSV by commas (assuming it's CSV-formatted)
-        header_columns = first_lines_of_csv[0].strip().split(',')
+        header_columns = first_lines_of_csv[self.header].strip().split(',')
         
         # Compare only the first few columns
         if header_columns[:len(expected_header)] == expected_header:

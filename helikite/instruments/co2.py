@@ -10,7 +10,7 @@ class CO2(Instrument):
         super().__init__(*args, **kwargs)
 
     def file_identifier(self, first_lines_of_csv: List[str]) -> bool:
-        columns = first_lines_of_csv[0].split(",")
+        columns = first_lines_of_csv[self.header].split(",")
         return "CO2" in columns
 
     def data_corrections(self, df, *args, **kwargs) -> pd.DataFrame:

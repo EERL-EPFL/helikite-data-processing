@@ -27,7 +27,7 @@ class CPC(Instrument):
         return df
 
     def file_identifier(self, first_lines_of_csv: List[str]) -> bool:
-        if self.expected_header_value in first_lines_of_csv[17]:
+        if self.expected_header_value in first_lines_of_csv[self.header]:
             return True
 
         return False
@@ -49,7 +49,6 @@ class CPC(Instrument):
             self.filename,
             dtype=self.dtype,
             engine="python",
-            skiprows=17,
             skipfooter=1,
             na_values=self.na_values,
             header=self.header,
@@ -125,6 +124,6 @@ cpc = CPC(
         "Concentration (#/cm3)": "Int64"
     },
     expected_header_value="Time,Concentration (#/cm3),\n",
-    header=0,
+    header=17,
     pressure_variable=None,
 )

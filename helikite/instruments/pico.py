@@ -27,7 +27,7 @@ class Pico(Instrument):
         if (
             "win0Fit0,win0Fit1,win0Fit2,win0Fit3,win0Fit4,win0Fit5,win0Fit6,"
             "win0Fit7,win0Fit8,win0Fit9,win1Fit0,win1Fit1,win1Fit2"
-        ) in first_lines_of_csv[0]:
+        ) in first_lines_of_csv[self.header]:
             return True
 
         return False

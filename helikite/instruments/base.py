@@ -104,7 +104,7 @@ class Instrument(ABC):
         """Default file identifier callback
         """
 
-        return first_lines_of_csv[0] == self.expected_header_value
+        return first_lines_of_csv[self.header] == self.expected_header_value
 
     def date_extractor(self, first_lines_of_csv: List[str]):
         """Returns the date of the data sample from a CSV header

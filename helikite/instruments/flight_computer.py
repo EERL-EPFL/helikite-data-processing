@@ -176,7 +176,7 @@ class FlightComputerV2(Instrument):
             #"Heave,RollAcc,PitchAcc,HeadAcc,GNSSqty"
         )
 
-        return header_partial in first_lines_of_csv[0]
+        return header_partial in first_lines_of_csv[self.header]
 
     def read_data(self) -> pd.DataFrame:
         """Read data into dataframe, adjusting for duplicate headers."""

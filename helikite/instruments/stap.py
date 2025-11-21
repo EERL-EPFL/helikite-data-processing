@@ -71,7 +71,7 @@ class STAPRaw(Instrument):
     def file_identifier(self, first_lines_of_csv) -> bool:
         if (
             "#YY/MM/DD\tHR:MN:SC\tinvmm_r\tinvmm_g\tinvmm_b\tred_smp\t"
-        ) in first_lines_of_csv[29]:
+        ) in first_lines_of_csv[self.header]:
             return True
 
         return False

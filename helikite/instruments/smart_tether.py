@@ -41,7 +41,7 @@ class SmartTether(Instrument):
     def file_identifier(self, first_lines_of_csv) -> bool:
         if first_lines_of_csv[
             0
-        ] == "SmartTether log file\n" and first_lines_of_csv[3] == (
+        ] == "SmartTether log file\n" and first_lines_of_csv[self.header] == (
             "Time,Comment,Module ID,Alt (m),P (mbar),T (deg C),%RH,Wind "
             "(degrees),Wind (m/s),Supply (V),UTC Time,Latitude (deg),"
             "Longitude (deg),Course (deg),Speed (m/s)\n"
