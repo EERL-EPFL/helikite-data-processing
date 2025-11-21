@@ -21,9 +21,9 @@ class OzoneMonitor(Instrument):
         # Check there are six commas in the first line, and ends in 0, and only
         # a newline in the second
         if (
-            first_lines_of_csv[0][-2] == "0"
-            and first_lines_of_csv[0].count(",") == 6
-            and first_lines_of_csv[1] == "\n"
+            first_lines_of_csv[self.header][-2] == "0"
+            and first_lines_of_csv[self.header].count(",") == 6
+            and first_lines_of_csv[self.header + 1] == "\n"
         ):
             return True
 
@@ -67,7 +67,6 @@ ozone_monitor = OzoneMonitor(
     name="ozone",
     na_values=["-"],
     index_col=0,
-    header=None,
     names=[
         "ozone",
         "cell_temp",

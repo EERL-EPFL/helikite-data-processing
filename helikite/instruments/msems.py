@@ -149,9 +149,8 @@ class MSEMSInverted(Instrument):
         if (
             "#Date\tTime\tTemp(C)\tPress(hPa)\tNumBins\tBin_Dia1\t"
             "Bin_Dia2\tBin_Dia3"
-        ) in first_lines_of_csv[55]:
+        ) in first_lines_of_csv[self.header]:
             logger.info("mSEMS Inverted file detected at header 55")
-            self.header = 55
             return True
 
         return False
@@ -198,8 +197,8 @@ class MSEMSReadings(Instrument):
     def file_identifier(self, first_lines_of_csv) -> bool:
         if (
             "#mSEMS" in first_lines_of_csv[0]
-            and "#YY/MM/DD" in first_lines_of_csv[31]
-            and "mono_dia" in first_lines_of_csv[31]
+            and "#YY/MM/DD" in first_lines_of_csv[self.header]
+            and "mono_dia" in first_lines_of_csv[self.header]
         ):
             return True
 
@@ -251,7 +250,7 @@ class MSEMSScan(Instrument):
         if (
             "#mSEMS" in first_lines_of_csv[0]
             and "#scan_conf" in first_lines_of_csv[31]
-            and "scan_direction" in first_lines_of_csv[55]
+            and "scan_direction" in first_lines_of_csv[self.header]
         ):
             return True
 
