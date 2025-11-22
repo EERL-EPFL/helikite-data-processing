@@ -26,7 +26,6 @@ Houskeeping file: Look at READINGS (look at msems_err / cpc_err)
 """
 import logging
 import pathlib
-from typing import List
 
 import matplotlib.colors as mcolors
 import matplotlib.dates as mdates
@@ -138,7 +137,7 @@ class MSEMSInverted(Instrument):
 
         return df
 
-    def header_lines(self, file_path: str | pathlib.Path) -> List[str]:
+    def header_lines(self, file_path: str | pathlib.Path) -> list[str]:
         with open(file_path) as in_file:
             # the header line of MSEMS Inverted is either the 0th or 55th line
             line = next(in_file)

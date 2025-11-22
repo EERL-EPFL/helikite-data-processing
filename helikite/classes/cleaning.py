@@ -1,7 +1,6 @@
 import datetime
 import pathlib
 from itertools import cycle
-from typing import List
 
 import numpy as np
 import orjson
@@ -73,7 +72,7 @@ class Cleaner(BaseProcessor):
             "available methods."
         )
 
-    def _data_state_info(self) -> List[str]:
+    def _data_state_info(self) -> list[str]:
         state_info = []
 
         # Add instrument information

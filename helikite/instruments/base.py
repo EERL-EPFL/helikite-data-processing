@@ -4,7 +4,7 @@ import os
 import pathlib
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Dict, Any, List, Tuple
+from typing import Any
 
 import pandas as pd
 from pandas import DataFrame
@@ -22,17 +22,17 @@ class Instrument(ABC):
     def __init__(
         self,
         name: str,  # Used as a prefix for instrument columns in processed data
-        dtype: Dict[Any, Any] = {},  # Mapping of column to data type
-        na_values: List[Any] | None = None,  # List of values to consider null
+        dtype: dict[Any, Any] = {},  # Mapping of column to data type
+        na_values: list[Any] | None = None,  # list of values to consider null
         header: int | None = 0,  # Row ID for the header
         expected_header_value: str | None = None,  # Expected value of the header row
         delimiter: str = ",",  # String delimiter
         lineterminator: str | None = None,  # The character to define EOL
         comment: str | None = None,  # Ignore anything after set char
-        names: List[str] | None = None,  # Names of headers if nonexistant
+        names: list[str] | None = None,  # Names of headers if nonexistant
         index_col: bool | int | None = None,  # The column ID of the index
-        cols_export: List[str] = [],  # Columns to export
-        cols_housekeeping: List[str] = [],  # Columns to use for housekeeping
+        cols_export: list[str] = [],  # Columns to export
+        cols_housekeeping: list[str] = [],  # Columns to use for housekeeping
         export_order: int | None = None,  # Order hierarchy in export file
         pressure_variable: str | None = None,  # The variable measuring pressure
         registry_name: str | None = None,
@@ -56,8 +56,8 @@ class Instrument(ABC):
         self.filename: str | None = None
         self.date: datetime | None = None
         self.pressure_offset_housekeeping: float | None = None
-        self.time_offset: Dict[str, int] = {}
-        self.time_range: Tuple[Any, Any] | None = None
+        self.time_offset: dict[str, int] = {}
+        self.time_range: tuple[Any, Any] | None = None
 
         # Register every new instrument instance in the registry
         self._instantiation_info = self._get_instantiation_info()
@@ -72,7 +72,7 @@ class Instrument(ABC):
                 print("Reregistering instrument")
         self.REGISTRY[self.registry_name] = self
 
-    def add_config(self, yaml_props: Dict[str, Any]):
+    def add_config(self, yaml_props: dict[str, Any]):
         """Adds the application's config to the Instrument class
 
         This is called from the main() function in helikite.py
@@ -92,7 +92,7 @@ class Instrument(ABC):
 
         return df
 
-    def create_plots(self, df: DataFrame) -> List[Figure | None]:
+    def create_plots(self, df: DataFrame) -> list[Figure | None]:
         """Default callback for generated figures from dataframes
 
         Return nothing, as anything else will populate the list that is written
@@ -101,7 +101,7 @@ class Instrument(ABC):
 
         return []
 
-    def header_lines(self, file_path: str | pathlib.Path) -> List[str]:
+    def header_lines(self, file_path: str | pathlib.Path) -> list[str]:
         lines_to_read = self.header + 1
 
         with open(file_path) as in_file:
@@ -117,13 +117,13 @@ class Instrument(ABC):
                     f"in {os.path.basename(file_path)}. "
                 )
 
-    def file_identifier(self, first_lines_of_csv: List[str]) -> bool:
+    def file_identifier(self, first_lines_of_csv: list[str]) -> bool:
         """Default file identifier callback
         """
 
         return first_lines_of_csv[self.header] == self.expected_header_value
 
-    def date_extractor(self, first_lines_of_csv: List[str]):
+    def date_extractor(self, first_lines_of_csv: list[str]):
         """Returns the date of the data sample from a CSV header
 
         Can be used for an instrument that reports the date in header
@@ -142,7 +142,7 @@ class Instrument(ABC):
         return df
 
     @property
-    def housekeeping_columns(self) -> List[str]:
+    def housekeeping_columns(self) -> list[str]:
         """Returns housekeeping columns, prefixed with the instrument name
 
         If there are no housekeeping variables, return an empty list
@@ -154,7 +154,7 @@ class Instrument(ABC):
             return []
 
     @property
-    def export_columns(self) -> List[str]:
+    def export_columns(self) -> list[str]:
         """Returns export datafile columns, prefixed with the instrument name
 
         If there are no variables, return an empty list

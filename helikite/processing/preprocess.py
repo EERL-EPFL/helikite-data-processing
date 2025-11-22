@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
-import yaml
-from helikite.constants import constants
-from helikite import instruments
-import os
-from typing import Any, Dict
 import logging
+import os
+from typing import Any
+
+import yaml
+
+from helikite import instruments
+from helikite.constants import constants
 
 logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
@@ -108,7 +110,7 @@ def generate_config(
 
     # Go through each instrument in the __init__ of config.instrument
     instrument_objects = instruments.__dict__.items()
-    yaml_config: Dict[str, Any] = {}
+    yaml_config: dict[str, Any] = {}
     yaml_config["instruments"] = {}
     yaml_config["global"] = {
         "time_trim": {

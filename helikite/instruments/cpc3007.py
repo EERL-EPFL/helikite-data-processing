@@ -2,7 +2,6 @@
 CPC3007
 Total particle concentration in size range of 7 - 2000 nm.
 """
-from typing import List
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -26,7 +25,7 @@ class CPC(Instrument):
 
         return df
 
-    def file_identifier(self, first_lines_of_csv: List[str]) -> bool:
+    def file_identifier(self, first_lines_of_csv: list[str]) -> bool:
         if self.expected_header_value in first_lines_of_csv[self.header]:
             return True
 

@@ -1,7 +1,8 @@
-import pandas as pd
-from typing import Tuple
-from helikite.constants import constants
 import logging
+
+import pandas as pd
+
+from helikite.constants import constants
 from helikite.instruments.base import Instrument
 
 logger = logging.getLogger(__name__)
@@ -9,7 +10,7 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 
 def df_column_sort_key(
-    export_df: Tuple[pd.DataFrame, Instrument]
+    export_df: tuple[pd.DataFrame, Instrument]
 ) -> pd.DataFrame:
     """Sort key for ordering of exported dataframes
 
@@ -18,7 +19,7 @@ def df_column_sort_key(
 
     Parameters
     ----------
-    export_df : Tuple[pd.DataFrame, Instrument]
+    export_df : tuple[pd.DataFrame, Instrument]
         Tuple of dataframe and Instrument object
 
     Returns

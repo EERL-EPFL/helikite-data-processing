@@ -1,15 +1,16 @@
+import logging
+import os
+from typing import Any
+
+import numpy as np
+import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import plotly.express as px
-import pandas as pd
-from typing import List, Dict, Any, Tuple
-import logging
-from helikite.constants import constants
-import numpy as np
-from helikite.processing.helpers import reduce_column_to_single_unique_value
-from helikite import instruments
-import os
 
+from helikite import instruments
+from helikite.constants import constants
+from helikite.processing.helpers import reduce_column_to_single_unique_value
 
 logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
@@ -18,7 +19,7 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 def plot_scatter_from_variable_list_by_index(
     df: pd.DataFrame,
     title: str,
-    variables: List[str],
+    variables: list[str],
 ) -> go.Figure:
 
     fig = go.Figure()
@@ -50,7 +51,7 @@ def plot_scatter_from_variable_list_by_index(
 
 def generate_grid_plot(
     df: pd.DataFrame,
-    all_instruments: List[instruments.Instrument],
+    all_instruments: list[instruments.Instrument],
     altitude_col: str = "flight_computer_Altitude",
     resample_seconds: int | None = None,
 ) -> go.Figure:
@@ -68,7 +69,7 @@ def generate_grid_plot(
     ----------
     df : pd.DataFrame
         The dataframe containing the data to plot
-    all_instruments : List[instruments.Instrument]
+    all_instruments : list[instruments.Instrument]
         A list of all instruments to plot
     altitude_col : str, optional
         The column name of the altitude variable, by default
@@ -501,8 +502,8 @@ def generate_grid_plot(
 
 def generate_particle_heatmap(
     df: pd.DataFrame,
-    props_msems_inverted: Dict[str, Any],
-    props_msems_scan: Dict[str, Any],
+    props_msems_inverted: dict[str, Any],
+    props_msems_scan: dict[str, Any],
 ) -> go.Figure:
 
     figlist = []
@@ -667,7 +668,7 @@ def generate_average_bin_concentration_plot(
     return fig
 
 
-def write_plots_to_html(figures: List[go.Figure], filename: str) -> None:
+def write_plots_to_html(figures: list[go.Figure], filename: str) -> None:
 
     # Remove all None items in figures list. These are None because an
     # instrument may not have a figure to create, None is default
@@ -734,7 +735,7 @@ def generate_altitude_plot(
 
 def generate_altitude_concentration_plot(
     df: pd.DataFrame,
-    bins: List[Tuple[str, str, str]],
+    bins: list[tuple[str, str, str]],
     at_ground_level: bool,
     height: int = 400,
     altitude_col: str = "flight_computer_Altitude",
@@ -772,7 +773,7 @@ def generate_altitude_concentration_plot(
 
 def generate_normalised_colours(
     df: pd.DataFrame, convert_nan_to: int = 0
-) -> List[str]:
+) -> list[str]:
     """Generate a list of colours for a plot based on index of dataframe"""
 
     color_scale = px.colors.sequential.Rainbow
@@ -791,8 +792,8 @@ def generate_normalised_colours(
 
 def campaign_2023(
     df: pd.DataFrame,
-    plot_props: Dict[str, Any],
-    all_instruments: List[instruments.Instrument],
+    plot_props: dict[str, Any],
+    all_instruments: list[instruments.Instrument],
     output_path_with_time: str,
 ) -> None:
     """Defines all the plots for the 2023 campaigns
@@ -805,10 +806,10 @@ def campaign_2023(
     ----------
     df : pd.DataFrame
         Dataframe containing all the merged data to be plotted
-    plot_props : Dict[str, Any]
+    plot_props : dict[str, Any]
         Dictionary containing all the properties for the plots originating from
         the runtime YAML
-    all_instruments : List[instruments.Instrument]
+    all_instruments : list[instruments.Instrument]
         List of all instruments that are available after merging all the data
     output_path_with_time : str
         Path to the output directory for the plots, most likely the one
@@ -872,7 +873,7 @@ def campaign_2023(
     )
 
     """ Generate plots for qualitychecks based on their variable name in the
-        merged dataframe. The two parameter Tuple[List[str], str] represents
+        merged dataframe. The two parameter tuple[list[str], str] represents
         the list of variables, and the title given to the plot in the second
         parameter.
     """

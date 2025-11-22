@@ -1,16 +1,17 @@
-import sys
-from . import __version__, __appname__, __description__
-from helikite.processing import preprocess, sorting
-from helikite.constants import constants
-from helikite import instruments
-from helikite import plots
-import pandas as pd
-import os
 import datetime
 import logging
-from typing import Dict, Any
+import os
+import sys
+from typing import Any
+
+import pandas as pd
 import typer
 
+from helikite import instruments
+from helikite import plots
+from helikite.constants import constants
+from helikite.processing import preprocess, sorting
+from . import __version__, __appname__, __description__
 
 # Define a console handler
 console_handler = logging.StreamHandler()
@@ -96,14 +97,14 @@ def execute(
 
 
 def main(
-    config: Dict[str, Any],
+    config: dict[str, Any],
     output_path: str = constants.OUTPUTS_FOLDER,
 ) -> None:
     """Main function to run the processing and plotting of data
 
     Parameters
     ----------
-    config : Dict[str, Any]
+    config : dict[str, Any]
         Dictionary of the configuration file
 
     Returns

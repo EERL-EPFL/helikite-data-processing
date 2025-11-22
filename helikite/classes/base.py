@@ -1,7 +1,7 @@
 import inspect
 from abc import abstractmethod, ABC
 from functools import wraps
-from typing import Any, List
+from typing import Any
 
 
 def function_dependencies(required_operations: list[str] = [], use_once=False):
@@ -55,13 +55,13 @@ def function_dependencies(required_operations: list[str] = [], use_once=False):
 
 class BaseProcessor(ABC):
     def __init__(self) -> None:
-        self._completed_operations: List[str] = []
+        self._completed_operations: list[str] = []
 
     @abstractmethod
-    def _data_state_info(self) -> List[str]:
+    def _data_state_info(self) -> list[str]:
         ...
 
-    def _operations_state_info(self) -> List[str]:
+    def _operations_state_info(self) -> list[str]:
         operations_state_info = []
 
         # Add the functions that have been called and completed
