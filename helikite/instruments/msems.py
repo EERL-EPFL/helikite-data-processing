@@ -24,18 +24,20 @@ timeseries (with the addition of total particle concentration and altitude).
 Houskeeping file: Look at READINGS (look at msems_err / cpc_err)
 
 """
-
-from helikite.instruments.base import Instrument
-import pandas as pd
-import numpy as np
 import logging
-import matplotlib.pyplot as plt
+import pathlib
+from typing import List
+
 import matplotlib.colors as mcolors
 import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from helikite.constants import constants
 
+from helikite.constants import constants
+from helikite.instruments.base import Instrument
 
 # Define logger for this file
 logger = logging.getLogger(__name__)
@@ -136,21 +138,24 @@ class MSEMSInverted(Instrument):
 
         return df
 
-    def file_identifier(self, first_lines_of_csv) -> bool:
-        # To match "...INVERTED.txt" file
-        if (
-            "#Date\tTime\tTemp(C)\tPress(hPa)\tNumBins\tBin_Dia1\t"
-            "Bin_Dia2\tBin_Dia3"
-        ) in first_lines_of_csv[0]:
-            logger.info("mSEMS Inverted file detected at header 0")
-            self.header = 0
+    def header_lines(self, file_path: str | pathlib.Path) -> List[str]:
+        with open(file_path) as in_file:
+            # the header line of MSEMS Inverted is either the 0th or 55th line
+            line = next(in_file)
+            if self.expected_header_value in line:
+                return [line]
+            else:
+                return super().header_lines(file_path)
 
+    def file_identifier(self, first_lines_of_csv) -> bool:
+        # the header line of MSEMS Inverted is either the 0th or 55th line
+        # To match "...INVERTED.txt" file
+        if self.expected_header_value in first_lines_of_csv[0]:
+            logger.info("mSEMS Inverted file detected at header 0")
             return True
-        if (
-            "#Date\tTime\tTemp(C)\tPress(hPa)\tNumBins\tBin_Dia1\t"
-            "Bin_Dia2\tBin_Dia3"
-        ) in first_lines_of_csv[self.header]:
-            logger.info("mSEMS Inverted file detected at header 55")
+
+        if self.expected_header_value in first_lines_of_csv[self.header]:
+            logger.info(f"mSEMS Inverted file detected at header {self.header}")
             return True
 
         return False
@@ -173,12 +178,17 @@ class MSEMSInverted(Instrument):
         return df
 
     def read_data(self) -> pd.DataFrame:
+        # the header line of MSEMS Inverted is either the 0th or 55th line
+        if len(self.header_lines(self.filename)) == 1:
+            header = 0
+        else:
+            header = self.header
 
         df = pd.read_csv(
             self.filename,
             dtype=self.dtype,
             na_values=self.na_values,
-            skiprows=self.header,
+            skiprows=header,
             delimiter=self.delimiter,
             lineterminator=self.lineterminator,
             comment=self.comment,
@@ -568,6 +578,7 @@ msems_inverted = MSEMSInverted(
         "Bin_Conc59": "Float64",
         "Bin_Conc60": "Float64",
     },
+    expected_header_value="#Date\tTime\tTemp(C)\tPress(hPa)\tNumBins\tBin_Dia1\tBin_Dia2\tBin_Dia3",
     export_order=720,
     pressure_variable="Press(hPa)",
     cols_export=[],
