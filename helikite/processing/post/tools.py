@@ -1,6 +1,6 @@
+import pandas as pd
 import plotly.graph_objects as go
 from ipywidgets import Output, VBox, Dropdown, ToggleButton
-import pandas as pd
 
 
 def choose_outliers(df, y, coupled_columns=None, outlier_file="outliers.csv") -> VBox:
@@ -14,7 +14,7 @@ def choose_outliers(df, y, coupled_columns=None, outlier_file="outliers.csv") ->
         df (pandas.DataFrame): The dataframe containing the data
         y (str): The column name of the y-axis variable
         outlier_file (str): The path to the CSV file to store the outliers
-        coupled_columns (List[Tuple[str, ...]], optional):
+        coupled_columns (list[tuple[str, ...]], optional):
             List of column names; if any column in a tuple is marked as an outlier,
             all other columns in the same tuple should also be marked as outliers
     """

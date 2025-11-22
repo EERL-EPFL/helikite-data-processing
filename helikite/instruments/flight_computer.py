@@ -1,15 +1,11 @@
-from typing import List
+import logging
+from io import StringIO
 
+import pandas as pd
+
+from helikite.constants import constants
 from helikite.instruments.base import Instrument
 from helikite.processing.conversions import pressure_to_altitude
-from io import StringIO
-from helikite.constants import constants
-from helikite.processing.post import altitude
-import logging
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-
 
 # Define logger for this file
 logger = logging.getLogger(__name__)

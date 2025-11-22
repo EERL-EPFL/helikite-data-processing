@@ -1,5 +1,3 @@
-from typing import List
-
 import pandas as pd
 
 from helikite.instruments import Instrument
@@ -9,7 +7,7 @@ class CO2(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def file_identifier(self, first_lines_of_csv: List[str]) -> bool:
+    def file_identifier(self, first_lines_of_csv: list[str]) -> bool:
         columns = first_lines_of_csv[self.header].split(",")
         return "CO2" in columns
 

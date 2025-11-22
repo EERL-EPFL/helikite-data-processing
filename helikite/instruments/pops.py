@@ -16,19 +16,17 @@ factors I have)
 Housekeeping variables to look at:
 POPS_flow -> flow should be just below 3, and check for variability increase
 """
-from typing import List
 
-from helikite.instruments.base import Instrument
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
+import os
+from pathlib import Path
+
 import matplotlib.colors as mcols
 import matplotlib.dates as mdates
-import os
-from matplotlib.dates import HourLocator
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from pathlib import Path
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+from helikite.instruments.base import Instrument
 
 
 class POPS(Instrument):
