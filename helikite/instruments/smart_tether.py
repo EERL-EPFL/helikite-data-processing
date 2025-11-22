@@ -101,7 +101,7 @@ class SmartTether(Instrument):
             self.filename,
             dtype=self.dtype,
             na_values=self.na_values,
-            header=self.header,
+            skiprows=self.header,
             delimiter=self.delimiter,
             lineterminator=self.lineterminator,
             comment=self.comment,
@@ -131,7 +131,7 @@ smart_tether = SmartTether(
         "Course (deg)": "Float64",
         "Speed (m/s)": "Float64",
     },
-    header=2,
+    header=3,
     export_order=600,
     cols_export=[
         "Comment",

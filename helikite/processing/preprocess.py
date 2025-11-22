@@ -37,10 +37,7 @@ def preprocess(
         instrument_objects[instrument] = getattr(instruments, props["config"])
 
     for instrument_name, instrument_obj in instrument_objects.items():
-        matched_file = instrument_obj.detect_from_folder(
-            input_folder,
-            lines_to_read=constants.QTY_LINES_TO_IDENTIFY_INSTRUMENT,
-        )
+        matched_file = instrument_obj.detect_from_folder(input_folder)
 
         if matched_file:
             props = yaml_config["instruments"][instrument_name]

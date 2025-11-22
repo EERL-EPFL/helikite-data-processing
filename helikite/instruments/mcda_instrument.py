@@ -78,7 +78,7 @@ class mCDA(Instrument):
                 self.filename,
                 dtype=str,
                 na_values=self.na_values,
-                header=self.header,
+                skiprows=self.header,
                 delimiter=self.delimiter,
                 lineterminator=self.lineterminator,
                 comment=self.comment,

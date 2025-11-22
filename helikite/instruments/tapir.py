@@ -45,7 +45,7 @@ class TAPIR(Instrument):
                 self.filename,
                 dtype=self.dtype,
                 engine="python",
-                header=self.header,
+                skiprows=self.header,
                 na_values=self.na_values,
                 delimiter=self.delimiter,
                 lineterminator=self.lineterminator,

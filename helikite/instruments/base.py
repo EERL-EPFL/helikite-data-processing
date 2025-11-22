@@ -1,6 +1,7 @@
 import inspect
 import logging
 import os
+import pathlib
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Dict, Any, List, Tuple
@@ -99,6 +100,22 @@ class Instrument(ABC):
         """
 
         return []
+
+    def header_lines(self, file_path: str | pathlib.Path) -> List[str]:
+        lines_to_read = self.header + 1
+
+        with open(file_path) as in_file:
+            try:
+                header_lines = [
+                    next(in_file) for _ in range(lines_to_read)
+                ]
+                return header_lines
+
+            except StopIteration:
+                raise StopIteration(
+                    f"Instrument has less than {lines_to_read} lines "
+                    f"in {os.path.basename(file_path)}. "
+                )
 
     def file_identifier(self, first_lines_of_csv: List[str]) -> bool:
         """Default file identifier callback
@@ -240,7 +257,7 @@ class Instrument(ABC):
             self.filename,
             dtype=self.dtype,
             na_values=self.na_values,
-            header=self.header,
+            skiprows=self.header,
             delimiter=self.delimiter,
             lineterminator=self.lineterminator,
             comment=self.comment,
@@ -250,12 +267,7 @@ class Instrument(ABC):
 
         return df
 
-    def detect_from_folder(
-        self,
-        input_folder: str,
-        lines_to_read=constants.QTY_LINES_TO_IDENTIFY_INSTRUMENT,
-        quiet=False,
-    ):
+    def detect_from_folder(self, input_folder: str, quiet=False) -> str:
         """Scans an input folder for the instrument file
 
         If there are two files that match the instrument, the function will
@@ -270,31 +282,24 @@ class Instrument(ABC):
                 continue
 
             full_path = os.path.join(input_folder, filename)
+            try:
+                header_lines = self.header_lines(full_path)
+            except StopIteration as e:
+                logger.warning(e)
+                continue
 
-            with open(full_path) as in_file:
-                try:
-                    header_lines = [
-                        next(in_file) for _ in range(lines_to_read)
-                    ]
-                except (IndexError, StopIteration):
-                    logger.warning(
-                        f"Instrument has less than {lines_to_read} lines "
-                        f"in {filename}. "
-                        f"Stopping early at line {len(header_lines)}."
+            if self.file_identifier(header_lines):
+                if not quiet:
+                    logger.info(
+                        f"Instrument: {self.registry_name} detected in {filename}"
                     )
-
-                if self.file_identifier(header_lines):
-                    if not quiet:
-                        logger.info(
-                            f"Instrument: {self.name} detected in {filename}"
-                        )
-                    successful_matches.append(filename)
-                    if len(successful_matches) > 1:
-                        raise ValueError(
-                            "Multiple instruments detected: "
-                            f"{successful_matches}. "
-                            "Please ensure only one instrument is detected."
-                        )
+                successful_matches.append(filename)
+                if len(successful_matches) > 1:
+                    raise ValueError(
+                        "Multiple instruments detected: "
+                        f"{successful_matches}. "
+                        "Please ensure only one instrument is detected."
+                    )
 
         if not successful_matches:
             logger.warning(f"No instrument detected for {self.name}")
