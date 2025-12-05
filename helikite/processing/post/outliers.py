@@ -70,9 +70,12 @@ def plot_outliers_check(df):
     plt.show()
 
 
-def plot_gps_on_map(df, lat_col='flight_computer_Lat', lon_col='flight_computer_Long', 
-                    lat_dir='S', lon_dir='W', center_coords=(-70.6587, -8.2850), zoom_start=13) -> folium.Map:
-    
+def plot_gps_on_map(df, lat_col, lon_col, lat_dir, lon_dir, center_coords, zoom_start) -> folium.Map | None:
+    if lat_col not in df.columns or lon_col not in df.columns:
+        lat_col, lon_col = _guess_lat_lon_columns(df.columns, lat_col, lon_col)
+        if lat_col is None or lon_col is None:
+            return None
+
     def convert_dm_to_dd(dm_value, direction):
         if pd.isna(dm_value):
             return None
@@ -89,6 +92,10 @@ def plot_gps_on_map(df, lat_col='flight_computer_Lat', lon_col='flight_computer_
 
     # Drop rows with NaNs in converted coordinates
     df_clean = df.dropna(subset=['latitude_dd', 'longitude_dd'])
+
+    if len(df_clean) == 0:
+        logger.warning("All GPS points are NaN. Skipping plotting.")
+        return None
 
     # Convert time to numeric
     time_numeric = mdates.date2num(df_clean.index.to_pydatetime())
@@ -126,3 +133,23 @@ def plot_gps_on_map(df, lat_col='flight_computer_Lat', lon_col='flight_computer_
     colormap.add_to(m)
 
     return m
+
+
+def _guess_lat_lon_columns(columns: list[str], lat_col: str, lon_col: str) -> tuple[str | None, str | None]:
+    def _guess_column(default_col: str, arg_name: str, substring: str) -> str | None:
+        if default_col not in columns:
+            logger.warning(f"Column '{default_col}' not found in DataFrame.")
+            col_candidates = [col for col in columns if substring.lower() in col.lower()]
+            if len(col_candidates) == 0:
+                logger.warning(f"Provide a valid '{arg_name}' argument.")
+                return None
+            else:
+                col = col_candidates[0]
+                logger.warning(f"Using '{col}' as '{arg_name}'.")
+                return col
+        return default_col
+
+    lat_col = _guess_column(lat_col,  "lat_col", "latitude")
+    lon_col = _guess_column(lon_col, "lon_col", "longitude")
+
+    return lat_col, lon_col
