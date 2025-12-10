@@ -41,7 +41,7 @@ def df_derived_by_shift(df_init, lag=0, NON_DER=[]):
 
 
 def df_findtimelag(df, range_list, instname=""):
-    filter_inst = [col for col in df if col.startswith(instname)]
+    filter_inst = [col for col in df if col.startswith(instname) if col.removeprefix(instname).isnumeric()]
     df_inst = df[filter_inst].iloc[0]
 
     df_inst = df_inst.set_axis(range_list, copy=False)
