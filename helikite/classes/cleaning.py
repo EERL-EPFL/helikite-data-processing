@@ -1,4 +1,6 @@
 import datetime
+import logging
+import os
 import pathlib
 from itertools import cycle
 
@@ -20,6 +22,8 @@ from helikite.processing.post import crosscorrelation
 
 parent_process = psutil.Process().parent().cmdline()[-1]
 
+logger = logging.getLogger(__name__)
+logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 class Cleaner(BaseProcessor):
     def __init__(
@@ -1090,7 +1094,8 @@ class Cleaner(BaseProcessor):
         print(f"Added {num_missing} missing timestamps.")
 
         # Reindex
-        df_full = df.reindex(full_index)
+        df_full = df[~df.index.duplicated(keep='first')]
+        df_full = df_full.reindex(full_index)
 
         # Optionally fill
         if fill_method == "ffill":
@@ -1099,3 +1104,33 @@ class Cleaner(BaseProcessor):
             df_full = df_full.bfill()
 
         return df_full
+
+    @staticmethod
+    def detect_instruments(input_folder: str | pathlib.Path) -> list[Instrument]:
+        """
+        Automatically detect instruments from the files available in the input folder.
+        """
+        matched_files = set()
+        flight_instruments = []
+
+        for instrument_name, instrument_obj in Instrument.REGISTRY.items():
+            matched_file = instrument_obj.detect_from_folder(input_folder, quiet=False)
+
+            if matched_file:
+                flight_instruments.append(instrument_obj)
+                matched_files.add(os.path.basename(matched_file))
+
+        for file in os.listdir(input_folder):
+            if file not in matched_files:
+                logger.warning(f"{file} was not matched")
+
+        return flight_instruments
+
+    @staticmethod
+    def choose_reference_instrument(instruments: list[Instrument],
+                                    reference_instrument_candidates: list[Instrument]) -> Instrument | None:
+        for candidate in reference_instrument_candidates:
+            if candidate in instruments:
+                return candidate
+
+        return None
