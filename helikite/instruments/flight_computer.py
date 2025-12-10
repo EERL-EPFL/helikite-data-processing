@@ -383,6 +383,10 @@ flight_computer_v1 = FlightComputerV1(
     ],
     export_order=100,
     pressure_variable="P_baro",
+    coupled_columns=[
+        ('flight_computer_TEMP1', 'flight_computer_RH1'),
+        ('flight_computer_TEMP2', 'flight_computer_RH2'),
+    ]
 )
 
 flight_computer_v2 = FlightComputerV2(
@@ -598,4 +602,9 @@ flight_computer_v2 = FlightComputerV2(
     ],
     export_order=100,
     pressure_variable="BME_P",
+    coupled_columns=[
+        ('flight_computer_Out1_T', 'flight_computer_Out1_H'),
+        ('flight_computer_Out2_T', 'flight_computer_Out2_H'),
+        ('flight_computer_Lat', 'flight_computer_Long'),
+    ]
 )

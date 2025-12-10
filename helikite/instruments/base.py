@@ -36,6 +36,9 @@ class Instrument(ABC):
         export_order: int | None = None,  # Order hierarchy in export file
         pressure_variable: str | None = None,  # The variable measuring pressure
         registry_name: str | None = None,
+        # Groups of columns that are coupled. If a row contains an outlier in any column within a tuple,
+        # then the values in all other columns of that tuple should also be treated as outliers.
+        coupled_columns: list[tuple[str, ...]] | None = None,
     ) -> None:
         self.name = name
         self.dtype = dtype
@@ -51,6 +54,7 @@ class Instrument(ABC):
         self.cols_housekeeping = cols_housekeeping
         self.export_order = export_order
         self.pressure_variable = pressure_variable
+        self.coupled_columns = coupled_columns if coupled_columns else []
 
         # Properties that are not part of standard config, can be added
         self.filename: str | None = None
