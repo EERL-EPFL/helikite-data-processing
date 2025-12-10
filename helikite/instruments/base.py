@@ -306,7 +306,7 @@ class Instrument(ABC):
                     )
 
         if not successful_matches:
-            logger.warning(f"No instrument detected for {self.name}")
+            logger.warning(f"No instrument detected for {self.registry_name}")
             return None
 
         if not quiet:
