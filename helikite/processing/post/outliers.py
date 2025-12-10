@@ -1,16 +1,26 @@
+import logging
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import folium
 from branca.colormap import linear
 import matplotlib.dates as mdates
 
+from helikite.constants import constants
+from helikite.instruments.flight_computer import FlightComputer
 
-def plot_outliers_check(df):
+logger = logging.getLogger(__name__)
+logger.setLevel(constants.LOGLEVEL_CONSOLE)
+
+def plot_outliers_check(df, flight_computer: FlightComputer):
     """
     Plots various flight parameters against flight_computer_pressure.
     
     Args:
         df (pd.DataFrame): The DataFrame containing flight data.
+        flight_computer (FlightComputer):
+            Flight computer instance, required to obtain correct column names, since they differ between versions.
+
     """
     plt.close('all')
 
@@ -35,8 +45,13 @@ def plot_outliers_check(df):
     axs[1, 0].grid(True)
     axs[1, 0].invert_yaxis()
 
+    t1_column = f"{flight_computer.name}_{flight_computer.T1_column}"
+    t2_column = f"{flight_computer.name}_{flight_computer.T2_column}"
+    h1_column = f"{flight_computer.name}_{flight_computer.H1_column}"
+    h2_column = f"{flight_computer.name}_{flight_computer.H2_column}"
+
     # Plot Out1_T vs Pressure
-    axs[0, 1].scatter(df['flight_computer_Out1_T'], df['flight_computer_pressure'],
+    axs[0, 1].scatter(df[t1_column], df['flight_computer_pressure'],
                       color='brown', alpha=0.7, s=10)
     axs[0, 1].set_xlabel('Temperature (°C)', fontsize=10)
     axs[0, 1].set_title('Out1_T', fontsize=10, fontweight='bold')
@@ -44,7 +59,7 @@ def plot_outliers_check(df):
     axs[0, 1].invert_yaxis()
 
     # Plot Out1_H vs Pressure
-    axs[1, 1].scatter(df['flight_computer_Out1_H'], df['flight_computer_pressure'],
+    axs[1, 1].scatter(df[h1_column], df['flight_computer_pressure'],
                       color='orange', alpha=0.7, s=10)
     axs[1, 1].set_xlabel('RH (%)', fontsize=10)
     axs[1, 1].set_title('Out1_H', fontsize=10, fontweight='bold')
@@ -52,7 +67,7 @@ def plot_outliers_check(df):
     axs[1, 1].invert_yaxis()
 
     # Plot Out2_T vs Pressure
-    axs[0, 2].scatter(df['flight_computer_Out2_T'], df['flight_computer_pressure'],
+    axs[0, 2].scatter(df[t2_column], df['flight_computer_pressure'],
                       color='sienna', alpha=0.7, s=10)
     axs[0, 2].set_xlabel('Temperature (°C)', fontsize=10)
     axs[0, 2].set_title('Out2_T', fontsize=10, fontweight='bold')
@@ -60,7 +75,7 @@ def plot_outliers_check(df):
     axs[0, 2].invert_yaxis()
 
     # Plot Out2_H vs Pressure
-    axs[1, 2].scatter(df['flight_computer_Out2_H'], df['flight_computer_pressure'],
+    axs[1, 2].scatter(df[h2_column], df['flight_computer_pressure'],
                       color='darkorange', alpha=0.7, s=10)
     axs[1, 2].set_xlabel('RH (%)', fontsize=10)
     axs[1, 2].set_title('Out2_H', fontsize=10, fontweight='bold')

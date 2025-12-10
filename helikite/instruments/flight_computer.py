@@ -1,4 +1,5 @@
 import logging
+from abc import abstractmethod
 from io import StringIO
 
 import pandas as pd
@@ -12,7 +13,29 @@ logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 
-class FlightComputerV1(Instrument):
+class FlightComputer(Instrument):
+    @property
+    @abstractmethod
+    def T1_column(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def T2_column(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def H1_column(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def H2_column(self) -> str:
+        pass
+
+
+class FlightComputerV1(FlightComputer):
     """
     This flight computer relates to the first version used in campaigns
     in 2023, 2024. A new version was designed in 2024. See FlightComputerV2.
@@ -20,6 +43,22 @@ class FlightComputerV1(Instrument):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+
+    @property
+    def T1_column(self) -> str:
+        return "TEMP1"
+
+    @property
+    def T2_column(self) -> str:
+        return "TEMP2"
+
+    @property
+    def H1_column(self) -> str:
+        return "RH1"
+
+    @property
+    def H2_column(self) -> str:
+        return "RH2"
 
     def data_corrections(
         self,
@@ -35,8 +74,8 @@ class FlightComputerV1(Instrument):
         if start_pressure is None or start_temperature is None:
             try:
                 first_period = df.loc[
-                    df.index[0] : df.index[0]  # noqa
-                    + pd.Timedelta(seconds=start_duration_seconds)
+                    df.index[0]: df.index[0]  # noqa
+                                 + pd.Timedelta(seconds=start_duration_seconds)
                 ]
 
                 averaged_sample = first_period.mean(numeric_only=True)
@@ -106,7 +145,7 @@ class FlightComputerV1(Instrument):
         df.set_index("DateTime", inplace=True)
 
         # Set to index type to seconds
-        df.index = df.index.floor('s') #astype("datetime64[s]")
+        df.index = df.index.floor('s')  # astype("datetime64[s]")
 
         return df
 
@@ -145,7 +184,7 @@ class FlightComputerV1(Instrument):
         return df
 
 
-class FlightComputerV2(Instrument):
+class FlightComputerV2(FlightComputer):
     """
     This flight computer relates to the second version used in campaigns
     in 2024. This version uses a new set of metadata and a modified CSV format.
@@ -153,6 +192,22 @@ class FlightComputerV2(Instrument):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+
+    @property
+    def T1_column(self) -> str:
+        return "Out1_T"
+
+    @property
+    def T2_column(self) -> str:
+        return "Out2_T"
+
+    @property
+    def H1_column(self) -> str:
+        return "Out1_H"
+
+    @property
+    def H2_column(self) -> str:
+        return "Out2_H"
 
     def file_identifier(self, first_lines_of_csv) -> bool:
         # In V2, datetime is prefixed with a space, check partial is within
@@ -164,12 +219,12 @@ class FlightComputerV2(Instrument):
             "F_psvolts,F_err_rpt,SO_S,SO_D,SO_U,SO_V,SO_W,SO_T,SO_H,SO_P,"
             "SO_PI,SO_RO,SO_MD,POPID,POPCHAIN,POPtot,POPf,POPT,POPc1,POPc2,"
             "POPc3,POPc4,POPc5,POPc6,POPc7,POPc8,Ubat,CO2,BME_T,BME_H,BME_P,"
-            #"CPUTEMP,RPiT,RPiS,IYaw,IPitch,IRoll,ILat,ILong,IVX,IVY,IVZ,IAX,"
-            #"IAY,IAZ,IARX,IARY,IARZ,Out1_T,Out1_H,Out2_T,Out2_H,Inlet2_T,"
-            #"Inlet2_H,UTCTime,Status,Lat,LatDir,Long,LongDir,Speed,Course,"
-            #"Date,MagVar,MVdir,GLat,GLatDir,GLong,GLongDir,GPSQ,GNSats,"
-            #"Hprec,GAlt,AltU,Geoidal,UTCTime2,Heading,HeadTrue,Roll,Pitch,"
-            #"Heave,RollAcc,PitchAcc,HeadAcc,GNSSqty"
+            # "CPUTEMP,RPiT,RPiS,IYaw,IPitch,IRoll,ILat,ILong,IVX,IVY,IVZ,IAX,"
+            # "IAY,IAZ,IARX,IARY,IARZ,Out1_T,Out1_H,Out2_T,Out2_H,Inlet2_T,"
+            # "Inlet2_H,UTCTime,Status,Lat,LatDir,Long,LongDir,Speed,Course,"
+            # "Date,MagVar,MVdir,GLat,GLatDir,GLong,GLongDir,GPSQ,GNSats,"
+            # "Hprec,GAlt,AltU,Geoidal,UTCTime2,Heading,HeadTrue,Roll,Pitch,"
+            # "Heave,RollAcc,PitchAcc,HeadAcc,GNSSqty"
         )
 
         return header_partial in first_lines_of_csv[self.header]
@@ -321,7 +376,7 @@ class FlightComputerV2(Instrument):
         df.set_index("DateTime", inplace=True)
 
         # Set to index type to seconds
-        df.index = df.index.floor('s') #astype("datetime64[s]")
+        df.index = df.index.floor('s')  # astype("datetime64[s]")
 
         return df
 
