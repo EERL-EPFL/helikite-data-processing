@@ -179,17 +179,6 @@ class DataProcessorLevel1(BaseProcessor):
     def altitude_calculation_barometric(self):
         self._df = altitude_calculation_barometric(self._df, self._metadata)
 
-    @function_dependencies(required_operations=[], use_once=True)
-    def add_missing_columns(self, only_if_instrument_missing: bool = True):
-        for instrument in self._output_schema.instruments:
-            if not only_if_instrument_missing and instrument in self._instruments:
-                continue  # columns should be already present
-            else:
-                all_columns = self.get_expected_columns_for(instrument)
-                missing_columns = [column for column in all_columns if column not in self._df.columns]
-
-                self._df[missing_columns] = pd.NA
-
     @function_dependencies(required_operations=["altitude_calculation_barometric"], use_once=False)
     def process_CO2_STP(self, min_threshold=200, max_threshold=500):
         if self._check_schema_contains_instrument(co2):
@@ -255,17 +244,6 @@ class DataProcessorLevel1(BaseProcessor):
     def _flight_computer(self) -> FlightComputer:
         flight_computer = next(instrument for instrument in self._instruments if isinstance(instrument, FlightComputer))
         return flight_computer
-
-    @staticmethod
-    def get_expected_columns_for(instrument: Instrument) -> list[str]:
-        """Returns a list of column names expected for the given instrument in the final dataframe."""
-        column_pressure = f"{instrument.name}_{constants.HOUSEKEEPING_VAR_PRESSURE}"
-
-        expected_columns = [f"{instrument.name}_{column}" for column in instrument.dtype.keys()]
-        if instrument.pressure_variable is not None:
-            expected_columns.append(column_pressure)
-
-        return expected_columns
 
 
 def _get_instruments(df: pd.DataFrame, metadata: BaseModel) -> list[Instrument]:
