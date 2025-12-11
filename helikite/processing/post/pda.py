@@ -33,17 +33,22 @@ import string
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-sns.set()
-sns.set_style("whitegrid") 
-sns.set_context("paper", rc={"font.size":22,
-                             "axes.labelsize":22, #axis label size
-                             "xtick.labelsize":22,
-                             "lines.linewidth" : 3,
-                             "lines.markersize" : 5,   
-                             "ytick.labelsize":22,
-                             "legend.fontsize":22})
 
-#%% Functions
+def set_sns_context():
+    sns.set()
+    sns.set_style("whitegrid")
+    sns.set_context("paper", rc={"font.size": 22,
+                                 "axes.labelsize": 22,  # axis label size
+                                 "xtick.labelsize": 22,
+                                 "lines.linewidth": 3,
+                                 "lines.markersize": 5,
+                                 "ytick.labelsize": 22,
+                                 "legend.fontsize": 22})
+
+
+# set_sns_context()
+#
+# #%% Functions
 
 def power_law_threshold_filter(concentration_series, gradient_series, a, m, upper_threshold, lower_threshold):
     '''
@@ -630,12 +635,12 @@ def load_data(datafile):
     
 
 
-#%%
+# #%%
 # MAIN FUNCTION
-#-------------------------
+# -------------------------
 # LOAD DATASETS
-#------------------  
-
+# ------------------
+#
 # pathname_to_file = r'C:\Users\ivo\Documents\08_MOSAiC Pollution Mask\Files\Test_PDA_folder'
 # pathname_to_save = r'C:\Users\ivo\Documents\08_MOSAiC Pollution Mask\Files\Test_PDA_folder'
 # filename = 'cpc3025_feb_mar_cleaned_raw_test.txt'
@@ -647,207 +652,207 @@ def load_data(datafile):
 # median_time = '60'
 # median_factor = 1.4
 # iqr_window = 1440
-
-#%% Start the Script with questions
-############################################
-a = None
-m = None
-
-# Ask for pathnames and filenames
-file_path, pathname_to_save = pathname()
-pathname_to_save = Path(pathname_to_save)
-file_path = Path(file_path)
-
-# Load data
-print('Load dataset...')
-raw_data = load_data(file_path)
-print('Dataset path: ' + str(file_path))
-print('Done loading!')
-
-#%% 
-#################################################################
-# Start here to leave the filepath and filename as it was before
-#############################################################
-# Averaging data
-avg_data = pd.DataFrame()
-while True: 
-    averaging_time = input("Do you wish to average your data? If NO, type ENTER. If YES, type the averaging time in seconds for the gradient plot: ")
-    if averaging_time == '':
-        print('Proceed without averaging...')
-        avg_data['concentration'] = raw_data['concentration']
-        avg_data['gradient'] = raw_data['gradient']
-        break
-    else:
-        try:
-            avg_time = int(averaging_time)
-            avg_data = averaging(raw_data, avg_time)  # run the averaging function
-            break
-        except ValueError:
-            print('Please press ENTER if you wish to proceed without averaging or type in an averaging time (integer number)!') 
-            continue
-
-# Create gradient and time series figure
-print('A new figure with the gradient vs concentration and a time series of your data was saved in your target directory. Please open it to make a decision for the next step.')
-plot_grad_timeseries(data_df=avg_data, raw_data=raw_data, pathname_to_save=pathname_to_save, line=False, a=a, m=m)
-
-# Step 1
-print('Step1: Check out the gradient vs concentration figure and decide whether you wish to separate polluted from clean data based on a power law (straight line in the logarithmnic gradient plot), or based on the interquartile range (IQR).')
-line_decision = ''
-while True: 
-    if line_decision == 'n':
-        break
-    gradient_filter_method = input("Step 1: Continue with power law filter (a) or interquartile range filter (b)? (a/b) ")
-    
-    # Ask for which step1 to choose
-    if gradient_filter_method == 'a':
-        print('Your choice: Continue with power law filter')
-        while True:
-            try:
-                x1, y1, x2, y2 = [float(s) for s in input('Step 1A (power law filter): Type two fix points (x1, y1) and (x2, y2) from the graph to find a separation line. The points dont have to be very accurate and the separtation line can be adjusted later. Type x1 y1 x2 y2 ').split()]
-            except ValueError:
-                print('Please enter FOUR float values!')
-                continue
-            else: 
-                 break # without break it would jump back to the while True loop
-        m = np.abs(np.log10(y2/y1)/np.log10(x2/x1))
-        a = y1/(x1**m)
-        
-        while True: 
-            if line_decision =='n':
-                break
-            plot_power_law_scatter(data_df=avg_data, a=a, m=m, pathname_to_save=pathname_to_save)
-            print('PDA step 1A: Power law separation line slope m = '+str(m)+', intercept at a = '+str(a)+'. A new figure (gradient_and_line.png) with a potential separation line was saved to your target directory.', 
-                      'Please open it and decide whether you want to correct the line.')
-            try:
-                while True: 
-                    if line_decision == 'n':
-                        break
-                    
-                    line_decision = input('Step 1A: Do you wish to enter a new slope and a new intercept for the separation line (y/n)?')
-                    if line_decision =='n':
-                        break
-                    elif line_decision == 'y':
-                        while True:
-                            try:
-                                a, m = [float(s) for s in input('Step 1A. Actual intercept a = '+str(a)+', and slope m = '+str(m)+'. Type in the new values (a m):').split()]
-                                plot_power_law_scatter(data_df=avg_data, a=a, m=m, pathname_to_save=pathname_to_save)
-                                print('New figure with separation line saved to target directory. ')
-
-                            except ValueError:
-                                print('Please enter two float numbers, separated by a space')
-                                
-                            else:
-                                break
-                    else: 
-                        print('Please type y or n')
-                        
-            except ValueError:
-                print('Please enter y or n')
-
-            else:
-                continue
-            
-    elif gradient_filter_method == 'b':
-        while True:
-            try:
-                iqr_timewindow, iqr_factor = [float(s) for s in input("Step 1B (IQR filter): Choose the iqr window size (in minutes) and the iqr factor: ").split()]
-            except ValueError:
-                print('Please enter TWO values!')
-            else:
-                break
-        break
-    else: 
-        print('Please choose a method for step 1')
-
-
-
-# Step 2. Threshold filter
-# -------------------------
-while True: 
-    try:
-        upper_threshold, lower_threshold = [int(s) for s in input("Step 2 (threshold filter): Choose uppper threshold and lower threshold (upper_threshold lower_threshold): ").split()]
-    except ValueError:
-        print('Please enter TWO values!')
-    else: 
-        break
-
-    
-# Run Gradient and threshold filter   
-if gradient_filter_method == 'a':
-    avg_data['threshold_clean'], avg_data['threshold_flag (1=polluted)'] = power_law_threshold_filter(avg_data['concentration'], avg_data['gradient'], a=a, m=m, upper_threshold=upper_threshold, lower_threshold = lower_threshold)
-    print('A plot of the gradient vs concentration of your dataset with the separarion line in your target folder')
-    # Todo: Change the plot so that the separated data can bee seen in time series. 
-    plot_grad_timeseries(data_df = avg_data, line = True, a=a, m=m)
-elif gradient_filter_method == 'b':
-    # avg_data['threshold_clean'], avg_data['threshold_flag (1=polluted)'] = iqr_filter(avg_data['concentration'], avg_data['gradient'], iqr_window = int(iqr_timewindow), iqr_threshold=iqr_factor, lower_threshold = lower_threshold, upper_threshold = upper_threshold)
-    avg_data['iqr_outlier'], avg_data['clean_IQR'],  avg_data['threshlold_flag (1=polluted)'],  avg_data['threshold_clean'] = iqr_filter(avg_data['concentration'], avg_data['gradient'], iqr_window = int(iqr_timewindow), iqr_threshold=iqr_factor, lower_threshold = lower_threshold, upper_threshold = upper_threshold)
-
-
-# Step3. Neighbor Filter
-# ------------------------------------
-neighbor_decision = input("Step 3: Do you want to apply the neighboring points filter? Type y for yes, anything else for no: ")
-if neighbor_decision == 'y':
-    print('Apply step 3: Neighboring points filter')
-    avg_data['neighbor_clean'] = neighbor_clean(avg_data['threshold_clean']) #, 'neighbor_flag'
-
-median_decision = input("Step 4: Do you want to apply the median filter? Type y for yes, anything else for no: ")
-if median_decision == 'y':  
-    while True:
-        try:      
-            median_time, median_factor = input("Step 4: Enter median time (minutes) and median factor (m_t m_f): ").split()
-            median_factor = float(median_factor)
-        except ValueError:
-            print('Please enter TWO variables!')
-        else:
-            break
-        
-    if neighbor_decision == 'y':
-        print('Step 4: Apply Median filter, based on neighbor filter')
-        avg_data['median_clean'], avg_data['median_flag (1=polluted)'] = median_filter_rolling(avg_data['neighbor_clean'], time = median_time, tolerance = median_factor)
-    elif neighbor_decision != 'y':
-        print('Step 4: Apply Median filter, based on treshold filter')
-        avg_data['median_clean'], avg_data['median_flag (1=polluted)'] = median_filter_rolling(avg_data['threshold_clean'], time = median_time, tolerance = median_factor)
-    
-while True:
-    try:
-        sparse_window, sparse_threshold = [int(s) for s in input('Step 5: Choose a sparse window size (# of datapoints) and threshold (max. allowed number of polluted data points within sparse window) (sparse_window sparse_threshold): ').split()]
-    except ValueError:
-        print('Please enter TWO variables!')
-    else:
-        break
-if neighbor_decision == 'y' and median_decision == 'y':
-    print('Step 5: Apply sparse data filter, based on median filter')
-    avg_data['sparse_clean'], avg_data['sparse_flag'] = sparse_data(avg_data['median_clean'], window_size = int(sparse_window), min_number = sparse_threshold)
-    starttime, endtime = input('PDA done. To check out the result, type in a start time and an end time of a plot (YYYY-MM-DD YYYY-MM-DD): ').split()
-    final_four_plots(starttime, endtime, series1=avg_data['concentration'], series2=avg_data['threshold_clean'], series3=avg_data['neighbor_clean'], series4=avg_data['median_clean'], series5=avg_data['sparse_clean'], pathname_to_save=pathname_to_save)
-    print('A figure with four time series of different filtering steps was saved to your target directory.')
-
-elif neighbor_decision == 'y' and median_decision != 'y':
-    print('Step 5: Apply sparse data filter, based on neighbor filter')
-    avg_data['sparse_clean'], avg_data['sparse_flag'] = sparse_data(avg_data['neighbor_clean'], window_size = int(sparse_window), min_number = sparse_threshold)
-    starttime, endtime = input('PDA done. To check out the result, type in a start time and an end time of a plot (YYYY-MM-DD YYYY-MM-DD): ').split()
-    final_three_plots(starttime, endtime, series1=avg_data['concentration'], series2=avg_data['threshold_clean'], series3=avg_data['neighbor_clean'], series4=avg_data['sparse_clean'], pathname_to_save=pathname_to_save)
-    print('A figure with three time series of different filtering steps was saved to your target directory.')
-
-elif neighbor_decision != 'y' and median_decision == 'y':
-    print('Step 5: Apply sparse data filter, based on median filter witout neighbor filter')
-    avg_data['sparse_clean'], avg_data['sparse_flag'] = sparse_data(avg_data['median_clean'], window_size = int(sparse_window), min_number = sparse_threshold)
-    starttime, endtime = input('PDA done. To check out the result, type in a start time and an end time of a plot (YYYY-MM-DD YYYY-MM-DD): ').split()
-    final_three_plots(starttime, endtime, series1=avg_data['concentration'], series2=avg_data['threshold_clean'], series3=avg_data['median_clean'], series4=avg_data['sparse_clean'], pathname_to_save=pathname_to_save)
-    print('A figure with three time series of different filtering steps was saved to your target directory.')
-
-elif neighbor_decision != 'y' and median_decision != 'y':
-    print('Step 5: Apply sparse data filter, based on threshold filter')
-    avg_data['sparse_clean'], avg_data['sparse_flag'] = sparse_data(avg_data['threshold_clean'], window_size = int(sparse_window), min_number = sparse_threshold)
-    starttime, endtime = input('PDA done. To check out the result, type in a start time and an end time of a plot (YYYY-MM-DD YYYY-MM-DD): ').split()
-    final_two_plots(starttime, endtime, series1=avg_data['concentration'], series2=avg_data['threshold_clean'], series3=avg_data['sparse_clean'], pathname_to_save=pathname_to_save)
-    print('A figure with two time series of different filtering steps was saved to your target directory.')
-
-
-# Save data to your directory
-avg_data.to_csv(pathname_to_save / 'PDA_pollution_flag.csv', index = True, header = True, index_label = 'Date/Time')
-print('Your pollution flagged dataset is saved in your target directory.')
-
-data_stats = avg_data.describe()
-data_stats.to_excel(pathname_to_save / 'PDA_steps_statistics.xlsx')
+#
+# #%% Start the Script with questions
+# ############################################
+# a = None
+# m = None
+#
+# # Ask for pathnames and filenames
+# file_path, pathname_to_save = pathname()
+# pathname_to_save = Path(pathname_to_save)
+# file_path = Path(file_path)
+#
+# # Load data
+# print('Load dataset...')
+# raw_data = load_data(file_path)
+# print('Dataset path: ' + str(file_path))
+# print('Done loading!')
+#
+# #%%
+# #################################################################
+# # Start here to leave the filepath and filename as it was before
+# #############################################################
+# # Averaging data
+# avg_data = pd.DataFrame()
+# while True:
+#     averaging_time = input("Do you wish to average your data? If NO, type ENTER. If YES, type the averaging time in seconds for the gradient plot: ")
+#     if averaging_time == '':
+#         print('Proceed without averaging...')
+#         avg_data['concentration'] = raw_data['concentration']
+#         avg_data['gradient'] = raw_data['gradient']
+#         break
+#     else:
+#         try:
+#             avg_time = int(averaging_time)
+#             avg_data = averaging(raw_data, avg_time)  # run the averaging function
+#             break
+#         except ValueError:
+#             print('Please press ENTER if you wish to proceed without averaging or type in an averaging time (integer number)!')
+#             continue
+#
+# # Create gradient and time series figure
+# print('A new figure with the gradient vs concentration and a time series of your data was saved in your target directory. Please open it to make a decision for the next step.')
+# plot_grad_timeseries(data_df=avg_data, raw_data=raw_data, pathname_to_save=pathname_to_save, line=False, a=a, m=m)
+#
+# # Step 1
+# print('Step1: Check out the gradient vs concentration figure and decide whether you wish to separate polluted from clean data based on a power law (straight line in the logarithmnic gradient plot), or based on the interquartile range (IQR).')
+# line_decision = ''
+# while True:
+#     if line_decision == 'n':
+#         break
+#     gradient_filter_method = input("Step 1: Continue with power law filter (a) or interquartile range filter (b)? (a/b) ")
+#
+#     # Ask for which step1 to choose
+#     if gradient_filter_method == 'a':
+#         print('Your choice: Continue with power law filter')
+#         while True:
+#             try:
+#                 x1, y1, x2, y2 = [float(s) for s in input('Step 1A (power law filter): Type two fix points (x1, y1) and (x2, y2) from the graph to find a separation line. The points dont have to be very accurate and the separtation line can be adjusted later. Type x1 y1 x2 y2 ').split()]
+#             except ValueError:
+#                 print('Please enter FOUR float values!')
+#                 continue
+#             else:
+#                  break # without break it would jump back to the while True loop
+#         m = np.abs(np.log10(y2/y1)/np.log10(x2/x1))
+#         a = y1/(x1**m)
+#
+#         while True:
+#             if line_decision =='n':
+#                 break
+#             plot_power_law_scatter(data_df=avg_data, a=a, m=m, pathname_to_save=pathname_to_save)
+#             print('PDA step 1A: Power law separation line slope m = '+str(m)+', intercept at a = '+str(a)+'. A new figure (gradient_and_line.png) with a potential separation line was saved to your target directory.',
+#                       'Please open it and decide whether you want to correct the line.')
+#             try:
+#                 while True:
+#                     if line_decision == 'n':
+#                         break
+#
+#                     line_decision = input('Step 1A: Do you wish to enter a new slope and a new intercept for the separation line (y/n)?')
+#                     if line_decision =='n':
+#                         break
+#                     elif line_decision == 'y':
+#                         while True:
+#                             try:
+#                                 a, m = [float(s) for s in input('Step 1A. Actual intercept a = '+str(a)+', and slope m = '+str(m)+'. Type in the new values (a m):').split()]
+#                                 plot_power_law_scatter(data_df=avg_data, a=a, m=m, pathname_to_save=pathname_to_save)
+#                                 print('New figure with separation line saved to target directory. ')
+#
+#                             except ValueError:
+#                                 print('Please enter two float numbers, separated by a space')
+#
+#                             else:
+#                                 break
+#                     else:
+#                         print('Please type y or n')
+#
+#             except ValueError:
+#                 print('Please enter y or n')
+#
+#             else:
+#                 continue
+#
+#     elif gradient_filter_method == 'b':
+#         while True:
+#             try:
+#                 iqr_timewindow, iqr_factor = [float(s) for s in input("Step 1B (IQR filter): Choose the iqr window size (in minutes) and the iqr factor: ").split()]
+#             except ValueError:
+#                 print('Please enter TWO values!')
+#             else:
+#                 break
+#         break
+#     else:
+#         print('Please choose a method for step 1')
+#
+#
+#
+# # Step 2. Threshold filter
+# # -------------------------
+# while True:
+#     try:
+#         upper_threshold, lower_threshold = [int(s) for s in input("Step 2 (threshold filter): Choose uppper threshold and lower threshold (upper_threshold lower_threshold): ").split()]
+#     except ValueError:
+#         print('Please enter TWO values!')
+#     else:
+#         break
+#
+#
+# # Run Gradient and threshold filter
+# if gradient_filter_method == 'a':
+#     avg_data['threshold_clean'], avg_data['threshold_flag (1=polluted)'] = power_law_threshold_filter(avg_data['concentration'], avg_data['gradient'], a=a, m=m, upper_threshold=upper_threshold, lower_threshold = lower_threshold)
+#     print('A plot of the gradient vs concentration of your dataset with the separarion line in your target folder')
+#     # Todo: Change the plot so that the separated data can bee seen in time series.
+#     plot_grad_timeseries(data_df = avg_data, line = True, a=a, m=m)
+# elif gradient_filter_method == 'b':
+#     # avg_data['threshold_clean'], avg_data['threshold_flag (1=polluted)'] = iqr_filter(avg_data['concentration'], avg_data['gradient'], iqr_window = int(iqr_timewindow), iqr_threshold=iqr_factor, lower_threshold = lower_threshold, upper_threshold = upper_threshold)
+#     avg_data['iqr_outlier'], avg_data['clean_IQR'],  avg_data['threshlold_flag (1=polluted)'],  avg_data['threshold_clean'] = iqr_filter(avg_data['concentration'], avg_data['gradient'], iqr_window = int(iqr_timewindow), iqr_threshold=iqr_factor, lower_threshold = lower_threshold, upper_threshold = upper_threshold)
+#
+#
+# # Step3. Neighbor Filter
+# # ------------------------------------
+# neighbor_decision = input("Step 3: Do you want to apply the neighboring points filter? Type y for yes, anything else for no: ")
+# if neighbor_decision == 'y':
+#     print('Apply step 3: Neighboring points filter')
+#     avg_data['neighbor_clean'] = neighbor_clean(avg_data['threshold_clean']) #, 'neighbor_flag'
+#
+# median_decision = input("Step 4: Do you want to apply the median filter? Type y for yes, anything else for no: ")
+# if median_decision == 'y':
+#     while True:
+#         try:
+#             median_time, median_factor = input("Step 4: Enter median time (minutes) and median factor (m_t m_f): ").split()
+#             median_factor = float(median_factor)
+#         except ValueError:
+#             print('Please enter TWO variables!')
+#         else:
+#             break
+#
+#     if neighbor_decision == 'y':
+#         print('Step 4: Apply Median filter, based on neighbor filter')
+#         avg_data['median_clean'], avg_data['median_flag (1=polluted)'] = median_filter_rolling(avg_data['neighbor_clean'], time = median_time, tolerance = median_factor)
+#     elif neighbor_decision != 'y':
+#         print('Step 4: Apply Median filter, based on treshold filter')
+#         avg_data['median_clean'], avg_data['median_flag (1=polluted)'] = median_filter_rolling(avg_data['threshold_clean'], time = median_time, tolerance = median_factor)
+#
+# while True:
+#     try:
+#         sparse_window, sparse_threshold = [int(s) for s in input('Step 5: Choose a sparse window size (# of datapoints) and threshold (max. allowed number of polluted data points within sparse window) (sparse_window sparse_threshold): ').split()]
+#     except ValueError:
+#         print('Please enter TWO variables!')
+#     else:
+#         break
+# if neighbor_decision == 'y' and median_decision == 'y':
+#     print('Step 5: Apply sparse data filter, based on median filter')
+#     avg_data['sparse_clean'], avg_data['sparse_flag'] = sparse_data(avg_data['median_clean'], window_size = int(sparse_window), min_number = sparse_threshold)
+#     starttime, endtime = input('PDA done. To check out the result, type in a start time and an end time of a plot (YYYY-MM-DD YYYY-MM-DD): ').split()
+#     final_four_plots(starttime, endtime, series1=avg_data['concentration'], series2=avg_data['threshold_clean'], series3=avg_data['neighbor_clean'], series4=avg_data['median_clean'], series5=avg_data['sparse_clean'], pathname_to_save=pathname_to_save)
+#     print('A figure with four time series of different filtering steps was saved to your target directory.')
+#
+# elif neighbor_decision == 'y' and median_decision != 'y':
+#     print('Step 5: Apply sparse data filter, based on neighbor filter')
+#     avg_data['sparse_clean'], avg_data['sparse_flag'] = sparse_data(avg_data['neighbor_clean'], window_size = int(sparse_window), min_number = sparse_threshold)
+#     starttime, endtime = input('PDA done. To check out the result, type in a start time and an end time of a plot (YYYY-MM-DD YYYY-MM-DD): ').split()
+#     final_three_plots(starttime, endtime, series1=avg_data['concentration'], series2=avg_data['threshold_clean'], series3=avg_data['neighbor_clean'], series4=avg_data['sparse_clean'], pathname_to_save=pathname_to_save)
+#     print('A figure with three time series of different filtering steps was saved to your target directory.')
+#
+# elif neighbor_decision != 'y' and median_decision == 'y':
+#     print('Step 5: Apply sparse data filter, based on median filter witout neighbor filter')
+#     avg_data['sparse_clean'], avg_data['sparse_flag'] = sparse_data(avg_data['median_clean'], window_size = int(sparse_window), min_number = sparse_threshold)
+#     starttime, endtime = input('PDA done. To check out the result, type in a start time and an end time of a plot (YYYY-MM-DD YYYY-MM-DD): ').split()
+#     final_three_plots(starttime, endtime, series1=avg_data['concentration'], series2=avg_data['threshold_clean'], series3=avg_data['median_clean'], series4=avg_data['sparse_clean'], pathname_to_save=pathname_to_save)
+#     print('A figure with three time series of different filtering steps was saved to your target directory.')
+#
+# elif neighbor_decision != 'y' and median_decision != 'y':
+#     print('Step 5: Apply sparse data filter, based on threshold filter')
+#     avg_data['sparse_clean'], avg_data['sparse_flag'] = sparse_data(avg_data['threshold_clean'], window_size = int(sparse_window), min_number = sparse_threshold)
+#     starttime, endtime = input('PDA done. To check out the result, type in a start time and an end time of a plot (YYYY-MM-DD YYYY-MM-DD): ').split()
+#     final_two_plots(starttime, endtime, series1=avg_data['concentration'], series2=avg_data['threshold_clean'], series3=avg_data['sparse_clean'], pathname_to_save=pathname_to_save)
+#     print('A figure with two time series of different filtering steps was saved to your target directory.')
+#
+#
+# # Save data to your directory
+# avg_data.to_csv(pathname_to_save / 'PDA_pollution_flag.csv', index = True, header = True, index_label = 'Date/Time')
+# print('Your pollution flagged dataset is saved in your target directory.')
+#
+# data_stats = avg_data.describe()
+# data_stats.to_excel(pathname_to_save / 'PDA_steps_statistics.xlsx')
 
