@@ -9,7 +9,7 @@ import pandas as pd
 
 import helikite.instruments
 from helikite.classes.data_processing import OutputSchemas
-from helikite.instruments import Instrument, cpc, smart_tether
+from helikite.instruments import Instrument, cpc, smart_tether, filter, mcpc, pops
 from helikite.instruments.base import filter_columns_by_instrument
 
 
@@ -91,6 +91,33 @@ def test_expected_columns_level0_oracles(
 
         # TODO: remove once filter is integrated in the pipeline
         if instrument.name == "filter":
+            continue
+
+        expected_columns = filter_columns_by_instrument(columns, instrument)
+        actual_columns = instrument.get_expected_columns(level=0, is_reference=False)
+
+        assert set(expected_columns) == set(actual_columns)
+
+
+def test_expected_columns_level0_turtmann(
+    campaign_data_location_turtmann: str
+):
+    df = pd.read_csv(pathlib.Path(campaign_data_location_turtmann) / "level0_2024-02-20_B_header.csv")
+    df_filter_mcpc_pops = pd.read_csv(pathlib.Path(campaign_data_location_turtmann) / "level0_2024-02-26_B_header.csv")
+
+    # in the old version of processing "cpc_DateTime" was the last CPC column
+    filter_columns = filter_columns_by_instrument(df_filter_mcpc_pops.columns, filter)
+    mcpc_columns = filter_columns_by_instrument(df_filter_mcpc_pops.columns, mcpc)
+    pops_columns = filter_columns_by_instrument(df_filter_mcpc_pops.columns, pops)
+
+    columns = df.columns.to_list() + filter_columns + mcpc_columns + pops_columns
+
+    date = datetime.date(2024, 2, 20)
+    smart_tether.date = date
+
+    for instrument in OutputSchemas.TURTMANN.instruments:
+        # TODO: remove this once inconsistency with flight computer is resolved
+        if instrument.name == "flight_computer":
             continue
 
         expected_columns = filter_columns_by_instrument(columns, instrument)

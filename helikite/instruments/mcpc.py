@@ -32,6 +32,8 @@ class MCPC(Instrument):
             df["#YY/MM/DD"] + " " + df["HR:MN:SC"], format="%y/%m/%d %H:%M:%S"
         )
         df.drop(columns=["#YY/MM/DD", "HR:MN:SC"], inplace=True)
+        df.set_index("DateTime", inplace=True)
+        df.index = df.index.astype("datetime64[s]")
 
         return df
 
@@ -63,8 +65,8 @@ mcpc = MCPC(
         "#YY/MM/DD": "str",
         "HR:MN:SC": "str",
         "aveconc": "Int64",
-        "concent": "Int64",
-        "rawconc": "Int64",
+        "concent": "Float64",
+        "rawconc": "Float64",
         "cnt_sec": "Int64",
         "condtmp": "Float64",
         "satttmp": "Float64",
@@ -86,4 +88,5 @@ mcpc = MCPC(
         "mcpcpwr": "Int64",
     },
     export_order=200,
+    pressure_variable="pressur",
 )

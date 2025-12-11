@@ -22,13 +22,14 @@ class CO2(Instrument):
         return "CO2" in columns
 
     def data_corrections(self, df, *args, **kwargs) -> pd.DataFrame:
+        df.insert(0, "DateTime", df.index)
         return df
 
     def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
         if "DateTime" in df.columns:
             # Flight computer V1 uses seconds since 1970-01-01
             df["DateTime"] = pd.to_datetime(df["DateTime"], unit="s", errors="coerce")
-        else:
+        if "Time" in df.columns:
             df["DateTime"] = pd.to_datetime(df["Time"], format="%y%m%d-%H%M%S")
             df.drop(columns=["Time"], inplace=True)
 
