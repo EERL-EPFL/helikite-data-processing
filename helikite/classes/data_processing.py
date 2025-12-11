@@ -76,7 +76,7 @@ class DataProcessorLevel1(BaseProcessor):
         self._metadata = metadata
         self._output_schema = output_schema
         self._outlier_files: set[str] = set()
-        self._instruments = _get_instruments(df, metadata)
+        self._instruments, self._reference_instrument = _get_instruments(df, metadata)
 
     @property
     def df(self) -> pd.DataFrame:
@@ -179,17 +179,35 @@ class DataProcessorLevel1(BaseProcessor):
     def altitude_calculation_barometric(self):
         self._df = altitude_calculation_barometric(self._df, self._metadata)
 
-    @function_dependencies(required_operations=["altitude_calculation_barometric"], use_once=False)
+    @function_dependencies(required_operations=[], use_once=True)
+    def add_missing_columns(self):
+        for instrument in self._output_schema.instruments:
+            is_reference = instrument == self._reference_instrument
+
+            all_columns = instrument.get_expected_columns(level=0, is_reference=is_reference)
+            missing_columns = [column for column in all_columns if column not in self._df.columns]
+
+            if len(missing_columns) != 0:
+                if instrument in self._instruments:
+                    logger.warning(f"{instrument} is present but missing columns: {missing_columns}.")
+                logger.info(f"Adding missing columns for {instrument.name}: {missing_columns}")
+
+            self._df[missing_columns] = pd.NA
+
+    @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
+                           use_once=False)
     def process_CO2_STP(self, min_threshold=200, max_threshold=500):
         if self._check_schema_contains_instrument(co2):
             self._df = process_CO2_STP(self._df, min_threshold, max_threshold)
 
-    @function_dependencies(required_operations=["altitude_calculation_barometric"], use_once=False)
+    @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
+                           use_once=False)
     def STAP_STP_normalization(self):
         if self._check_schema_contains_instrument(stap):
             self._df = STAP_STP_normalization(self._df)
 
-    @function_dependencies(required_operations=["altitude_calculation_barometric"], use_once=False)
+    @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
+                           use_once=False)
     def POPS_total_conc_dNdlogDp(self):
         if self._check_schema_contains_instrument(pops):
             self._df = POPS_total_conc_dNdlogDp(self._df)
@@ -199,7 +217,8 @@ class DataProcessorLevel1(BaseProcessor):
         if self._check_schema_contains_instrument(pops):
             self._df = POPS_STP_normalization(self._df)
 
-    @function_dependencies(required_operations=["altitude_calculation_barometric"], use_once=False)
+    @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
+                           use_once=False)
     def mSEMS_total_conc_dN(self):
         if self._check_schema_contains_instrument(msems_inverted):
             self._df = mSEMS_total_conc_dN(self._df)
@@ -209,7 +228,8 @@ class DataProcessorLevel1(BaseProcessor):
         if self._check_schema_contains_instrument(msems_inverted):
             self._df = mSEMS_STP_normalization(self._df)
 
-    @function_dependencies(required_operations=["altitude_calculation_barometric"], use_once=False)
+    @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
+                           use_once=False)
     def mcda_concentration_calculations(self):
         if self._check_schema_contains_instrument(mcda):
             self._df = mcda_concentration_calculations(self._df)
@@ -229,7 +249,8 @@ class DataProcessorLevel1(BaseProcessor):
         if self._check_schema_contains_instrument(mcda):
             plot_mcda_vertical_distribution(self._df, Midpoint_diameter_list)
 
-    @function_dependencies(required_operations=["altitude_calculation_barometric"], use_once=False)
+    @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
+                           use_once=False)
     def CPC_STP_normalization(self):
         if self._check_schema_contains_instrument(cpc):
             self._df = CPC.CPC_STP_normalization(self._df)
@@ -246,12 +267,16 @@ class DataProcessorLevel1(BaseProcessor):
         return flight_computer
 
 
-def _get_instruments(df: pd.DataFrame, metadata: BaseModel) -> list[Instrument]:
+def _get_instruments(df: pd.DataFrame, metadata: BaseModel) -> tuple[list[Instrument], Instrument]:
     flight_computer_version = None
     flight_computer_outdated_name = "flight_computer"
 
     instruments = []
+    reference_instrument = None
+
     for name in metadata.instruments:
+        is_reference = name == metadata.reference_instrument
+
         if name == flight_computer_outdated_name:
             if flight_computer_version is None:
                 if f"{flight_computer_outdated_name}_{flight_computer_v1.pressure_variable}" in df.columns:
@@ -263,5 +288,9 @@ def _get_instruments(df: pd.DataFrame, metadata: BaseModel) -> list[Instrument]:
                                      "Please specify `flight_computer_version` manually.")
             name += f"_{flight_computer_version}"
 
-        instruments.append(Instrument.REGISTRY[name])
-    return instruments
+        instrument = Instrument.REGISTRY[name]
+        if is_reference:
+            reference_instrument = instrument
+        instruments.append(instrument)
+
+    return instruments, reference_instrument
