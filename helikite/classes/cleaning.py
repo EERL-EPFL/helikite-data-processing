@@ -16,7 +16,8 @@ from ipywidgets import Output, VBox
 
 from helikite.classes.base import BaseProcessor, function_dependencies
 from helikite.constants import constants
-from helikite.instruments.base import Instrument
+from helikite.instruments import msems_inverted, msems_scan
+from helikite.instruments.base import Instrument, filter_columns_by_instrument
 from helikite.metadata.models import Level0
 from helikite.processing.post import crosscorrelation
 
@@ -929,7 +930,7 @@ class Cleaner(BaseProcessor):
                 continue
             if instrument.pressure_column in instrument.df.columns:
                 instrument.corr_df = crosscorrelation.df_findtimelag(
-                    self.df_corr, rangelag, instname=f"{instrument.name}_"
+                    self.df_corr, rangelag, instrument,
                 )
                 if instrument.corr_df.isna().all():
                     raise ValueError(
@@ -1042,10 +1043,9 @@ class Cleaner(BaseProcessor):
         if not isinstance(df.index, pd.DatetimeIndex):
             raise ValueError("DataFrame index must be a DateTimeIndex to apply a time-based shift.")
 
-        cols_to_shift = [
-            col for col in df.columns
-            if col.startswith("msems_inverted_") or col.startswith("msems_scan_")
-        ]
+
+        cols_to_shift = (filter_columns_by_instrument(df.columns, msems_inverted) +
+                         filter_columns_by_instrument(df.columns, msems_scan))
 
         if not cols_to_shift:
             print("No msems_inverted_ or msems_scan_ columns found to shift.")
