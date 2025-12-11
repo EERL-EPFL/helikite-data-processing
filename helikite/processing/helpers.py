@@ -2,7 +2,7 @@ import pandas as pd
 from typing import Any
 import logging
 from helikite.constants import constants
-
+from contextlib import contextmanager
 
 # Define logger for this file
 logger = logging.getLogger(__name__)
@@ -62,3 +62,17 @@ def remove_duplicates(
     )
 
     return df_unique
+
+
+@contextmanager
+def temporary_attr(obj, name, value):
+    sentinel = object()
+    old_value = getattr(obj, name, sentinel)
+    setattr(obj, name, value)
+    try:
+        yield
+    finally:
+        if old_value is sentinel:
+            delattr(obj, name)
+        else:
+            setattr(obj, name, old_value)

@@ -3,7 +3,7 @@ import logging
 import os
 import pathlib
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, date
 from typing import Any
 
 import pandas as pd
@@ -11,6 +11,7 @@ from pandas import DataFrame
 from plotly.graph_objects import Figure
 
 from helikite.constants import constants
+from helikite.processing.helpers import temporary_attr
 
 logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
@@ -349,7 +350,8 @@ class Instrument(ABC):
 
             case 0:
                 df = pd.DataFrame({c: pd.Series(dtype=t) for c, t in self.dtype.items()})
-                df = self.set_time_as_index(df)
+                with temporary_attr(self, "date", date(year=2000, month=1, day=1)):
+                    df = self.set_time_as_index(df)
 
                 # TODO: Remove this once addition of `scan_direction` is integrated in the cleaning pipeline
                 if self.name == "msems_inverted":
