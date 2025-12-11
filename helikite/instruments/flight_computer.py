@@ -73,12 +73,15 @@ class FlightComputerV1(FlightComputer):
         # Create altitude column by using average of first 10 seconds of data
         if start_pressure is None or start_temperature is None:
             try:
-                first_period = df.loc[
-                    df.index[0]: df.index[0]  # noqa
-                                 + pd.Timedelta(seconds=start_duration_seconds)
-                ]
+                if not df.empty:
+                    first_period = df.loc[
+                        df.index[0]: df.index[0]  # noqa
+                                     + pd.Timedelta(seconds=start_duration_seconds)
+                    ]
 
-                averaged_sample = first_period.mean(numeric_only=True)
+                    averaged_sample = first_period.mean(numeric_only=True)
+                else:
+                    averaged_sample = df.copy()
             except IndexError as e:
                 logger.error(
                     "There is not enough data in the flight computer to "

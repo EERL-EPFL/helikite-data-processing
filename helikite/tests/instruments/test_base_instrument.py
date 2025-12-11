@@ -80,11 +80,10 @@ def test_expected_columns_level0_oracles(
 
     columns = df.columns.to_list() + cpc_columns
 
-    date = datetime.date(2025, 2, 14)
-    cpc.date = date
-    smart_tether.date = date
-
     for instrument in OutputSchemas.ORACLES.instruments:
+        expected_columns = filter_columns_by_instrument(columns, instrument)
+        actual_columns = instrument.get_expected_columns(level=0, is_reference=False)
+
         # TODO: remove this once inconsistency with flight computer is resolved
         if instrument.name == "flight_computer":
             continue
@@ -92,9 +91,6 @@ def test_expected_columns_level0_oracles(
         # TODO: remove once filter is integrated in the pipeline
         if instrument.name == "filter":
             continue
-
-        expected_columns = filter_columns_by_instrument(columns, instrument)
-        actual_columns = instrument.get_expected_columns(level=0, is_reference=False)
 
         assert set(expected_columns) == set(actual_columns)
 
@@ -112,15 +108,12 @@ def test_expected_columns_level0_turtmann(
 
     columns = df.columns.to_list() + filter_columns + mcpc_columns + pops_columns
 
-    date = datetime.date(2024, 2, 20)
-    smart_tether.date = date
-
     for instrument in OutputSchemas.TURTMANN.instruments:
+        expected_columns = filter_columns_by_instrument(columns, instrument)
+        actual_columns = instrument.get_expected_columns(level=0, is_reference=False)
+
         # TODO: remove this once inconsistency with flight computer is resolved
         if instrument.name == "flight_computer":
             continue
-
-        expected_columns = filter_columns_by_instrument(columns, instrument)
-        actual_columns = instrument.get_expected_columns(level=0, is_reference=False)
 
         assert set(expected_columns) == set(actual_columns)
