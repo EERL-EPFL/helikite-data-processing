@@ -299,11 +299,10 @@ class Instrument(ABC):
                     )
                 successful_matches.append(filename)
                 if len(successful_matches) > 1:
-                    raise ValueError(
-                        "Multiple instruments detected: "
-                        f"{successful_matches}. "
-                        "Please ensure only one instrument is detected."
-                    )
+                    message = (f"Multiple instruments detected: {successful_matches}.\n"
+                               f"Please enter an index of the instrument to use: ")
+                    index = int(input(message))
+                    successful_matches = [successful_matches[index]]
 
         if not successful_matches:
             logger.warning(f"No instrument detected for {self.registry_name}")
