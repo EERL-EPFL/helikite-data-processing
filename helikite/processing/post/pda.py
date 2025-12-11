@@ -237,7 +237,7 @@ def sparse_data(series_name, window_size, min_number):
 
     #Plot Gradient of Number concentration vs. Number concentration with straight line
     # scatter plot of mean gradient (dN/dt) vs Number concentration N 
-def plot_grad_timeseries(data_df,line = False):
+def plot_grad_timeseries(data_df, raw_data, pathname_to_save, line=False, a=None, m=None):
     ###############################################################################
     # Plot one Time series and the gradient scatter in a 2*1 plot
     ###############################################################################
@@ -277,7 +277,7 @@ def plot_grad_timeseries(data_df,line = False):
     axs[1].xaxis.set_tick_params(which='minor', size=7, width=2, direction='in', bottom= 'on') # size — length of ticks in points
     axs[1].yaxis.set_tick_params(which='major', size=10, width=2, direction='in', left= 'on') #width — line width of ticks (we can set this to the same as our axis line width)
     axs[1].yaxis.set_tick_params(which='minor', size=7, width=2, direction='in', left= 'on') # direction — whether ticks will face in , out , or inout (both)
-    
+
     fig.autofmt_xdate()
     
     # Hide x labels and tick labels for top plots and y ticks for right plots.
@@ -300,7 +300,7 @@ def plot_grad_timeseries(data_df,line = False):
         plt.savefig(pathname_to_save / 'gradient_and_timeseries.png', format = 'png')
 
 
-def plot_power_law_scatter(data_df, a,m):
+def plot_power_law_scatter(data_df, a, m, pathname_to_save):
     """
     Scatter plot of gradient vs number concentrations, colored with wind direction data
     
@@ -341,7 +341,7 @@ def plot_power_law_scatter(data_df, a,m):
 
 
     
-def final_four_plots(starttime, endtime, series1, series2, series3, series4, series5):
+def final_four_plots(starttime, endtime, series1, series2, series3, series4, series5, pathname_to_save):
     sns.set_context("paper", rc={"font.size":14,
                                  "axes.titlesize":14,
                                  "xtick.labelsize":14,
@@ -446,7 +446,7 @@ def final_four_plots(starttime, endtime, series1, series2, series3, series4, ser
     
     plt.savefig(pathname_to_save / 'PDA_timeseries_four_filters.png', format = 'png', dpi=300 )
 
-def final_three_plots(starttime, endtime, series1, series2, series3, series4):
+def final_three_plots(starttime, endtime, series1, series2, series3, series4, pathname_to_save):
     
     sns.set_context("paper", rc={"font.size":14,
                                  "axes.titlesize":14,
@@ -534,7 +534,7 @@ def final_three_plots(starttime, endtime, series1, series2, series3, series4):
     plt.savefig(pathname_to_save / 'PDA_timeseries_3filters.png', format = 'png', dpi=300 )
 
 
-def final_two_plots(starttime, endtime, series1, series2, series3):
+def final_two_plots(starttime, endtime, series1, series2, series3, pathname_to_save):
     # Show the different mask parameters
     start_time = pd.to_datetime(starttime)
     end_time = pd.to_datetime(endtime)
@@ -605,7 +605,7 @@ def final_two_plots(starttime, endtime, series1, series2, series3):
 
 
 
-def averaging(avg_time): 
+def averaging(raw_data, avg_time):
     averages = pd.DataFrame()
     averages['concentration'] = raw_data['concentration'].resample(str(avg_time)+'s').mean()
     averages['gradient'] = raw_data['gradient'].resample(str(avg_time)+'s').mean()              
@@ -650,8 +650,8 @@ def load_data(datafile):
 
 #%% Start the Script with questions
 ############################################
-global a
-global m
+a = None
+m = None
 
 # Ask for pathnames and filenames
 file_path, pathname_to_save = pathname()
@@ -680,7 +680,7 @@ while True:
     else:
         try:
             avg_time = int(averaging_time)
-            avg_data = averaging(avg_time)  # run the averaging function
+            avg_data = averaging(raw_data, avg_time)  # run the averaging function
             break
         except ValueError:
             print('Please press ENTER if you wish to proceed without averaging or type in an averaging time (integer number)!') 
@@ -688,7 +688,7 @@ while True:
 
 # Create gradient and time series figure
 print('A new figure with the gradient vs concentration and a time series of your data was saved in your target directory. Please open it to make a decision for the next step.')
-plot_grad_timeseries(data_df = avg_data, line = False)
+plot_grad_timeseries(data_df=avg_data, raw_data=raw_data, pathname_to_save=pathname_to_save, line=False, a=a, m=m)
 
 # Step 1
 print('Step1: Check out the gradient vs concentration figure and decide whether you wish to separate polluted from clean data based on a power law (straight line in the logarithmnic gradient plot), or based on the interquartile range (IQR).')
@@ -715,7 +715,7 @@ while True:
         while True: 
             if line_decision =='n':
                 break
-            plot_power_law_scatter(data_df = avg_data, a = a, m = m)
+            plot_power_law_scatter(data_df=avg_data, a=a, m=m, pathname_to_save=pathname_to_save)
             print('PDA step 1A: Power law separation line slope m = '+str(m)+', intercept at a = '+str(a)+'. A new figure (gradient_and_line.png) with a potential separation line was saved to your target directory.', 
                       'Please open it and decide whether you want to correct the line.')
             try:
@@ -730,7 +730,7 @@ while True:
                         while True:
                             try:
                                 a, m = [float(s) for s in input('Step 1A. Actual intercept a = '+str(a)+', and slope m = '+str(m)+'. Type in the new values (a m):').split()]
-                                plot_power_law_scatter(data_df = avg_data, a = a, m = m)
+                                plot_power_law_scatter(data_df=avg_data, a=a, m=m, pathname_to_save=pathname_to_save)
                                 print('New figure with separation line saved to target directory. ')
 
                             except ValueError:
@@ -777,7 +777,7 @@ if gradient_filter_method == 'a':
     avg_data['threshold_clean'], avg_data['threshold_flag (1=polluted)'] = power_law_threshold_filter(avg_data['concentration'], avg_data['gradient'], a=a, m=m, upper_threshold=upper_threshold, lower_threshold = lower_threshold)
     print('A plot of the gradient vs concentration of your dataset with the separarion line in your target folder')
     # Todo: Change the plot so that the separated data can bee seen in time series. 
-    plot_grad_timeseries(data_df = avg_data, line = True)
+    plot_grad_timeseries(data_df = avg_data, line = True, a=a, m=m)
 elif gradient_filter_method == 'b':
     # avg_data['threshold_clean'], avg_data['threshold_flag (1=polluted)'] = iqr_filter(avg_data['concentration'], avg_data['gradient'], iqr_window = int(iqr_timewindow), iqr_threshold=iqr_factor, lower_threshold = lower_threshold, upper_threshold = upper_threshold)
     avg_data['iqr_outlier'], avg_data['clean_IQR'],  avg_data['threshlold_flag (1=polluted)'],  avg_data['threshold_clean'] = iqr_filter(avg_data['concentration'], avg_data['gradient'], iqr_window = int(iqr_timewindow), iqr_threshold=iqr_factor, lower_threshold = lower_threshold, upper_threshold = upper_threshold)
@@ -819,28 +819,28 @@ if neighbor_decision == 'y' and median_decision == 'y':
     print('Step 5: Apply sparse data filter, based on median filter')
     avg_data['sparse_clean'], avg_data['sparse_flag'] = sparse_data(avg_data['median_clean'], window_size = int(sparse_window), min_number = sparse_threshold)
     starttime, endtime = input('PDA done. To check out the result, type in a start time and an end time of a plot (YYYY-MM-DD YYYY-MM-DD): ').split()
-    final_four_plots(starttime, endtime, series1 = avg_data['concentration'], series2 = avg_data['threshold_clean'], series3 = avg_data['neighbor_clean'], series4 = avg_data['median_clean'], series5 = avg_data['sparse_clean'])
+    final_four_plots(starttime, endtime, series1=avg_data['concentration'], series2=avg_data['threshold_clean'], series3=avg_data['neighbor_clean'], series4=avg_data['median_clean'], series5=avg_data['sparse_clean'], pathname_to_save=pathname_to_save)
     print('A figure with four time series of different filtering steps was saved to your target directory.')
 
 elif neighbor_decision == 'y' and median_decision != 'y':
     print('Step 5: Apply sparse data filter, based on neighbor filter')
     avg_data['sparse_clean'], avg_data['sparse_flag'] = sparse_data(avg_data['neighbor_clean'], window_size = int(sparse_window), min_number = sparse_threshold)
     starttime, endtime = input('PDA done. To check out the result, type in a start time and an end time of a plot (YYYY-MM-DD YYYY-MM-DD): ').split()
-    final_three_plots(starttime, endtime, series1 = avg_data['concentration'], series2 = avg_data['threshold_clean'],series3 = avg_data['neighbor_clean'], series4 = avg_data['sparse_clean']) 
+    final_three_plots(starttime, endtime, series1=avg_data['concentration'], series2=avg_data['threshold_clean'], series3=avg_data['neighbor_clean'], series4=avg_data['sparse_clean'], pathname_to_save=pathname_to_save)
     print('A figure with three time series of different filtering steps was saved to your target directory.')
 
 elif neighbor_decision != 'y' and median_decision == 'y':
     print('Step 5: Apply sparse data filter, based on median filter witout neighbor filter')
     avg_data['sparse_clean'], avg_data['sparse_flag'] = sparse_data(avg_data['median_clean'], window_size = int(sparse_window), min_number = sparse_threshold)
     starttime, endtime = input('PDA done. To check out the result, type in a start time and an end time of a plot (YYYY-MM-DD YYYY-MM-DD): ').split()
-    final_three_plots(starttime, endtime, series1 = avg_data['concentration'], series2 = avg_data['threshold_clean'], series3 = avg_data['median_clean'], series4 = avg_data['sparse_clean']) 
+    final_three_plots(starttime, endtime, series1=avg_data['concentration'], series2=avg_data['threshold_clean'], series3=avg_data['median_clean'], series4=avg_data['sparse_clean'], pathname_to_save=pathname_to_save)
     print('A figure with three time series of different filtering steps was saved to your target directory.')
 
 elif neighbor_decision != 'y' and median_decision != 'y':
     print('Step 5: Apply sparse data filter, based on threshold filter')
     avg_data['sparse_clean'], avg_data['sparse_flag'] = sparse_data(avg_data['threshold_clean'], window_size = int(sparse_window), min_number = sparse_threshold)
     starttime, endtime = input('PDA done. To check out the result, type in a start time and an end time of a plot (YYYY-MM-DD YYYY-MM-DD): ').split()
-    final_two_plots(starttime, endtime, series1 = avg_data['concentration'], series2 = avg_data['threshold_clean'], series3 = avg_data['sparse_clean']) 
+    final_two_plots(starttime, endtime, series1=avg_data['concentration'], series2=avg_data['threshold_clean'], series3=avg_data['sparse_clean'], pathname_to_save=pathname_to_save)
     print('A figure with two time series of different filtering steps was saved to your target directory.')
 
 
