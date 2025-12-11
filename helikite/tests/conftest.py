@@ -47,6 +47,12 @@ def campaign_data_location_2025():
         os.path.dirname(__file__), "resources", "campaigns", "20250214"
     )
 
+@pytest.fixture
+def campaign_data_location_turtmann():
+    return os.path.join(
+        os.path.dirname(__file__), "resources", "campaigns", "turtmann"
+    )
+
 
 @pytest.fixture
 def fc_data_2022(campaign_data_location_2022: str):

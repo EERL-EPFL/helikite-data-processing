@@ -66,6 +66,7 @@ class STAPRaw(Instrument):
         super().__init__(*args, **kwargs)
 
     def data_corrections(self, df, *args, **kwargs):
+        df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
         return df
 
     def file_identifier(self, first_lines_of_csv) -> bool:

@@ -24,6 +24,7 @@ class Filter(Instrument):
         return False
 
     def data_corrections(self, df, *args, **kwargs):
+        df = df.loc[:, ~df.columns.str.startswith("Unnamed")]
         return df
 
     def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
