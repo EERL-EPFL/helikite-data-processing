@@ -401,7 +401,7 @@ def mCDA_STP_normalization(df):
     return df
 
 
-def plot_mcda_distribution(df, Midpoint_diameter_list, time_start=None, time_end=None):
+def plot_mcda_distribution(df, Midpoint_diameter_list, time_start, time_end):
     """
     Plot mCDA size distribution and total concentration.
 
