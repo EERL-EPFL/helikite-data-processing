@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 
+from helikite.instruments.base import filter_columns_by_instrument
+
 
 def crosscorr(datax, datay, lag=10):
     """Lag-N cross correlation.
@@ -40,8 +42,8 @@ def df_derived_by_shift(df_init, lag=0, NON_DER=[]):
     return df
 
 
-def df_findtimelag(df, range_list, instname=""):
-    filter_inst = [col for col in df if col.startswith(instname) if col.removeprefix(instname).isnumeric()]
+def df_findtimelag(df, range_list, instrument):
+    filter_inst = filter_columns_by_instrument(df.columns, instrument)
     df_inst = df[filter_inst].iloc[0]
 
     df_inst = df_inst.set_axis(range_list, copy=False)

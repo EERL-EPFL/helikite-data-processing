@@ -6,7 +6,7 @@ Total particle concentration in size range of 7 - 2000 nm.
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from helikite.instruments.base import Instrument
+from helikite.instruments.base import Instrument, filter_columns_by_instrument
 
 
 class CPC(Instrument):
@@ -60,7 +60,8 @@ class CPC(Instrument):
 
         return df
 
-    def CPC_STP_normalization(self, df):
+    @staticmethod
+    def CPC_STP_normalization(df):
         """
         Normalize CPC3007 concentrations to STP conditions and insert the results
         right after the existing CPC columns.
@@ -86,7 +87,7 @@ class CPC(Instrument):
         normalized_column = df['cpc_totalconc_raw'] * correction_factor
     
         # Prepare to insert
-        cpc_columns = [col for col in df.columns if col.startswith('cpc_')]
+        cpc_columns = filter_columns_by_instrument(df.columns, cpc)
         if cpc_columns:
             last_cpc_index = df.columns.get_loc(cpc_columns[-1]) + 1
         else:

@@ -375,3 +375,13 @@ class Instrument(ABC):
             if frame.code_context is not None and self.__class__.__name__ in frame.code_context[0]:
                 return frame.filename, frame.code_context[0]
         return None
+
+
+def filter_columns_by_instrument(columns: list[str], instrument: Instrument) -> list[str]:
+    instrument_prefix = f"{instrument.name}_"
+    instruments_same_prefix = [instr.name for instr in Instrument.REGISTRY.values()
+                               if instr.name.startswith(instrument_prefix)]
+    return [
+        col for col in columns
+        if col.startswith(instrument_prefix) and not any(col.startswith(instr) for instr in instruments_same_prefix)
+    ]

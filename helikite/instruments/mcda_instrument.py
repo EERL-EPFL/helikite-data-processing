@@ -8,7 +8,7 @@ Important variables to keep:
 
 """
 
-from helikite.instruments.base import Instrument
+from helikite.instruments.base import Instrument, filter_columns_by_instrument
 from helikite.constants import constants
 import pandas as pd
 import numpy as np
@@ -302,7 +302,7 @@ def mcda_concentration_calculations(df: pd.DataFrame) -> pd.DataFrame:
     mcda_dNdlogDp = mcda_dN.loc[:, 'mcda_dataB 1_dN':'mcda_dataB 256_dN'].div(mcda_dlogDp).add_suffix('_dlogDp')
 
     # Insert calculated DataFrames after existing mcda_ columns
-    mcda_columns = [col for col in df.columns if col.startswith('mcda_')]
+    mcda_columns = filter_columns_by_instrument(df.columns, mcda)
     last_mcda_index = df.columns.get_loc(mcda_columns[-1]) + 1 if mcda_columns else len(df.columns)
 
     df = pd.concat([
@@ -372,7 +372,7 @@ def mCDA_STP_normalization(df):
     normalized_columns['mcda_dN_totalconc_stp_recalculated'] = pd.DataFrame(normalized_columns)[dN_stp_columns].sum(axis=1, skipna=True)
 
     # Find where to insert (after the last mSEMS-related column)
-    mcda_columns = [col for col in df.columns if col.startswith('mcda_')]
+    mcda_columns = filter_columns_by_instrument(df.columns, mcda)
     if mcda_columns:
         last_mcda_index = df.columns.get_loc(mcda_columns[-1]) + 1
     else:

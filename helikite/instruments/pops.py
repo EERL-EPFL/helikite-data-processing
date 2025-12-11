@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from helikite.instruments.base import Instrument
+from helikite.instruments.base import Instrument, filter_columns_by_instrument
 
 
 class POPS(Instrument):
@@ -354,7 +354,7 @@ def POPS_total_conc_dNdlogDp(df):
     dp_notes = pd.read_csv(filenotePOPS, sep="\t", skiprows=[0])
 
     # Select only POPS data columns
-    pops_data = [col for col in df if col.startswith('pops_')]
+    pops_data = filter_columns_by_instrument(df.columns, pops)
     df_pops = df[pops_data].copy()
 
     # Remove duplicate column names before processing
@@ -431,7 +431,7 @@ def POPS_STP_normalization(df):
             normalized_columns[col + '_stp'] = df[col] * correction_factor
 
     # Insert the new columns after the last existing POPS column
-    pops_columns = [col for col in df.columns if col.startswith('pops_')]
+    pops_columns = filter_columns_by_instrument(df.columns, pops)
     if pops_columns:
         last_pops_index = df.columns.get_loc(pops_columns[-1]) + 1
     else:

@@ -36,7 +36,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 from helikite.constants import constants
-from helikite.instruments.base import Instrument
+from helikite.instruments.base import Instrument, filter_columns_by_instrument
 
 # Define logger for this file
 logger = logging.getLogger(__name__)
@@ -751,7 +751,7 @@ def mSEMS_total_conc_dN(df):
     plt.close("all")
 
     # Select only the mSEMS inverted columns
-    filter_msems = [col for col in df if col.startswith("msems_inverted_")]
+    filter_msems = filter_columns_by_instrument(df.columns, msems_inverted)
     msems_data = df[filter_msems]
 
     # Calculate dN for each bin and total concentration

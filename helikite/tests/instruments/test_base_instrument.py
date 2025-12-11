@@ -10,6 +10,7 @@ import pandas as pd
 import helikite.instruments
 from helikite.classes.data_processing import OutputSchemas
 from helikite.instruments import Instrument, cpc, smart_tether
+from helikite.instruments.base import filter_columns_by_instrument
 
 
 def test_read_data(campaign_file_paths_and_instruments_2022):
@@ -74,7 +75,7 @@ def test_expected_columns_level0_oracles(
     df_cpc = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level0_2025-02-14T18-32_header.csv")
 
     # in the old version of processing "cpc_DateTime" was the last CPC column
-    cpc_columns = [col for col in df_cpc.columns if col.startswith("cpc_")]
+    cpc_columns = filter_columns_by_instrument(df_cpc.columns, cpc)
     cpc_columns = ["cpc_DateTime"] + cpc_columns[:-1]
 
     columns = df.columns.to_list() + cpc_columns
@@ -92,7 +93,7 @@ def test_expected_columns_level0_oracles(
         if instrument.name == "filter":
             continue
 
-        expected_columns = [col for col in columns if col.startswith(f"{instrument.name}_")]
+        expected_columns = filter_columns_by_instrument(columns, instrument)
         actual_columns = instrument.get_expected_columns(level=0, is_reference=False)
 
         assert set(expected_columns) == set(actual_columns)
