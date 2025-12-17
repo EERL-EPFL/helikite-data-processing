@@ -518,6 +518,10 @@ class Cleaner(BaseProcessor):
             **{"level0": level0_metadata},
             **existing_metadata,
         }
+
+        dirpath = pathlib.Path(filename).parent
+        dirpath.mkdir(parents=True, exist_ok=True)
+
         # Save the metadata to the Parquet file
         table = table.replace_schema_metadata(merged_metadata)
         pq.write_table(table, f"{filename}.parquet")
