@@ -23,6 +23,9 @@ class Pico(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "Pico"
+
     def file_identifier(self, first_lines_of_csv) -> bool:
         if (
             "win0Fit0,win0Fit1,win0Fit2,win0Fit3,win0Fit4,win0Fit5,win0Fit6,"

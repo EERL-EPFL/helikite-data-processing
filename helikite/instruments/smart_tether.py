@@ -32,6 +32,9 @@ class SmartTether(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "ST"
+
     def date_extractor(self, first_lines_of_csv) -> datetime.datetime:
         date_line = first_lines_of_csv[1]
         date_string = date_line.split(" ")[-1].strip()

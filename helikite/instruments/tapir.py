@@ -21,6 +21,9 @@ class TAPIR(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "TAPIR"
+
     def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
         try:
             # Combine GT date and time into a single datetime

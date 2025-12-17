@@ -77,8 +77,9 @@ class Instrument(ABC):
                 print("Reregistering instrument")
         self.REGISTRY[self.registry_name] = self
 
+    @abstractmethod
     def __repr__(self):
-        return f"{self.registry_name}"
+        pass
 
     def add_config(self, yaml_props: dict[str, Any]):
         """Adds the application's config to the Instrument class

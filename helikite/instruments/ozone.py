@@ -16,6 +16,9 @@ class OzoneMonitor(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "Ozone"
+
     def file_identifier(self, first_lines_of_csv) -> bool:
         # This one is tricky. There is no header! May run into conflicts later
         # Check there are six commas in the first line, and ends in 0, and only

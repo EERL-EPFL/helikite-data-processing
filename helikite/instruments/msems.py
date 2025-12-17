@@ -47,6 +47,9 @@ class MSEMSInverted(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "mSEMS_inv"
+
     def data_corrections(self, df, **kwargs):
         """Create new columns to plot bins"""
 
@@ -203,6 +206,9 @@ class MSEMSReadings(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "mSEMS"
+
     def file_identifier(self, first_lines_of_csv) -> bool:
         if (
             "#mSEMS" in first_lines_of_csv[0]
@@ -254,6 +260,9 @@ class MSEMSScan(Instrument):
     # To match a "...SCAN.txt" file
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+
+    def __repr__(self):
+        return "mSEMS_scan"
 
     def file_identifier(self, first_lines_of_csv) -> bool:
         if (

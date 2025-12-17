@@ -17,6 +17,9 @@ class Filter(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "Filter"
+
     def file_identifier(self, first_lines_of_csv) -> bool:
         if "cur_pos	cntdown	smp_flw	smp_tmp	smp_prs" in first_lines_of_csv[self.header]:
             return True

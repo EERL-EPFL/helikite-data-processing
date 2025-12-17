@@ -17,6 +17,9 @@ class MCPC(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "mCPC"
+
     def file_identifier(self, first_lines_of_csv) -> bool:
         if "#MCPC-UAV" in first_lines_of_csv[0]:
             return True

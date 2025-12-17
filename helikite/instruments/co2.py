@@ -17,6 +17,9 @@ class CO2(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "CO2"
+
     def file_identifier(self, first_lines_of_csv: list[str]) -> bool:
         columns = first_lines_of_csv[self.header].split(",")
         return "CO2" in columns
