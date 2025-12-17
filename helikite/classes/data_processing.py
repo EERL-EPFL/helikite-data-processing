@@ -33,35 +33,65 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 class OutputSchema:
     instruments: list[Instrument]
     """List of instruments whose columns should be present in the output dataframe."""
-
+    colors: dict[Instrument, str]
+    """Instrument-to-color dictionary for the consistent across a campaign plotting"""
 
 # TODO: implement other schemas used
 class OutputSchemas(OutputSchema, Enum):
-    ORACLES = [
-        flight_computer_v2,
-        smart_tether,
-        pops,
-        msems_readings,
-        msems_inverted,
-        msems_scan,
-        mcda,
-        filter,
-        tapir,
-        cpc
-    ]
-    TURTMANN = [
-        flight_computer_v1,
-        smart_tether,
-        pops,
-        msems_readings,
-        msems_inverted,
-        msems_scan,
-        stap,
-        stap_raw,
-        co2,
-        filter,
-        mcpc,
-    ]
+    ORACLES = (
+        [
+            flight_computer_v2,
+            smart_tether,
+            pops,
+            msems_readings,
+            msems_inverted,
+            msems_scan,
+            mcda,
+            filter,
+            tapir,
+            cpc,
+        ],
+        {
+            flight_computer_v2: "C0",
+            smart_tether: "C1",
+            pops: "C2",
+            msems_readings: "C3",
+            msems_inverted: "C6",
+            msems_scan: "C5",
+            mcda: "C4",
+            filter: "C7",
+            tapir: "C8",
+            cpc: "C9",
+        }
+    )
+
+    TURTMANN = (
+        [
+            flight_computer_v1,
+            smart_tether,
+            pops,
+            msems_readings,
+            msems_inverted,
+            msems_scan,
+            stap,
+            stap_raw,
+            co2,
+            filter,
+        ],
+        {
+            flight_computer_v1: "C0",
+            smart_tether: "C1",
+            pops: "C2",
+            msems_readings: "C3",
+            msems_inverted: "C6",
+            msems_scan: "C5",
+            stap: "C4",
+            stap_raw: "C8",
+            co2: "C9",
+            filter: "C7",
+        }
+    )
+
 
 
 class DataProcessorLevel1(BaseProcessor):

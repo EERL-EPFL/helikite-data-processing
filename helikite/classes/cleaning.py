@@ -4,6 +4,7 @@ import os
 import pathlib
 from itertools import cycle
 
+import matplotlib.pyplot as plt
 import numpy as np
 import orjson
 import pandas as pd
@@ -281,6 +282,48 @@ class Cleaner(BaseProcessor):
         )
 
         fig.show()
+
+    def plot_time_sync(self, save_path: str | pathlib.Path, skip: list[Instrument]):
+        plt.close('all')
+        fig, (ax) = plt.subplots(1, 1, figsize=(10, 8))
+
+        for instrument in self._instruments:
+            if instrument in skip:
+                continue
+
+            if instrument.pressure_column not in instrument.df.columns:
+                print(f"Note: {instrument.name} does not have a pressure column")
+                continue
+
+            color = self._output_schema.colors[instrument]
+            if instrument != self._reference_instrument:
+                # Initial (before timeshift)
+                ax.plot(
+                    instrument.df_before_timeshift.index,
+                    instrument.df_before_timeshift['pressure'],
+                    linestyle='dashed',
+                    color=color,
+                    label=f'{instrument} init'
+                )
+
+            # Corrected
+            label = f'{instrument} corr' if instrument != self._reference_instrument else str(instrument)
+            pressure = instrument.df['pressure'].ffill()
+            ax.plot(instrument.df.index, pressure, color=color, label=label)
+
+        ax.set_xlabel("Time", fontsize=10, labelpad=15, fontweight='bold')
+        ax.set_ylabel("Pressure (hPa)", fontsize=10, labelpad=15, fontweight='bold')
+        ax.set_title(f'Flight {self.flight} ({self.flight_date}_B) [Level 0]', fontsize=12, fontweight='bold',
+                     pad=15)
+        ax.grid(ls='--')
+        ax.legend(ncols=2)
+
+        # Show the plot
+        plt.show()
+
+        print("Saving figure to:", save_path)
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+
 
     @function_dependencies(["set_time_as_index"], use_once=True)
     def remove_duplicates(self) -> None:

@@ -153,11 +153,9 @@ class MSEMSInverted(Instrument):
         # the header line of MSEMS Inverted is either the 0th or 55th line
         # To match "...INVERTED.txt" file
         if self.expected_header_value in first_lines_of_csv[0]:
-            logger.info("mSEMS Inverted file detected at header 0")
             return True
 
         if self.expected_header_value in first_lines_of_csv[self.header]:
-            logger.info(f"mSEMS Inverted file detected at header {self.header}")
             return True
 
         return False
