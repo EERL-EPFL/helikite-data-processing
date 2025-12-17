@@ -3,6 +3,9 @@ from abc import abstractmethod, ABC
 from functools import wraps
 from typing import Any
 
+from helikite.classes.data_processing import OutputSchema
+from helikite.instruments import Instrument
+
 
 def function_dependencies(required_operations: list[str] = [], use_once=False):
     """A decorator to enforce that a method can only run if the required
@@ -54,8 +57,24 @@ def function_dependencies(required_operations: list[str] = [], use_once=False):
 
 
 class BaseProcessor(ABC):
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        output_schema: OutputSchema,
+        instruments: list[Instrument],
+        reference_instrument: Instrument,
+    ) -> None:
+        self._output_schema = output_schema
+        self._instruments: list[Instrument] = instruments
+        self._reference_instrument: Instrument = reference_instrument
         self._completed_operations: list[str] = []
+
+    @property
+    def instruments(self):
+        return self._instruments
+
+    @property
+    def reference_instrument(self):
+        return self._reference_instrument
 
     @abstractmethod
     def _data_state_info(self) -> list[str]:

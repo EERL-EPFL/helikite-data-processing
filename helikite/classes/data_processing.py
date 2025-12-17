@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from helikite.classes.base import BaseProcessor, function_dependencies
 from helikite.constants import constants
 from helikite.instruments import Instrument, flight_computer_v1, flight_computer_v2, smart_tether, pops, msems_readings, \
-    msems_inverted, msems_scan, mcda, filter, tapir, cpc, stap, stap_raw, co2, mcpc
+    msems_inverted, msems_scan, mcda, filter, tapir, cpc, stap, stap_raw, co2
 from helikite.instruments.co2 import process_CO2_STP
 from helikite.instruments.cpc3007 import CPC
 from helikite.instruments.flight_computer import FlightComputer
@@ -35,11 +35,14 @@ class OutputSchema:
     """List of instruments whose columns should be present in the output dataframe."""
     colors: dict[Instrument, str]
     """Instrument-to-color dictionary for the consistent across a campaign plotting"""
+    reference_instrument_candidates: list[Instrument]
+    """Reference instrument candidates for the automatic instruments detection"""
+
 
 # TODO: implement other schemas used
 class OutputSchemas(OutputSchema, Enum):
-    ORACLES = (
-        [
+    ORACLES = OutputSchema(
+        instruments=[
             flight_computer_v2,
             smart_tether,
             pops,
@@ -51,7 +54,7 @@ class OutputSchemas(OutputSchema, Enum):
             tapir,
             cpc,
         ],
-        {
+        colors={
             flight_computer_v2: "C0",
             smart_tether: "C1",
             pops: "C2",
@@ -62,11 +65,12 @@ class OutputSchemas(OutputSchema, Enum):
             filter: "C7",
             tapir: "C8",
             cpc: "C9",
-        }
+        },
+        reference_instrument_candidates=[flight_computer_v2, smart_tether, pops]
     )
 
-    TURTMANN = (
-        [
+    TURTMANN = OutputSchema(
+        instruments=[
             flight_computer_v1,
             smart_tether,
             pops,
@@ -78,7 +82,7 @@ class OutputSchemas(OutputSchema, Enum):
             co2,
             filter,
         ],
-        {
+        colors={
             flight_computer_v1: "C0",
             smart_tether: "C1",
             pops: "C2",
@@ -89,9 +93,9 @@ class OutputSchemas(OutputSchema, Enum):
             stap_raw: "C8",
             co2: "C9",
             filter: "C7",
-        }
+        },
+        reference_instrument_candidates=[flight_computer_v2, smart_tether, pops]
     )
-
 
 
 class DataProcessorLevel1(BaseProcessor):
@@ -101,12 +105,11 @@ class DataProcessorLevel1(BaseProcessor):
         metadata: BaseModel,
         output_schema: OutputSchema,
     ) -> None:
-        super().__init__()
+        instruments, reference_instrument = _get_instruments(df, metadata)
+        super().__init__(output_schema, instruments, reference_instrument)
         self._df = df.copy()
         self._metadata = metadata
-        self._output_schema = output_schema
         self._outlier_files: set[str] = set()
-        self._instruments, self._reference_instrument = _get_instruments(df, metadata)
 
     @property
     def df(self) -> pd.DataFrame:
