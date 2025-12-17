@@ -16,6 +16,7 @@ import pyarrow.parquet as pq
 from ipywidgets import Output, VBox
 
 from helikite.classes.base import BaseProcessor, function_dependencies
+from helikite.classes.data_processing import OutputSchema
 from helikite.constants import constants
 from helikite.instruments import msems_inverted, msems_scan
 from helikite.instruments.base import Instrument, filter_columns_by_instrument
@@ -30,16 +31,22 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 class Cleaner(BaseProcessor):
     def __init__(
         self,
-        instruments: list[Instrument],
-        reference_instrument: Instrument,
+        output_schema: OutputSchema,
         input_folder: str | pathlib.Path,
         flight_date: datetime.date,
+        instruments: list[Instrument] | None = None,
+        reference_instrument: Instrument | None = None,
         flight: str | None = None,
         time_takeoff: datetime.datetime | None = None,
         time_landing: datetime.datetime | None = None,
         time_offset: datetime.time = datetime.time(0, 0),
     ) -> None:
-        super(Cleaner, self).__init__()
+        if instruments is None:
+            instruments = Cleaner.detect_instruments(output_schema, input_folder)
+        if reference_instrument is None:
+            reference_instrument = Cleaner.choose_reference_instrument(output_schema, instruments)
+
+        super(Cleaner, self).__init__(output_schema, instruments, reference_instrument)
 
         self._instruments: list[Instrument] = []  # For managing in batches
         self.input_folder: str = input_folder if isinstance(input_folder, str) else str(input_folder)
@@ -51,7 +58,7 @@ class Cleaner(BaseProcessor):
         self.pressure_column: str = constants.HOUSEKEEPING_VAR_PRESSURE
         self.master_df: pd.DataFrame | None = None
         self.housekeeping_df: pd.DataFrame | None = None
-        self.reference_instrument: Instrument = reference_instrument
+        self._reference_instrument: Instrument = reference_instrument
 
         # Create an attribute from each instrument.name
         for instrument in instruments:
@@ -89,7 +96,7 @@ class Cleaner(BaseProcessor):
 
         for instrument in self._instruments:
             reference = (
-                "Yes" if instrument == self.reference_instrument else "No"
+                "Yes" if instrument == self._reference_instrument else "No"
             )
             state_info.append(
                 f"{instrument.name:<20}{len(instrument.df):<10}{reference:<10}"
@@ -410,18 +417,18 @@ class Cleaner(BaseProcessor):
 
             # Use same time resolution as reference instrument
             instrument.df.index = instrument.df.index.astype(
-                self.reference_instrument.df.index.dtype
+                self._reference_instrument.df.index.dtype
             )
 
         print("Using merge_asof to align and merge instrument dataframes.")
 
         # Create a full 1s-spaced datetime index to preserve in the final master_df
-        start = self.reference_instrument.df.index.min()
-        end = self.reference_instrument.df.index.max()
+        start = self._reference_instrument.df.index.min()
+        end = self._reference_instrument.df.index.max()
         full_index = pd.date_range(start=start, end=end, freq="1s")
 
         # Start with the reference instrument dataframe
-        self.master_df = self.reference_instrument.df.copy()
+        self.master_df = self._reference_instrument.df.copy()
         self.master_df.columns = [
             f"{self.reference_instrument.name}_{col}"
             for col in self.master_df.columns
@@ -429,7 +436,7 @@ class Cleaner(BaseProcessor):
 
         # Merge all other dataframes with merge_asof
         for instrument in self._instruments:
-            if instrument == self.reference_instrument:
+            if instrument == self._reference_instrument:
                 continue
 
             temp_df = instrument.df.copy()
@@ -673,7 +680,7 @@ class Cleaner(BaseProcessor):
             # Add pressure trace to the plot. If it is the reference
             # instrument, plot it with a thicker/darker line, otherwise,
             # plot it lightly with some transparency.
-            if instrument == self.reference_instrument:
+            if instrument == self._reference_instrument:
                 fig.add_trace(
                     go.Scatter(
                         x=instrument.df.index,
@@ -698,7 +705,7 @@ class Cleaner(BaseProcessor):
         # Attach the callback to all traces
         for trace in fig.data:
             # Only allow the reference instrument to be clickable
-            if trace.name == self.reference_instrument.name:
+            if trace.name == self._reference_instrument.name:
                 trace.on_click(select_point_callback)
 
         # Customize plot layout
@@ -793,26 +800,26 @@ class Cleaner(BaseProcessor):
             )
 
             # Apply the threshold to the reference instrument
-            self.reference_instrument.df.loc[
+            self._reference_instrument.df.loc[
                 (
-                    self.reference_instrument.df[
-                        self.reference_instrument.pressure_column
+                    self._reference_instrument.df[
+                        self._reference_instrument.pressure_column
                     ]
                     > reference_pressure_thresholds[1]
                 )
                 | (
-                    self.reference_instrument.df[
-                        self.reference_instrument.pressure_column
+                    self._reference_instrument.df[
+                        self._reference_instrument.pressure_column
                     ]
                     < reference_pressure_thresholds[0]
                 ),
-                self.reference_instrument.pressure_column,
+                self._reference_instrument.pressure_column,
             ] = np.nan
-            self.reference_instrument.df[
-                self.reference_instrument.pressure_column
+            self._reference_instrument.df[
+                self._reference_instrument.pressure_column
             ] = (
-                self.reference_instrument.df[
-                    self.reference_instrument.pressure_column
+                self._reference_instrument.df[
+                    self._reference_instrument.pressure_column
                 ]
                 .interpolate()
                 .rolling(window=rolling_window_size)
@@ -836,25 +843,25 @@ class Cleaner(BaseProcessor):
         # in the range
         rangelag = [i for i in range(-max_lag, max_lag + 1) if i != 0]
 
-        self.df_pressure = self.reference_instrument.df[
+        self.df_pressure = self._reference_instrument.df[
             [self.reference_instrument.pressure_column]
         ].copy()
         self.df_pressure.rename(
             columns={
-                self.reference_instrument.pressure_column: self.reference_instrument.name  # noqa
+                self._reference_instrument.pressure_column: self._reference_instrument.name  # noqa
             },
             inplace=True,
         )
 
         for instrument in self._instruments:
-            if instrument == self.reference_instrument:
+            if instrument == self._reference_instrument:
                 # We principally use the ref for this, don't merge with itself
                 continue
 
             if instrument.pressure_column in instrument.df.columns:
                 df = instrument.df[[instrument.pressure_column]].copy()
                 df.index = df.index.astype(
-                    self.reference_instrument.df.index.dtype
+                    self._reference_instrument.df.index.dtype
                 )
 
                 df.rename(
@@ -924,7 +931,7 @@ class Cleaner(BaseProcessor):
                 # print("Applying match pressure correction:")
                 # for instrument in self._instruments:
                 #     print(f"\tWorking on instrument: {instrument.name}")
-                #     if instrument == self.reference_instrument:
+                #     if instrument == self._reference_instrument:
                 #         print("\tSkipping reference instrument")
                 #         continue
                 #     if instrument.pressure_column not in instrument.df.columns:
@@ -972,7 +979,7 @@ class Cleaner(BaseProcessor):
                     instrument_is_matched_with = primary_instrument
                     break
 
-            if instrument == self.reference_instrument:
+            if instrument == self._reference_instrument:
                 print("\tSkipping reference instrument\n")
                 continue
             if instrument.pressure_column in instrument.df.columns:
@@ -996,7 +1003,7 @@ class Cleaner(BaseProcessor):
                 instrument.df_before_timeshift, instrument.df = (
                     crosscorrelation.df_lagshift(
                         instrument.df,
-                        self.reference_instrument.df,
+                        self._reference_instrument.df,
                         instrument.corr_max_idx,
                         f"{instrument.name}_",
                     )
@@ -1032,7 +1039,7 @@ class Cleaner(BaseProcessor):
                 secondary_instrument.df,
             ) = crosscorrelation.df_lagshift(
                 secondary_instrument.df,
-                self.reference_instrument.df,
+                self._reference_instrument.df,
                 primary_instrument.corr_max_idx,
                 f"{secondary_instrument.name}_",
             )
@@ -1153,18 +1160,18 @@ class Cleaner(BaseProcessor):
         return df_full
 
     @staticmethod
-    def detect_instruments(input_folder: str | pathlib.Path) -> list[Instrument]:
+    def detect_instruments(output_schema: OutputSchema, input_folder: str | pathlib.Path) -> list[Instrument]:
         """
         Automatically detect instruments from the files available in the input folder.
         """
         matched_files = set()
         flight_instruments = []
 
-        for instrument_name, instrument_obj in Instrument.REGISTRY.items():
-            matched_file = instrument_obj.detect_from_folder(input_folder, quiet=False)
+        for instrument in output_schema.instruments:
+            matched_file = instrument.detect_from_folder(input_folder, quiet=False)
 
             if matched_file:
-                flight_instruments.append(instrument_obj)
+                flight_instruments.append(instrument)
                 matched_files.add(os.path.basename(matched_file))
 
         for file in os.listdir(input_folder):
@@ -1174,9 +1181,9 @@ class Cleaner(BaseProcessor):
         return flight_instruments
 
     @staticmethod
-    def choose_reference_instrument(instruments: list[Instrument],
-                                    reference_instrument_candidates: list[Instrument]) -> Instrument | None:
-        for candidate in reference_instrument_candidates:
+    def choose_reference_instrument(output_schema: OutputSchema,
+                                    instruments: list[Instrument]) -> Instrument | None:
+        for candidate in output_schema.reference_instrument_candidates:
             if candidate in instruments:
                 return candidate
 
