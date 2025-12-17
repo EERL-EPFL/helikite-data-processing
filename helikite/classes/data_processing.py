@@ -1,7 +1,5 @@
 import logging
 import pathlib
-from dataclasses import dataclass
-from enum import Enum
 from typing import Any
 
 import folium
@@ -15,10 +13,10 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from pydantic import BaseModel
 
-from helikite.classes.base import BaseProcessor, function_dependencies
+from helikite.classes.base import BaseProcessor, function_dependencies, OutputSchema
 from helikite.constants import constants
-from helikite.instruments import Instrument, flight_computer_v1, flight_computer_v2, smart_tether, pops, msems_readings, \
-    msems_inverted, msems_scan, mcda, filter, tapir, cpc, stap, stap_raw, co2
+from helikite.instruments import Instrument, flight_computer_v1, flight_computer_v2, pops, msems_inverted, mcda, cpc, \
+    stap, co2
 from helikite.instruments.co2 import process_CO2_STP
 from helikite.instruments.cpc3007 import CPC
 from helikite.instruments.flight_computer import FlightComputer
@@ -35,75 +33,6 @@ from helikite.processing.post.outliers import plot_outliers_check, plot_gps_on_m
 
 logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
-
-
-@dataclass(frozen=True)
-class OutputSchema:
-    instruments: list[Instrument]
-    """List of instruments whose columns should be present in the output dataframe."""
-    colors: dict[Instrument, str]
-    """Instrument-to-color dictionary for the consistent across a campaign plotting"""
-    reference_instrument_candidates: list[Instrument]
-    """Reference instrument candidates for the automatic instruments detection"""
-
-
-# TODO: implement other schemas used
-class OutputSchemas(OutputSchema, Enum):
-    ORACLES = OutputSchema(
-        instruments=[
-            flight_computer_v2,
-            smart_tether,
-            pops,
-            msems_readings,
-            msems_inverted,
-            msems_scan,
-            mcda,
-            filter,
-            tapir,
-            cpc,
-        ],
-        colors={
-            flight_computer_v2: "C0",
-            smart_tether: "C1",
-            pops: "C2",
-            msems_readings: "C3",
-            msems_inverted: "C6",
-            msems_scan: "C5",
-            mcda: "C4",
-            filter: "C7",
-            tapir: "C8",
-            cpc: "C9",
-        },
-        reference_instrument_candidates=[flight_computer_v2, smart_tether, pops]
-    )
-
-    TURTMANN = OutputSchema(
-        instruments=[
-            flight_computer_v1,
-            smart_tether,
-            pops,
-            msems_readings,
-            msems_inverted,
-            msems_scan,
-            stap,
-            stap_raw,
-            co2,
-            filter,
-        ],
-        colors={
-            flight_computer_v1: "C0",
-            smart_tether: "C1",
-            pops: "C2",
-            msems_readings: "C3",
-            msems_inverted: "C6",
-            msems_scan: "C5",
-            stap: "C4",
-            stap_raw: "C8",
-            co2: "C9",
-            filter: "C7",
-        },
-        reference_instrument_candidates=[flight_computer_v2, smart_tether, pops]
-    )
 
 
 class DataProcessorLevel1(BaseProcessor):
