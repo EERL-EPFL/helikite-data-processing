@@ -14,6 +14,9 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 
 class FlightComputer(Instrument):
+    def __repr__(self):
+        return "FC"
+
     @property
     @abstractmethod
     def T1_column(self) -> str:

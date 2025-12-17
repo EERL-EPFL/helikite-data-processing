@@ -33,6 +33,9 @@ class POPS(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "POPS"
+
     def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
         """Set the DateTime as index of the dataframe and correct if needed
 

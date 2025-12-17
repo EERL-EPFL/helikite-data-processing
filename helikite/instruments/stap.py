@@ -21,6 +21,9 @@ class STAP(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "STAP"
+
     def data_corrections(self, df, *args, **kwargs):
         return df
 
@@ -64,6 +67,9 @@ class STAPRaw(Instrument):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+
+    def __repr__(self):
+        return "STAP_raw"
 
     def data_corrections(self, df, *args, **kwargs):
         df = df.loc[:, ~df.columns.str.startswith("Unnamed")]

@@ -16,6 +16,9 @@ class CPC(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "CPC"
+
     def data_corrections(self, df, *args, **kwargs) -> pd.DataFrame:
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
         df = df.rename(columns={'Concentration (#/cm3)': 'totalconc_raw'})

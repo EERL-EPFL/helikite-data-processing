@@ -11,6 +11,9 @@ class MockInstrument(Instrument):
         )
         self.df = self.df_raw.copy()
 
+    def __repr__(self):
+        return "Mock"
+
     def read_from_folder(self, folder, quiet=False):
         # Return df_raw directly for testing purposes
         return self.df_raw
