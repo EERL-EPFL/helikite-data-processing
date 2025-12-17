@@ -313,9 +313,6 @@ class Instrument(ABC):
             logger.warning(f"No instrument detected for {self.registry_name}")
             return None
 
-        if not quiet:
-            logger.info(f"Matched file: {successful_matches[0]}")
-
         return os.path.join(input_folder, successful_matches[0])
 
     def read_from_folder(
