@@ -1,12 +1,23 @@
 import inspect
 from abc import abstractmethod, ABC
+from collections import defaultdict
 from dataclasses import dataclass
-from enum import Enum
 from functools import wraps
+from itertools import cycle
 from typing import Any
+
+import matplotlib.pyplot as plt
 
 from helikite.instruments import Instrument, flight_computer_v2, smart_tether, pops, msems_readings, msems_inverted, \
     msems_scan, mcda, filter, tapir, cpc, flight_computer_v1, stap, stap_raw, co2
+
+
+def _build_colors_defaultdict():
+    cmap = plt.get_cmap("tab10")
+    colors = cycle(cmap.colors)
+    color_dict = defaultdict(lambda: next(colors))
+
+    return color_dict
 
 
 @dataclass(frozen=True)
@@ -19,7 +30,7 @@ class OutputSchema:
     """Reference instrument candidates for the automatic instruments detection"""
 
 
-class OutputSchemas(OutputSchema, Enum):
+class OutputSchemas:
     ORACLES = OutputSchema(
         instruments=[
             flight_computer_v2,
@@ -45,7 +56,7 @@ class OutputSchemas(OutputSchema, Enum):
             tapir: "C8",
             cpc: "C9",
         },
-        reference_instrument_candidates=[flight_computer_v2, smart_tether, pops]
+        reference_instrument_candidates=[flight_computer_v2, smart_tether, pops],
     )
 
     TURTMANN = OutputSchema(
@@ -57,7 +68,6 @@ class OutputSchemas(OutputSchema, Enum):
             msems_inverted,
             msems_scan,
             stap,
-            stap_raw,
             co2,
             filter,
         ],
@@ -73,8 +83,18 @@ class OutputSchemas(OutputSchema, Enum):
             co2: "C9",
             filter: "C7",
         },
-        reference_instrument_candidates=[flight_computer_v2, smart_tether, pops]
+        reference_instrument_candidates=[flight_computer_v2, smart_tether, pops],
     )
+
+    ALL = OutputSchema(
+        instruments=list(Instrument.REGISTRY.values()),
+        colors=_build_colors_defaultdict(),
+        reference_instrument_candidates=[flight_computer_v2, flight_computer_v1, smart_tether, pops],
+    )
+
+    @classmethod
+    def from_name(cls, name: str):
+        return getattr(cls, name.upper())
 
 
 def function_dependencies(required_operations: list[str] = [], use_once=False):
