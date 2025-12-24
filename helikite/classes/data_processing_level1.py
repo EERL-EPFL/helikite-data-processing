@@ -15,7 +15,7 @@ from pydantic import BaseModel
 
 from helikite.classes.base import BaseProcessor, function_dependencies, OutputSchema
 from helikite.constants import constants
-from helikite.instruments import Instrument, flight_computer_v1, flight_computer_v2, pops, msems_inverted, mcda, cpc, \
+from helikite.instruments import Instrument, pops, msems_inverted, mcda, cpc, \
     stap, co2
 from helikite.instruments.co2 import process_CO2_STP
 from helikite.instruments.cpc3007 import CPC
@@ -26,7 +26,7 @@ from helikite.instruments.msems import mSEMS_total_conc_dN, mSEMS_STP_normalizat
 from helikite.instruments.pops import POPS_total_conc_dNdlogDp, POPS_STP_normalization
 from helikite.instruments.stap import STAP_STP_normalization
 from helikite.processing import choose_outliers
-from helikite.processing.post.TandRH import T_RH_averaging
+from helikite.processing.post.TandRH import T_RH_averaging, plot_T_RH
 from helikite.processing.post.altitude import altitude_calculation_barometric
 from helikite.processing.post.level1 import flight_profiles_1
 from helikite.processing.post.outliers import plot_outliers_check, plot_gps_on_map
@@ -137,8 +137,28 @@ class DataProcessorLevel1(BaseProcessor):
         return plot_gps_on_map(self._df, lat_col, lon_col, lat_dir, lon_dir, center_coords, zoom_start)
 
     @function_dependencies(required_operations=["set_outliers_to_nan"], use_once=False)
-    def T_RH_averaging(self):
-        self._df = T_RH_averaging(self._df, self._flight_computer)
+    def T_RH_averaging(self,
+                       columns_t: list[str] | None = None, columns_rh: list[str] | None = None,
+                       nan_threshold: int = 400):
+        columns_t = columns_t if columns_t is not None else self._build_FC_T_columns()
+        columns_rh = columns_rh if columns_rh is not None else self._build_FC_RH_columns()
+        self._df = T_RH_averaging(self._df, columns_t, columns_rh, nan_threshold)
+
+    @function_dependencies(required_operations=["T_RH_averaging"], use_once=False)
+    def plot_T_RH(self, save_path: str | pathlib.Path | None = None):
+        plot_T_RH(self._df, self._flight_computer, save_path)
+
+    def _build_FC_T_columns(self) -> list[str]:
+        return [
+            f"{self._flight_computer.name}_{self._flight_computer.T1_column}",
+            f"{self._flight_computer.name}_{self._flight_computer.T2_column}",
+        ]
+
+    def _build_FC_RH_columns(self) -> list[str]:
+        return [
+            f"{self._flight_computer.name}_{self._flight_computer.H1_column}",
+            f"{self._flight_computer.name}_{self._flight_computer.H2_column}",
+        ]
 
     @function_dependencies(required_operations=["T_RH_averaging"], use_once=False)
     def altitude_calculation_barometric(self):

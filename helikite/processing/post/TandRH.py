@@ -1,53 +1,58 @@
+import pathlib
+
 import matplotlib.pyplot as plt
 import pandas as pd
 
 from helikite.instruments.flight_computer import FlightComputer
 
 
-def T_RH_averaging(df, flight_computer: FlightComputer, nan_threshold=400):
+def T_RH_averaging(df, columns_t: list[str], columns_rh: list[str], nan_threshold: int):
     """
     Averages flight computer temperature and humidity data from two sensors,
     based on the number of NaNs, and plots temperature and RH versus pressure.
 
     Parameters:
         df (pd.DataFrame): DataFrame containing flight computer data.
+        columns_t: List of column names containing temperature data.
+        columns_rh: List of column names containing humidity data.
         nan_threshold (int): Number of NaNs to tolerate before discarding a sensor.
-        flight_computer (FlightComputer):
-            Flight computer instance, required to obtain correct column names, since they differ between versions.
 
     Returns:
         pd.DataFrame: Updated DataFrame with 'Average_Temperature' and 'Average_RH' columns.
     """
 
+    # Count number of NaNs
+    columns_filtered_t = _filter_columns_by_nan_count(columns_t, df, nan_threshold)
+    columns_filtered_rh = _filter_columns_by_nan_count(columns_rh, df, nan_threshold)
+
+    # Temperature averaging
+    df["Average_Temperature"] = df[columns_filtered_t].mean(axis=1).ffill().bfill()
+    df["Average_RH"] = df[columns_filtered_rh].mean(axis=1).ffill().bfill()
+
+    return df
+
+
+def _filter_columns_by_nan_count(columns: list[str], df: pd.DataFrame, nan_threshold: int) -> list[str]:
+    print("Number of NaNs -", end="")
+    columns_filtered = []
+    for col in columns:
+        nan_count = df[col].isna().sum()
+        print(f" {col}: {nan_count}", end="")
+        if nan_count <= nan_threshold:
+            columns_filtered.append(col)
+    print()
+
+    if len(columns_filtered) == 0:
+        columns_filtered = columns
+
+    return columns_filtered
+
+
+def plot_T_RH(df, flight_computer: FlightComputer, save_path: str | pathlib.Path | None):
     t1_column = f"{flight_computer.name}_{flight_computer.T1_column}"
     t2_column = f"{flight_computer.name}_{flight_computer.T2_column}"
     h1_column = f"{flight_computer.name}_{flight_computer.H1_column}"
     h2_column = f"{flight_computer.name}_{flight_computer.H2_column}"
-
-    # Count number of NaNs
-    Out1T_nan = df[t1_column].isna().sum()
-    Out2T_nan = df[t2_column].isna().sum()
-    Out1H_nan = df[h1_column].isna().sum()
-    Out2H_nan = df[h2_column].isna().sum()
-
-    print("Number of NaNs - Out1_T:", Out1T_nan, "Out2_T:", Out2T_nan)
-    print("Number of NaNs - Out1_H:", Out1H_nan, "Out2_H:", Out2H_nan)
-
-    # Temperature averaging
-    if Out1T_nan > nan_threshold:
-        df["Average_Temperature"] = df[t2_column].copy()
-    elif Out2T_nan > nan_threshold:
-        df["Average_Temperature"] = df[t1_column].copy()
-    else:
-        df["Average_Temperature"] = df[[t1_column, t2_column]].mean(axis=1)
-
-    # Humidity averaging
-    if Out1H_nan > nan_threshold:
-        df["Average_RH"] = df[h2_column].copy()
-    elif Out2H_nan > nan_threshold:
-        df["Average_RH"] = df[h1_column].copy()
-    else:
-        df["Average_RH"] = df[[h1_column, h2_column]].mean(axis=1)
 
     # PLOT
     plt.close('all')
@@ -74,6 +79,9 @@ def T_RH_averaging(df, flight_computer: FlightComputer, nan_threshold=400):
     ax[1].grid(True)
 
     plt.tight_layout()
-    plt.show()
 
-    return df
+    if save_path is not None:
+        print("Saving figure to:", save_path)
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+
+    plt.show()
