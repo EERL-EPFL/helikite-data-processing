@@ -1,5 +1,6 @@
 import logging
 import pathlib
+from numbers import Number
 from typing import Any
 
 import folium
@@ -27,7 +28,7 @@ from helikite.instruments.pops import POPS_total_conc_dNdlogDp, POPS_STP_normali
 from helikite.instruments.stap import STAP_STP_normalization
 from helikite.processing import choose_outliers
 from helikite.processing.post.TandRH import T_RH_averaging, plot_T_RH
-from helikite.processing.post.altitude import altitude_calculation_barometric
+from helikite.processing.post.altitude import altitude_calculation_barometric, plot_altitude
 from helikite.processing.post.level1 import flight_profiles_1
 from helikite.processing.post.outliers import plot_outliers_check, plot_gps_on_map
 
@@ -161,8 +162,12 @@ class DataProcessorLevel1(BaseProcessor):
         ]
 
     @function_dependencies(required_operations=["T_RH_averaging"], use_once=False)
-    def altitude_calculation_barometric(self):
-        self._df = altitude_calculation_barometric(self._df, self._metadata)
+    def altitude_calculation_barometric(self, offset_to_add: Number = 0):
+        self._df = altitude_calculation_barometric(self._df, self._metadata, offset_to_add)
+
+    @function_dependencies(required_operations=["altitude_calculation_barometric"], use_once=False)
+    def plot_altitude(self):
+        plot_altitude(self._df)
 
     @function_dependencies(required_operations=[], use_once=True)
     def add_missing_columns(self):
