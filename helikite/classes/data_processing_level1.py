@@ -171,6 +171,7 @@ class DataProcessorLevel1(BaseProcessor):
 
     @function_dependencies(required_operations=[], use_once=True)
     def add_missing_columns(self):
+        all_missing_columns = []
         for instrument in self._output_schema.instruments:
             is_reference = instrument == self._reference_instrument
 
@@ -182,7 +183,12 @@ class DataProcessorLevel1(BaseProcessor):
                     logger.warning(f"{instrument} is present but missing columns: {missing_columns}.")
                 logger.info(f"Adding missing columns for {instrument.name}: {missing_columns}")
 
-            self._df[missing_columns] = pd.NA
+            all_missing_columns += missing_columns
+
+        if len(all_missing_columns) != 0:
+            missing_df = pd.DataFrame({col: pd.NA for col in all_missing_columns}, index=self._df.index)
+            self._df = pd.concat([self._df, missing_df], axis=1)
+
 
     @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
                            use_once=False)
