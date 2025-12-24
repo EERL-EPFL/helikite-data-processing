@@ -1,6 +1,10 @@
+from numbers import Number
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+from pydantic import BaseModel
+
 from helikite.processing.post import altitude
 
 
@@ -308,7 +312,7 @@ def calculate_ground_average(df, takeoff_time, landing_time, time_col, pressure_
     return df[['Pressure_ground', 'Temperature_ground']]
 
 
-def altitude_calculation_barometric(df, metadata) -> pd.DataFrame:
+def altitude_calculation_barometric(df: pd.DataFrame, metadata: BaseModel, offset_to_add: Number) -> pd.DataFrame:
     """
     Calculates altitude using barometric formula based on ground pressure/temperature interpolation
     and pressure readings during flight.
@@ -316,6 +320,7 @@ def altitude_calculation_barometric(df, metadata) -> pd.DataFrame:
     Parameters:
         df (pd.DataFrame): DataFrame containing flight data.
         metadata: Metadata object containing takeoff_time and landing_time.
+        offset_to_add: Offset to add to altitude estimate.
 
     Returns:
         pd.DataFrame: Updated DataFrame with 'Pressure_ground', 'Temperature_ground', and 'Altitude' columns.
@@ -342,6 +347,12 @@ def altitude_calculation_barometric(df, metadata) -> pd.DataFrame:
         df['Temperature_ground']
     )
 
+    df['Altitude'] = df['Altitude'] + offset_to_add
+
+    return df
+
+
+def plot_altitude(df: pd.DataFrame):
     # PLOT
     plt.close('all')
     fig, ax1 = plt.subplots(figsize=(8, 6))
