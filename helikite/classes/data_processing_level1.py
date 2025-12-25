@@ -23,7 +23,7 @@ from helikite.instruments.cpc3007 import CPC
 from helikite.instruments.flight_computer import FlightComputer
 from helikite.instruments.mcda_instrument import mcda_concentration_calculations, mCDA_STP_normalization, \
     plot_mcda_distribution, plot_mcda_vertical_distribution
-from helikite.instruments.msems import mSEMS_total_conc_dN, mSEMS_STP_normalization
+from helikite.instruments.msems import mSEMS_total_conc_dN, mSEMS_STP_normalization, plot_msems_distribution
 from helikite.instruments.pops import POPS_total_conc_dNdlogDp, POPS_STP_normalization
 from helikite.instruments.stap import STAP_STP_normalization
 from helikite.processing import choose_outliers
@@ -171,22 +171,24 @@ class DataProcessorLevel1(BaseProcessor):
 
     @function_dependencies(required_operations=[], use_once=True)
     def add_missing_columns(self):
-        all_missing_columns = []
+        all_missing_columns = {}
         for instrument in self._output_schema.instruments:
             is_reference = instrument == self._reference_instrument
 
-            all_columns = instrument.get_expected_columns(level=0, is_reference=is_reference)
-            missing_columns = [column for column in all_columns if column not in self._df.columns]
+            all_columns = instrument.get_expected_columns(level=0, is_reference=is_reference, with_dtype=True)
+            missing_columns = {column: t for column, t in all_columns.items() if column not in self._df.columns}
 
             if len(missing_columns) != 0:
+                missing_columns_names = list(missing_columns.keys())
                 if instrument in self._instruments:
-                    logger.warning(f"{instrument} is present but missing columns: {missing_columns}.")
-                logger.info(f"Adding missing columns for {instrument.name}: {missing_columns}")
+                    logger.warning(f"{instrument} is present but missing columns: {missing_columns_names}.")
+                logger.info(f"Adding missing columns for {instrument.name}: {missing_columns_names}")
 
-            all_missing_columns += missing_columns
+            all_missing_columns |= missing_columns
 
         if len(all_missing_columns) != 0:
-            missing_df = pd.DataFrame({col: pd.NA for col in all_missing_columns}, index=self._df.index)
+            missing_df = pd.DataFrame({col: pd.Series(dtype=t) for col, t in all_missing_columns.items()},
+                                      index=self._df.index)
             self._df = pd.concat([self._df, missing_df], axis=1)
 
 
@@ -223,6 +225,11 @@ class DataProcessorLevel1(BaseProcessor):
     def mSEMS_STP_normalization(self):
         if self._check_schema_contains_instrument(msems_inverted):
             self._df = mSEMS_STP_normalization(self._df)
+
+    @function_dependencies(required_operations=["mSEMS_STP_normalization"], use_once=False)
+    def plot_msems_distribution(self, time_start=None, time_end=None):
+        if self._check_schema_contains_instrument(msems_inverted):
+            plot_msems_distribution(self._df, time_start, time_end)
 
     @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
                            use_once=False)

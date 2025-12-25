@@ -104,9 +104,11 @@ def process_CO2_STP(df, min_threshold, max_threshold):
     co2_column_name = 'co2_CO2'
     co2_moist_column_name = 'co2_CO2_moist'
 
-    if df[co2_column_name].mean() < min_threshold:
+    mean = df[co2_column_name].mean()
+    if mean is not pd.NA and mean < min_threshold:
         print(f"Skipping CO2 processing: "
-              f"mean {co2_column_name} = {df[co2_column_name].mean():.1f} < threshold ({min_threshold:.1f})")
+              f"mean {co2_column_name} = {mean :.1f}, threshold = {min_threshold:.1f}")
+        df[co2_moist_column_name] = pd.Series(pd.NA, index=df.index, dtype=df[co2_column_name].dtype)
 
         return df
 
@@ -142,17 +144,23 @@ def process_CO2_STP(df, min_threshold, max_threshold):
 
 
 def _describe(x: np.ndarray) -> dict[str, Number]:
-    description = stats.describe(x, nan_policy='omit')
-    description_concise = {
-        "nobs": int(description.nobs),
-        "min": float(description.minmax[0]),
-        "max": float(description.minmax[1]),
-        "mean": float(description.mean),
-        "variance": float(description.variance),
-        "skewness": float(description.skewness),
-        "kurtosis": float(description.kurtosis),
-    }
-    return description_concise
+    try:
+        description = stats.describe(x, nan_policy='omit')
+        description_concise = {
+            "nobs": int(description.nobs.item()),
+            "min": float(description.minmax[0].item()),
+            "max": float(description.minmax[1].item()),
+            "mean": float(description.mean.item()),
+            "variance": float(description.variance.item()),
+            "skewness": float(description.skewness.item()),
+            "kurtosis": float(description.kurtosis.item()),
+        }
+        return description_concise
+    except TypeError as e:
+        logger.warning(f"Failed to describe array {x} with error: {e}. Check that not all values are NaN.")
+
+    return {"No description available.": np.nan}
+
 
 
 def remove_outliers(df: pd.DataFrame, column: str, min_threshold: Number, max_threshold: Number):
