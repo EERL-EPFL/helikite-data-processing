@@ -303,8 +303,8 @@ def calculate_ground_average(df, takeoff_time, landing_time, time_col, pressure_
     interp_df = interp_df.reindex(interp_df.index.union(time_range)).interpolate(method='time')
 
     # Map interpolated values
-    df['Pressure_ground'] = df['DateTime'].map(interp_df['Pressure']).astype(float)
-    df['Temperature_ground'] = df['DateTime'].map(interp_df['Temperature']).astype(float)
+    df['Pressure_ground'] = df['DateTime'].map(interp_df['Pressure']).astype("Float64")
+    df['Temperature_ground'] = df['DateTime'].map(interp_df['Temperature']).astype("Float64")
 
     # Fill NaNs before takeoff and after landing using nearest values
     df[['Pressure_ground', 'Temperature_ground']] = df[['Pressure_ground', 'Temperature_ground']].ffill().bfill()

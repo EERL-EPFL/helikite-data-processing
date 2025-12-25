@@ -631,12 +631,12 @@ def calcN(df, start_column, end_column, start_conc, end_conc):
     dN = bin_concs.mul(dlogDp.values).astype("Float64")
 
     # Sum without NaN issues
-    dN["msems_inverted_totalconc"] = dN.sum(axis=1, skipna=True).replace(0, pd.NA)
+    dN["msems_inverted_totalconc"] = dN.sum(axis=1, skipna=True, min_count=1)
 
     return dN
 
 
-def plot_msems_distribution(df, time_start=None, time_end=None):
+def plot_msems_distribution(df, time_start, time_end):
     """
     Plots mSEMS size distribution and total concentration from a given DataFrame.
 
@@ -654,11 +654,12 @@ def plot_msems_distribution(df, time_start=None, time_end=None):
 
     # Bin diameter averages
     bin_diameter_averages = df.loc[:, start_dia:end_dia].mean()
+    bin_diameter_averages = bin_diameter_averages if not bin_diameter_averages.isna().all() else np.zeros(60)
 
     # Prepare the concentration data
-    counts = df.loc[:, start_conc:end_conc].copy()
+    counts = df.loc[:, start_conc:end_conc].astype(float)
     counts.index = df.index
-    counts = counts.astype(float).dropna(how="any")
+    counts = counts.dropna(how="any") if not counts.isna().all().all() else counts
     counts = counts.clip(lower=1)
 
     if time_start is not None:
@@ -668,7 +669,7 @@ def plot_msems_distribution(df, time_start=None, time_end=None):
 
     # Create the 2D meshgrid
     xx, yy = np.meshgrid(counts.index.values, bin_diameter_averages)
-    vmax_value = counts.values.max()
+    vmax_value = np.nanmax(counts.values)
     print(vmax_value)
 
     # Begin plotting
@@ -732,13 +733,14 @@ def plot_msems_distribution(df, time_start=None, time_end=None):
 
     # Secondary y-axis for total concentration
     total_conc = df["msems_inverted_dN_totalconc_stp"].dropna()
+    total_conc_max = total_conc.max() if not total_conc.isna().all() else 2000
     ax2 = ax.twinx()
     ax2.plot(total_conc.index, total_conc, color="red", linewidth=2)
     ax2.set_ylabel(
         "N$_{8-236}$ (cm$^{-3}$)", fontsize=12, fontweight="bold", color="red"
     )
     ax2.tick_params(axis="y", labelsize=12, colors="red")
-    ax2.set_ylim(0, total_conc.max() * 1.1)
+    ax2.set_ylim(0, total_conc_max * 1.1)
 
     plt.subplots_adjust(bottom=0.25, right=0.85)
     plt.show()

@@ -241,7 +241,7 @@ def mcda_concentration_calculations(df: pd.DataFrame) -> pd.DataFrame:
     mcda_dN.columns = [f"{col}_dN" for col in dataB_cols.columns]
 
     # Compute total concentration
-    mcda_dN_totalconc = mcda_dN.sum(axis=1, skipna=True).to_frame(name='mcda_dN_totalconc')
+    mcda_dN_totalconc = mcda_dN.sum(axis=1, skipna=True, min_count=1).to_frame(name='mcda_dN_totalconc')
 
     # Midpoint diameters
     Midpoint_diameter_list = np.array([
@@ -371,7 +371,9 @@ def mCDA_STP_normalization(df):
 
     # Add recalculated total concentration from '_dN_stp' columns
     dN_stp_columns = [col for col in normalized_columns if col.endswith('_dN_stp')]
-    normalized_columns['mcda_dN_totalconc_stp_recalculated'] = pd.DataFrame(normalized_columns)[dN_stp_columns].sum(axis=1, skipna=True)
+    normalized_columns['mcda_dN_totalconc_stp_recalculated'] = (
+        pd.DataFrame(normalized_columns)[dN_stp_columns].sum(axis=1, skipna=True, min_count=1)
+    )
 
     # Find where to insert (after the last mSEMS-related column)
     mcda_columns = filter_columns_by_instrument(df.columns, mcda)
@@ -476,11 +478,12 @@ def plot_mcda_distribution(df, Midpoint_diameter_list, time_start, time_end):
 
     # Plot total concentration
     total_conc = df['mcda_dN_totalconc_stp']
+    total_conc_max = total_conc.max() if not total_conc.isna().all() else 15
     ax2 = ax.twinx()
     ax2.plot(total_conc.index, total_conc, color='red', linewidth=2)
     ax2.set_ylabel('mCDA total conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red')
     ax2.tick_params(axis='y', labelsize=12, colors='red')
-    ax2.set_ylim(0, total_conc.max() * 2)
+    ax2.set_ylim(0, total_conc_max * 2)
     ax2.set_xlim(ax.get_xlim())  # Synchronize x-axis
 
     plt.show()
@@ -536,10 +539,11 @@ def plot_mcda_vertical_distribution(df, Midpoint_diameter_list):
     # Plot secondary y-axis (if necessary, e.g., for concentration)
     # If you still want to include total concentration on the secondary y-axis:
     # total_conc = df_copy['mcda_dN_totalconc_stp']
+    # total_conc_max = total_conc.max() if not total_conc.isna().all() else 15
     # ax2 = ax.twinx()
     # ax2.plot(total_conc.index, total_conc, color='red', linewidth=2)
     # ax2.set_ylabel('mCDA Total Conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red')
     # ax2.tick_params(axis='y', labelsize=12, colors='red')
-    # ax2.set_ylim(0, total_conc.max() * 2)
+    # ax2.set_ylim(0, total_conc_max * 2)
 
     plt.show()

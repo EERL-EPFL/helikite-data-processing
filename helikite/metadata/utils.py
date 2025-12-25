@@ -13,7 +13,7 @@ def load_parquet(filepath: str | pathlib.Path) -> tuple[pd.DataFrame, Level0]:
 
     # Read Parquet file
     table = pq.read_table(filepath)
-    df = table.to_pandas()
+    df = table.to_pandas().convert_dtypes()
 
     # Extract level0 metadata and decode keys and values
     metadata = orjson.loads(

@@ -1,10 +1,12 @@
 import numpy as np
+import pandas as pd
+
 from helikite.processing.post import co2
 
-X = np.array([400.0, 410.0, 420.0])  # CO2 ppm values
-T = np.array([15.0, 16.0, 17.0])  # Temperature in °C
-P1 = np.array([1010.0, 1005.0, 1000.0])  # Pressure in hPa
-RH = np.array([50.0, 60.0, 70.0])  # Relative humidity in %
+X = pd.Series([400.0, 410.0, 420.0])  # CO2 ppm values
+T = pd.Series([15.0, 16.0, 17.0])  # Temperature in °C
+P1 = pd.Series([1010.0, 1005.0, 1000.0])  # Pressure in hPa
+RH = pd.Series([50.0, 60.0, 70.0])  # Relative humidity in %
 
 
 def test_stp_convert_dry():
@@ -31,7 +33,7 @@ def test_stp_convert_dry():
 
 
 def test_stp_moist_test():
-    expected_output = np.array([424.82, 439.46, 454.34])
+    expected_output = pd.Series([424.82, 439.46, 454.34])
 
     result = co2.stp_moist_test(X, T, P1, RH)
     np.testing.assert_allclose(result, expected_output, rtol=1e-2)

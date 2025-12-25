@@ -225,7 +225,7 @@ def dNdlogDp_calculation(df_pops,dp_notes):
     # Adjust dN_pops and calculate dNdlogDp
     popsflow_mean = df_pops['pops_POPS_Flow'].mean()#2.9866
     dN_pops = df_pops.filter(like='pops_b') / popsflow_mean
-    df_pops.loc[:,'pops_total_conc'] = dN_pops.loc[:, 'pops_b3':'pops_b15'].sum(axis=1)
+    df_pops.loc[:,'pops_total_conc'] = dN_pops.loc[:, 'pops_b3':'pops_b15'].sum(axis=1, skipna=True, min_count=1)
     dNdlogDp = dN_pops.loc[:, 'pops_b3':'pops_b15'].div(dp_notes['dlogdp'].iloc[3:].values, axis=1).add_suffix('_dlogDp')
     
     # Add dNdlogDp columns to df
@@ -328,11 +328,12 @@ def plot_pops_distribution(df, time_start=None, time_end=None):
 
     # Plot total concentration on a secondary y-axis
     total_conc = df['pops_total_conc_stp']
+    total_conc_max = total_conc.max() if not total_conc.isna().all() else 40
     ax2 = ax.twinx()
     ax2.plot(total_conc.index, total_conc, color='red', linewidth=2)
     ax2.set_ylabel('POPS total conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red')
     ax2.tick_params(axis='y', labelsize=12, colors='red')
-    ax2.set_ylim(-20, total_conc.max() * 1.1)
+    ax2.set_ylim(-20, total_conc_max * 1.1)
 
     plt.show()
 

@@ -91,19 +91,17 @@ def plot_gps_on_map(df, lat_col, lon_col, lat_dir, lon_dir, center_coords, zoom_
         if lat_col is None or lon_col is None:
             return None
 
-    def convert_dm_to_dd(dm_value, direction):
-        if pd.isna(dm_value):
-            return None
-        degrees = int(dm_value / 100)
-        minutes = dm_value - degrees * 100
+    def convert_dm_to_dd(dm_values: pd.Series, direction: str):
+        degrees = (dm_values / 100).round()
+        minutes = dm_values - degrees * 100
         dd = degrees + minutes / 60
         if direction in ['S', 'W']:
             dd *= -1
         return dd
 
     # Convert latitude and longitude
-    df['latitude_dd'] = df[lat_col].apply(lambda x: convert_dm_to_dd(x, lat_dir))
-    df['longitude_dd'] = df[lon_col].apply(lambda x: convert_dm_to_dd(x, lon_dir))
+    df['latitude_dd'] = convert_dm_to_dd(df[lat_col], lat_dir)
+    df['longitude_dd'] = convert_dm_to_dd(df[lon_col], lon_dir)
 
     # Drop rows with NaNs in converted coordinates
     df_clean = df.dropna(subset=['latitude_dd', 'longitude_dd'])

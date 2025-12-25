@@ -41,7 +41,6 @@ class OzoneMonitor(Instrument):
         df.drop(columns=["date", "time"], inplace=True)
 
         # Define the datetime column as the index
-        df.reset_index(drop=False, inplace=True)
         df.set_index("DateTime", inplace=True)
 
         return df
