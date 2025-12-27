@@ -30,7 +30,7 @@ from helikite.processing import choose_outliers
 from helikite.processing.post.TandRH import T_RH_averaging, plot_T_RH
 from helikite.processing.post.altitude import altitude_calculation_barometric, plot_altitude
 from helikite.processing.post.level1 import flight_profiles_1
-from helikite.processing.post.outliers import plot_outliers_check, plot_gps_on_map
+from helikite.processing.post.outliers import plot_outliers_check, plot_gps_on_map, convert_gps_coordinates
 
 logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
@@ -131,11 +131,15 @@ class DataProcessorLevel1(BaseProcessor):
     def plot_outliers_check(self):
         plot_outliers_check(self._df, self._flight_computer)
 
+    @function_dependencies(required_operations=[""], use_once=False)
+    def convert_gps_coordinates(self,
+                                lat_col='flight_computer_Lat', lon_col='flight_computer_Long',
+                                lat_dir='S', lon_dir='W'):
+        self._df = convert_gps_coordinates(self._df, lat_col, lon_col, lat_dir, lon_dir)
+
     @function_dependencies(required_operations=[], use_once=False)
-    def plot_gps_on_map(self, lat_col='flight_computer_Lat', lon_col='flight_computer_Long',
-                        lat_dir='S', lon_dir='W',
-                        center_coords=(-70.6587, -8.2850), zoom_start=13) -> folium.Map:
-        return plot_gps_on_map(self._df, lat_col, lon_col, lat_dir, lon_dir, center_coords, zoom_start)
+    def plot_gps_on_map(self, center_coords=(-70.6587, -8.2850), zoom_start=13) -> folium.Map:
+        return plot_gps_on_map(self._df, center_coords, zoom_start)
 
     @function_dependencies(required_operations=["set_outliers_to_nan"], use_once=False)
     def T_RH_averaging(self,
