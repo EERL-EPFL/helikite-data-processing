@@ -1,4 +1,3 @@
-import datetime
 import importlib
 import inspect
 import pathlib
@@ -11,6 +10,7 @@ import helikite.instruments
 from helikite.classes.data_processing import OutputSchemas
 from helikite.instruments import Instrument, cpc, smart_tether, filter, mcpc, pops
 from helikite.instruments.base import filter_columns_by_instrument
+from helikite.instruments.flight_computer import FlightComputer
 
 
 def test_read_data(campaign_file_paths_and_instruments_2022):
@@ -82,11 +82,7 @@ def test_expected_columns_level0_oracles(
 
     for instrument in OutputSchemas.ORACLES.instruments:
         expected_columns = filter_columns_by_instrument(columns, instrument)
-        actual_columns = instrument.get_expected_columns(level=0, is_reference=False)
-
-        # TODO: remove this once inconsistency with flight computer is resolved
-        if instrument.name == "flight_computer":
-            continue
+        actual_columns = instrument.get_expected_columns(level=0, is_reference=isinstance(instrument, FlightComputer))
 
         # TODO: remove once filter is integrated in the pipeline
         if instrument.name == "filter":
@@ -110,10 +106,6 @@ def test_expected_columns_level0_turtmann(
 
     for instrument in OutputSchemas.TURTMANN.instruments:
         expected_columns = filter_columns_by_instrument(columns, instrument)
-        actual_columns = instrument.get_expected_columns(level=0, is_reference=False)
-
-        # TODO: remove this once inconsistency with flight computer is resolved
-        if instrument.name == "flight_computer":
-            continue
+        actual_columns = instrument.get_expected_columns(level=0, is_reference=isinstance(instrument, FlightComputer))
 
         assert set(expected_columns) == set(actual_columns)
