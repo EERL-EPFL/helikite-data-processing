@@ -7,8 +7,8 @@ import re
 import pandas as pd
 
 import helikite.instruments
-from helikite.classes.data_processing import OutputSchemas
-from helikite.instruments import Instrument, cpc, smart_tether, filter, mcpc, pops
+from helikite.classes.base import OutputSchemas
+from helikite.instruments import Instrument, cpc, filter, mcpc, pops
 from helikite.instruments.base import filter_columns_by_instrument
 from helikite.instruments.flight_computer import FlightComputer
 
