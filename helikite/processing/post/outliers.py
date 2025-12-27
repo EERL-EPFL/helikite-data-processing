@@ -85,11 +85,18 @@ def plot_outliers_check(df, flight_computer: FlightComputer):
     plt.show()
 
 
-def plot_gps_on_map(df, lat_col, lon_col, lat_dir, lon_dir, center_coords, zoom_start) -> folium.Map | None:
+def convert_gps_coordinates(df: pd.DataFrame, lat_col: str, lon_col: str, lat_dir: str, lon_dir: str) -> pd.DataFrame:
+    lat_dd_col = 'latitude_dd'
+    lon_dd_col = 'longitude_dd'
+
     if lat_col not in df.columns or lon_col not in df.columns:
         lat_col, lon_col = _guess_lat_lon_columns(df.columns, lat_col, lon_col)
         if lat_col is None or lon_col is None:
-            return None
+            logger.warning(f"Setting `{lat_dd_col}` and `{lon_dd_col}` to NaN.")
+            df[lat_dd_col] = pd.Series(pd.NA, index=df.index, dtype="Float64")
+            df[lon_dd_col] = pd.Series(pd.NA, index=df.index, dtype="Float64")
+
+            return df
 
     def convert_dm_to_dd(dm_values: pd.Series, direction: str):
         degrees = (dm_values / 100).round()
@@ -100,9 +107,13 @@ def plot_gps_on_map(df, lat_col, lon_col, lat_dir, lon_dir, center_coords, zoom_
         return dd
 
     # Convert latitude and longitude
-    df['latitude_dd'] = convert_dm_to_dd(df[lat_col], lat_dir)
-    df['longitude_dd'] = convert_dm_to_dd(df[lon_col], lon_dir)
+    df[lat_dd_col] = convert_dm_to_dd(df[lat_col], lat_dir)
+    df[lon_dd_col] = convert_dm_to_dd(df[lon_col], lon_dir)
 
+    return df
+
+
+def plot_gps_on_map(df, center_coords, zoom_start) -> folium.Map | None:
     # Drop rows with NaNs in converted coordinates
     df_clean = df.dropna(subset=['latitude_dd', 'longitude_dd'])
 
