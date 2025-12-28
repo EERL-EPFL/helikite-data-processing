@@ -1,52 +1,35 @@
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from helikite.processing.post import level1
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
+import pandas as pd
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
 
+from helikite.classes.base import OutputSchema
+from helikite.instruments.base import filter_columns_by_instrument
 
-def create_level1_dataframe(df):
-    """
-    Create a level 1 DataFrame by selecting specific columns and returning a copy.
 
-    Parameters:
-        df (pd.DataFrame): The original DataFrame.
+def create_level1_dataframe(df: pd.DataFrame, output_schema: OutputSchema):
+    selected_columns = []
+    processed_columns = set()
 
-    Returns:
-        pd.DataFrame: Filtered copy of the DataFrame with selected columns.
-    """
-    # Manually specified columns
-    base_columns = [
-        'DateTime', 'Altitude', 'latitude_dd', 'longitude_dd',
-        'flight_computer_pressure', 'Average_Temperature', 'Average_RH',
-        'smart_tether_Wind (m/s)', 'smart_tether_Wind (degrees)',
-        'pops_total_conc_stp', 'msems_inverted_dN_totalconc_stp',
-        'mcda_dN_totalconc_stp', 'cpc_totalconc_stp',
-        'flight_computer_F_cur_pos', 'flight_computer_F_smp_flw'
-    ]
+    for instrument in output_schema.instruments:
+        instr_cols_all = filter_columns_by_instrument(df, instrument)
+        if instrument.final_columns is not None:
+            instr_cols_final = [f"{instrument.name}_{col}" for col in instrument.final_columns]
+        else:
+            instr_cols_final = instr_cols_all
 
-    # Dynamically generated column ranges
-    pops_range = [f'pops_b{i}_dlogDp_stp' for i in range(3, 16)]
-    msems_range = [f'msems_inverted_Bin_Conc{i}_stp' for i in range(1, 61)]
-    mcda_range = [f'mcda_dataB {i}_dN_dlogDp_stp' for i in range(1, 257)]
+        selected_columns += instr_cols_final
+        processed_columns = processed_columns.union(instr_cols_all)
 
-    # TAPIR columns
-    tapir_columns = [
-        'tapir_GL', 'tapir_Lat', 'tapir_Le', 'tapir_Lon', 'tapir_Lm', 'tapir_speed',
-        'tapir_route', 'tapir_TP', 'tapir_Tproc1', 'tapir_Tproc2', 'tapir_Tproc3', 'tapir_Tproc4',
-        'tapir_TH', 'tapir_Thead1', 'tapir_Thead2', 'tapir_Thead3', 'tapir_Thead4',
-        'tapir_TB', 'tapir_Tbox'
-    ]
+    non_instr_columns_to_skip = ["Pressure_ground", "Temperature_ground"]
+    non_instr_columns = [col for col in df.columns
+                         if col not in processed_columns and col not in non_instr_columns_to_skip]
 
-    # Combine all columns
-    selected_columns = base_columns + pops_range + msems_range + mcda_range + tapir_columns
+    selected_columns = non_instr_columns + selected_columns
 
-    # Return the filtered DataFrame
     return df[selected_columns].copy()
 
 
@@ -96,7 +79,7 @@ def rename_columns(df):
 
     return df_renamed
 
-def round_flightnbr_campaign(df, metadata, decimals=2):
+def round_flightnbr_campaign(df, metadata, decimals):
     """
     Round numeric columns of the DataFrame with special handling for 'Lat' and 'Long',
     and add columns for flight number and campaign.
@@ -134,7 +117,7 @@ def round_flightnbr_campaign(df, metadata, decimals=2):
 
 
 
-def fill_msems_takeoff_landing(df, metadata, time_window_seconds=90):
+def fill_msems_takeoff_landing(df, metadata, time_window_seconds):
     """
     Fill missing values in mSEMS columns at takeoff and landing times using nearby values.
 

@@ -216,6 +216,7 @@ pops = POPS(
         "b14",
         "b15",
     ],
+    cols_final=[f"b{i}_dlogDp_stp" for i in range(3, 16)] + ["total_conc_stp"],
     pressure_variable="P",
 )
 

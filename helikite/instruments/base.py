@@ -34,6 +34,7 @@ class Instrument(ABC):
         index_col: bool | int | None = None,  # The column ID of the index
         cols_export: list[str] = [],  # Columns to export
         cols_housekeeping: list[str] = [],  # Columns to use for housekeeping
+        cols_final: list[str] | None = None, # Columns to keep in the final data file
         export_order: int | None = None,  # Order hierarchy in export file
         pressure_variable: str | None = None,  # The variable measuring pressure
         registry_name: str | None = None,
@@ -53,6 +54,7 @@ class Instrument(ABC):
         self.index_col = index_col
         self.cols_export = cols_export
         self.cols_housekeeping = cols_housekeeping
+        self.cols_final = cols_final
         self.export_order = export_order
         self.pressure_variable = pressure_variable
         self.coupled_columns = coupled_columns if coupled_columns else []
@@ -175,6 +177,14 @@ class Instrument(ABC):
             return [f"{self.name}_{x}" for x in self.cols_export]
         else:
             return []
+
+    @property
+    def final_columns(self) -> list[str] | None:
+        """
+        Returns final datafile columns, prefixed with the instrument name, if they are specified.
+        Otherwise, returns None.
+        """
+        return self.cols_final
 
     @abstractmethod
     def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:

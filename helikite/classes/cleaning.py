@@ -84,6 +84,10 @@ class Cleaner(BaseProcessor):
             "available methods."
         )
 
+    @property
+    def df(self) -> pd.DataFrame | None:
+        return self.master_df
+
     def _data_state_info(self) -> list[str]:
         state_info = []
 

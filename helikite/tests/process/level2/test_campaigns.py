@@ -65,7 +65,7 @@ def test_2025_02_12_level2(campaign_data):
     try:
         level1_df = create_level1_dataframe(cleaner.master_df)
         level1_df = rename_columns(level1_df)
-        level1_df = round_flightnbr_campaign(level1_df, metadata)
+        level1_df = round_flightnbr_campaign(level1_df, metadata, decimals=2)
     except KeyError as e:
         # If specific columns are missing, create a simplified Level 1 df
         available_cols = list(cleaner.master_df.columns)

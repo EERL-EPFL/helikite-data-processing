@@ -684,6 +684,7 @@ flight_computer_v2 = FlightComputerV2(
         "HeadAcc",
         "GNSSqty",
     ],
+    cols_final=["F_cur_pos", "F_smp_flw", "pressure"],
     export_order=100,
     pressure_variable="BME_P",
     coupled_columns=[

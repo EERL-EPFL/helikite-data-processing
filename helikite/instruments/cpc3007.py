@@ -128,6 +128,7 @@ cpc = CPC(
         "Concentration (#/cm3)": "Int64"
     },
     expected_header_value="Time,Concentration (#/cm3),\n",
+    cols_final=["totalconc_stp"],
     header=17,
     pressure_variable=None,
 )

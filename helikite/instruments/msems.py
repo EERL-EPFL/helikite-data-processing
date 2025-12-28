@@ -409,6 +409,7 @@ msems_scan = MSEMSScan(
     pressure_variable="press_avg",
     cols_export=[],
     cols_housekeeping=[],
+    cols_final=[],
 )
 
 # To match a "...READINGS.txt" file
@@ -450,6 +451,7 @@ msems_readings = MSEMSReadings(
     pressure_variable="pressure",
     cols_export=[],
     cols_housekeeping=[],
+    cols_final=[],
 )
 
 # To match a "...INVERTED.txt" file
@@ -589,6 +591,7 @@ msems_inverted = MSEMSInverted(
     pressure_variable="Press(hPa)",
     cols_export=[],
     cols_housekeeping=[],
+    cols_final=[f"Bin_Conc{i}_stp" for i in range(1, 61)] + ["dN_totalconc_stp"],
 )
 
 

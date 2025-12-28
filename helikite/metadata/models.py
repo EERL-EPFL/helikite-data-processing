@@ -23,3 +23,17 @@ class Level0(BaseModel):
 
     def _repr_html_(self) -> str:
         return self.__str__().replace("\n", "<br>")
+
+    @classmethod
+    def mock(cls, reference_instrument: str, instruments: list[str]) -> "Level0":
+        start = datetime.datetime(2000, 1, 1, 00, 00, 00)
+        end = start + datetime.timedelta(seconds=2)
+
+        return Level0(
+            flight="MOCK",
+            flight_date=start.date(),
+            takeoff_time=start,
+            landing_time=end,
+            reference_instrument=reference_instrument,
+            instruments=instruments,
+        )
