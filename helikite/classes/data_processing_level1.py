@@ -14,7 +14,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from pydantic import BaseModel
 
-from helikite.classes.base import BaseProcessor, function_dependencies, OutputSchema
+from helikite.classes.base import BaseProcessor, function_dependencies, OutputSchema, get_instruments_from_cleaned_data
 from helikite.constants import constants
 from helikite.instruments import Instrument, pops, msems_inverted, mcda, cpc, \
     stap, co2
@@ -38,7 +38,7 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 class DataProcessorLevel1(BaseProcessor):
     def __init__(self, output_schema: OutputSchema, df: pd.DataFrame, metadata: BaseModel) -> None:
-        instruments, reference_instrument = _get_instruments(df, metadata)
+        instruments, reference_instrument = get_instruments_from_cleaned_data(df, metadata)
         super().__init__(output_schema, instruments, reference_instrument)
         self._df = df.copy()
         self._metadata = metadata
@@ -294,7 +294,6 @@ class DataProcessorLevel1(BaseProcessor):
         print("Saving figure to:", save_path)
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
 
-
     def plot_size_distr(self, save_path: str | pathlib.Path):
         # TEMPORAL PLOT OF FLIGHT with POPS and mSEMS HEAT MAPS
 
@@ -485,43 +484,3 @@ class DataProcessorLevel1(BaseProcessor):
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
 
         plt.show()
-
-    def _check_schema_contains_instrument(self, instrument: Instrument) -> bool:
-        if instrument not in self._output_schema.instruments:
-            logger.warning(f"{self._output_schema.name} does not contain {instrument.name}. Skipping.")
-            return False
-        return True
-
-    @property
-    def _flight_computer(self) -> FlightComputer:
-        flight_computer = next(instrument for instrument in self._instruments if isinstance(instrument, FlightComputer))
-        return flight_computer
-
-
-def _get_instruments(df: pd.DataFrame, metadata: BaseModel) -> tuple[list[Instrument], Instrument]:
-    flight_computer_version = None
-    flight_computer_outdated_name = "flight_computer"
-
-    instruments = []
-    reference_instrument = None
-
-    for name in metadata.instruments:
-        is_reference = name == metadata.reference_instrument
-
-        if name == flight_computer_outdated_name:
-            if flight_computer_version is None:
-                if f"{flight_computer_outdated_name}_{flight_computer_v1.pressure_variable}" in df.columns:
-                    flight_computer_version = "v1"
-                elif f"{flight_computer_outdated_name}_{flight_computer_v2.pressure_variable}" in df.columns:
-                    flight_computer_version = "v2"
-                else:
-                    raise ValueError("Could not determine flight computer version. "
-                                     "Please specify `flight_computer_version` manually.")
-            name += f"_{flight_computer_version}"
-
-        instrument = Instrument.REGISTRY[name]
-        if is_reference:
-            reference_instrument = instrument
-        instruments.append(instrument)
-
-    return instruments, reference_instrument

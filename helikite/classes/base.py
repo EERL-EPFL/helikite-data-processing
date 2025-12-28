@@ -7,6 +7,8 @@ from itertools import cycle
 from typing import Any
 
 import matplotlib.pyplot as plt
+import pandas as pd
+from pydantic import BaseModel
 
 from helikite.instruments import Instrument, flight_computer_v2, smart_tether, pops, msems_readings, msems_inverted, \
     msems_scan, mcda, filter, tapir, cpc, flight_computer_v1, stap, stap_raw, co2
@@ -245,3 +247,32 @@ class BaseProcessor(ABC):
         print(f"Errors ({len(errors)}/{len(self._instruments)}):")
         for error in errors:
             print(f"Error ({error[0]}): {error[1]}")
+
+
+def get_instruments_from_cleaned_data(df: pd.DataFrame, metadata: BaseModel) -> tuple[list[Instrument], Instrument]:
+    flight_computer_version = None
+    flight_computer_outdated_name = "flight_computer"
+
+    instruments = []
+    reference_instrument = None
+
+    for name in metadata.instruments:
+        is_reference = name == metadata.reference_instrument
+
+        if name == flight_computer_outdated_name:
+            if flight_computer_version is None:
+                if f"{flight_computer_outdated_name}_{flight_computer_v1.pressure_variable}" in df.columns:
+                    flight_computer_version = "v1"
+                elif f"{flight_computer_outdated_name}_{flight_computer_v2.pressure_variable}" in df.columns:
+                    flight_computer_version = "v2"
+                else:
+                    raise ValueError("Could not determine flight computer version. "
+                                     "Please specify `flight_computer_version` manually.")
+            name += f"_{flight_computer_version}"
+
+        instrument = Instrument.REGISTRY[name]
+        if is_reference:
+            reference_instrument = instrument
+        instruments.append(instrument)
+
+    return instruments, reference_instrument
