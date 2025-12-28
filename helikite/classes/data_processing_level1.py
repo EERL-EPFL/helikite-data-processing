@@ -16,7 +16,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from pydantic import BaseModel
 
-from helikite.classes.base import BaseProcessor, function_dependencies, OutputSchema, get_instruments_from_cleaned_data
+from helikite.classes.base import BaseProcessor, function_dependencies, OutputSchema, get_instruments_from_cleaned_data, \
+    launch_operations_changing_df
 from helikite.constants import constants
 from helikite.instruments import Instrument, pops, msems_inverted, mcda, cpc, \
     stap, co2
@@ -45,7 +46,7 @@ class DataProcessorLevel1(BaseProcessor):
         super().__init__(output_schema, instruments, reference_instrument)
         self._df = df.copy()
         self._metadata = metadata
-        self._outlier_files: set[str] = set()
+        self._outliers_files: set[str] = set()
 
     @property
     def df(self) -> pd.DataFrame:
@@ -65,21 +66,8 @@ class DataProcessorLevel1(BaseProcessor):
     def _data_state_info(self) -> list[str]:
         state_info = []
 
-        for outlier_file in self._outlier_files:
-
-            outliers = pd.read_csv(outlier_file, index_col=0, parse_dates=True)
-            columns_with_outliers = outliers.columns[outliers.any()]
-
-            state_info.append(f"{'Outliers file':<40}{outlier_file}")
-            state_info.append(
-                f"{'Variable':<40}{'Number of outliers':<20}"
-            )
-            state_info.append("-" * 60)
-
-            for column in columns_with_outliers:
-                state_info.append(
-                    f"{column:<40}{outliers[column].sum():<20}"
-                )
+        for outliers_file in self._outliers_files:
+            state_info += self._outliers_file_state_info(outliers_file)
 
         return state_info
 
@@ -107,7 +95,7 @@ class DataProcessorLevel1(BaseProcessor):
         """
         coupled_columns = self.coupled_columns if use_coupled_columns else []
         vbox = choose_outliers(self._df, y, coupled_columns, outlier_file)
-        self._outlier_files.add(outlier_file)
+        self._outliers_files.add(outlier_file)
 
         return vbox
 
@@ -128,7 +116,7 @@ class DataProcessorLevel1(BaseProcessor):
 
     @function_dependencies(required_operations=["choose_outliers"], changes_df=True, use_once=False)
     def set_outliers_to_nan(self):
-        for outlier_file in self._outlier_files:
+        for outlier_file in self._outliers_files:
             outliers = pd.read_csv(outlier_file, index_col=0, parse_dates=True)
 
             self._df.loc[outliers.index] = self._df.loc[outliers.index].mask(outliers)
@@ -525,38 +513,14 @@ class DataProcessorLevel1(BaseProcessor):
             data |= {c: pd.Series(dtype=t) for c, t in instrument_expected_columns.items()}
 
         df_level0 = pd.DataFrame(data)
+        metadata = Level0.mock(reference_instrument.name,
+                               instruments=[instrument.name for instrument in output_schema.instruments])
 
-        start = datetime.datetime(2000, 1, 1, 00, 00, 00)
-        end = start + datetime.timedelta(seconds=2)
-
-        df_level0["DateTime"] = pd.date_range(start, end, freq="1S")
-        df_level0.set_index("DateTime", inplace=True)
+        df_level0 = df_level0.reindex(pd.date_range(metadata.takeoff_time, metadata.landing_time, freq="1s"))
         df_level0.index = df_level0.index.astype("datetime64[s]")
 
-        metadata = Level0(
-            flight="0",
-            flight_date=start.date(),
-            takeoff_time=start,
-            landing_time=end,
-            reference_instrument=reference_instrument.name,
-            instruments=[instrument.name for instrument in output_schema.instruments],
-        )
-        operations = {}
-        for attr_name, attr in cls.__dict__.items():
-            if callable(attr) and getattr(attr, "__changes_df__", False):
-                operations[attr_name] = getattr(attr, "__dependencies__")
-        operations_sorted = list(TopologicalSorter(operations).static_order())
-
         data_processor = cls(output_schema, df_level0, metadata)
-
-        with suppress_plots():
-            for operation in operations_sorted:
-                print(f"Applying operation: {operation}")
-                getattr(data_processor, operation)()
-
+        launch_operations_changing_df(data_processor)
         expected_columns = {column: str(t) for column, t in data_processor.df.dtypes.to_dict().items()}
 
-        if not with_dtype:
-            return list(expected_columns.keys())
-
-        return expected_columns
+        return list(expected_columns.keys()) if not with_dtype else expected_columns

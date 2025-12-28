@@ -4,6 +4,7 @@ from abc import abstractmethod, ABC
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import wraps
+from graphlib import TopologicalSorter
 from itertools import cycle
 from typing import Any
 
@@ -15,6 +16,7 @@ from helikite.constants import constants
 from helikite.instruments import Instrument, flight_computer_v2, smart_tether, pops, msems_readings, msems_inverted, \
     msems_scan, mcda, filter, tapir, cpc, flight_computer_v1, stap, stap_raw, co2
 from helikite.instruments.flight_computer import FlightComputer
+from helikite.processing.helpers import suppress_plots
 
 logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
@@ -172,6 +174,11 @@ class BaseProcessor(ABC):
     def reference_instrument(self):
         return self._reference_instrument
 
+    @property
+    @abstractmethod
+    def df(self) -> pd.DataFrame | None:
+        ...
+
     def _check_schema_contains_instrument(self, instrument: Instrument) -> bool:
         if instrument not in self._output_schema.instruments:
             logger.warning(f"{self._output_schema.__class__.__name__} does not contain {instrument.name}. Skipping.")
@@ -249,6 +256,23 @@ class BaseProcessor(ABC):
                 if use_once:
                     print("\tNote: Can only be run once")
 
+    def _outliers_file_state_info(self, outliers_file: str, add_all: bool = False) -> list[str]:
+        state_info = []
+
+        outliers = pd.read_csv(outliers_file, index_col=0, parse_dates=True)
+        columns_with_outliers = outliers.columns if add_all else outliers.columns[outliers.any()]
+
+        state_info.append(f"{'Outliers file':<40}{outliers_file}")
+        state_info.append(f"{'Variable':<40}{'Number of outliers':<20}")
+        state_info.append("-" * 60)
+
+        for column in columns_with_outliers:
+            state_info.append(
+                f"{column:<40}{outliers[column].sum():<20}"
+            )
+
+        return state_info
+
     def _print_success_errors(
         self,
         operation: str,
@@ -291,3 +315,17 @@ def get_instruments_from_cleaned_data(df: pd.DataFrame, metadata: BaseModel) -> 
         instruments.append(instrument)
 
     return instruments, reference_instrument
+
+def launch_operations_changing_df(data_processor: BaseProcessor):
+    cls = data_processor.__class__
+    operations = {}
+    for attr_name, attr in cls.__dict__.items():
+        if callable(attr) and getattr(attr, "__changes_df__", False):
+            operations[attr_name] = getattr(attr, "__dependencies__")
+    operations_sorted = list(TopologicalSorter(operations).static_order())
+
+    with suppress_plots():
+        for operation in operations_sorted:
+            getattr(data_processor, operation)()
+
+    return data_processor

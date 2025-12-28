@@ -175,6 +175,7 @@ mcda = mCDA(
         "calib2",
         "measurement_nbr"
     ],
+    cols_final=[f"dataB {i}_dN_dlogDp_stp" for i in range(1, 257)] + ["dN_totalconc_stp"],
     export_order=730,
     pressure_variable="Pressure",
 )
