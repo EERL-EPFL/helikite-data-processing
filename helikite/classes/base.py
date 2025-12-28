@@ -1,4 +1,5 @@
 import inspect
+import logging
 from abc import abstractmethod, ABC
 from collections import defaultdict
 from dataclasses import dataclass
@@ -10,9 +11,13 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from pydantic import BaseModel
 
+from helikite.constants import constants
 from helikite.instruments import Instrument, flight_computer_v2, smart_tether, pops, msems_readings, msems_inverted, \
     msems_scan, mcda, filter, tapir, cpc, flight_computer_v1, stap, stap_raw, co2
+from helikite.instruments.flight_computer import FlightComputer
 
+logger = logging.getLogger(__name__)
+logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 def _build_colors_defaultdict():
     cmap = plt.get_cmap("tab10")
@@ -167,6 +172,17 @@ class BaseProcessor(ABC):
     @property
     def reference_instrument(self):
         return self._reference_instrument
+
+    def _check_schema_contains_instrument(self, instrument: Instrument) -> bool:
+        if instrument not in self._output_schema.instruments:
+            logger.warning(f"{self._output_schema.__class__.__name__} does not contain {instrument.name}. Skipping.")
+            return False
+        return True
+
+    @property
+    def _flight_computer(self) -> FlightComputer:
+        flight_computer = next(instrument for instrument in self._instruments if isinstance(instrument, FlightComputer))
+        return flight_computer
 
     @abstractmethod
     def _data_state_info(self) -> list[str]:
