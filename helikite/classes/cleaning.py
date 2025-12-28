@@ -144,7 +144,7 @@ class Cleaner(BaseProcessor):
         )
         return state_info
 
-    @function_dependencies(use_once=True)
+    @function_dependencies(required_operations=[], changes_df=True, use_once=True)
     def set_pressure_column(
         self,
         column_name_override: str | None = None,
@@ -174,7 +174,7 @@ class Cleaner(BaseProcessor):
 
         self._print_success_errors("pressure column", success, errors)
 
-    @function_dependencies([], use_once=True)
+    @function_dependencies([], changes_df=True, use_once=True)
     def set_time_as_index(self) -> None:
         """Set the time column as the index for each instrument dataframe"""
 
@@ -190,7 +190,7 @@ class Cleaner(BaseProcessor):
 
         self._print_success_errors("time as index", success, errors)
 
-    @function_dependencies(["set_time_as_index"], use_once=True)
+    @function_dependencies(["set_time_as_index"], changes_df=True, use_once=True)
     def data_corrections(
         self,
         start_altitude: float = None,
@@ -214,13 +214,7 @@ class Cleaner(BaseProcessor):
 
         self._print_success_errors("data corrections", success, errors)
 
-    @function_dependencies(
-        [
-            "set_time_as_index",
-            "set_pressure_column",
-        ],
-        use_once=False,
-    )
+    @function_dependencies(["set_time_as_index", "set_pressure_column"], changes_df=False, use_once=False)
     def plot_pressure(self) -> None:
         """Creates a plot with the pressure measurement of each instrument
 
@@ -289,6 +283,7 @@ class Cleaner(BaseProcessor):
 
         fig.show()
 
+    @function_dependencies(["correct_time_and_pressure"], changes_df=False, use_once=False)
     def plot_time_sync(self, save_path: str | pathlib.Path, skip: list[Instrument]):
         plt.close('all')
         fig, (ax) = plt.subplots(1, 1, figsize=(10, 8))
@@ -330,8 +325,7 @@ class Cleaner(BaseProcessor):
         print("Saving figure to:", save_path)
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
 
-
-    @function_dependencies(["set_time_as_index"], use_once=True)
+    @function_dependencies(["set_time_as_index"], changes_df=True, use_once=False)
     def remove_duplicates(self) -> None:
         """Remove duplicate rows from each instrument based on time index,
         and clear repeated values in 'msems_scan_', 'msems_inverted_' columns,
@@ -387,13 +381,7 @@ class Cleaner(BaseProcessor):
 
         self._print_success_errors("duplicate removal", success, errors)
 
-    @function_dependencies(
-        [
-            "set_time_as_index",
-            "set_pressure_column",
-        ],
-        use_once=False,
-    )
+    @function_dependencies(["correct_time_and_pressure", "remove_duplicates"], changes_df=True, use_once=False)
     def merge_instruments(
         self, tolerance_seconds: int = 0, remove_duplicates: bool = True
     ) -> None:
@@ -463,13 +451,7 @@ class Cleaner(BaseProcessor):
             "Available at Cleaner.master_df."
         )
 
-    @function_dependencies(
-        [
-            "merge_instruments",
-            "remove_duplicates",
-        ],
-        use_once=False,
-    )
+    @function_dependencies(["define_flight_times", "merge_instruments"], changes_df=False, use_once=False)
     def export_data(
         self,
         filename: str | None = None,
@@ -539,13 +521,6 @@ class Cleaner(BaseProcessor):
             "instrument data. The metadata is stored in the Parquet file."
         )
 
-    @function_dependencies(
-        [
-            "set_pressure_column",
-            "set_time_as_index",
-        ],
-        use_once=False,
-    )
     def _apply_rolling_window_to_pressure(
         self,
         instrument,
@@ -571,14 +546,7 @@ class Cleaner(BaseProcessor):
             f" on column '{instrument.pressure_column}'"
         )
 
-    @function_dependencies(
-        [
-            "set_pressure_column",
-            "set_time_as_index",
-            "data_corrections",
-        ],
-        use_once=False,
-    )
+    @function_dependencies(["set_pressure_column", "data_corrections"], changes_df=False, use_once=False)
     def define_flight_times(self):
         """Creates a plot to select the start and end of the flight
 
@@ -721,14 +689,7 @@ class Cleaner(BaseProcessor):
         # Show plot with interactive click functionality
         return VBox([fig, out])  # Use VBox to stack the plot and output
 
-    @function_dependencies(
-        [
-            "set_time_as_index",
-            "data_corrections",
-            "set_pressure_column",
-        ],
-        use_once=False,
-    )
+    @function_dependencies(["set_pressure_column", "data_corrections"], changes_df=True, use_once=False)
     def correct_time_and_pressure(
         self,
         max_lag=180,
@@ -1082,12 +1043,12 @@ class Cleaner(BaseProcessor):
     def shift_msems_columns_by_90s(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Shift all 'msems_inverted_' and 'msems_scan_' columns by 90 seconds in time.
-    
+
         Parameters
         ----------
         df : pd.DataFrame
             The DataFrame containing the time-indexed data to shift.
-    
+
         Returns
         -------
         pd.DataFrame
@@ -1121,7 +1082,7 @@ class Cleaner(BaseProcessor):
         Reindex the DataFrame to fill in missing timestamps at the specified frequency.
         Optionally forward- or backward-fill missing values.
         Prints the number of timestamps added.
-    
+
         Parameters
         ----------
         df : pd.DataFrame
@@ -1130,7 +1091,7 @@ class Cleaner(BaseProcessor):
             The desired frequency for the DateTimeIndex (e.g., "1S" for 1 second).
         fill_method : str or None
             Method to fill missing values: "ffill", "bfill", or None (default: None).
-    
+
         Returns
         -------
         pd.DataFrame

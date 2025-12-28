@@ -352,7 +352,7 @@ def POPS_total_conc_dNdlogDp(df):
     plt.close('all')
     
     # Define the path to the POPS DP notes file
-    filenotePOPS = os.path.join(os.getcwd(), os.pardir, "helikite", "instruments", "POPS_dNdlogDp.txt")
+    filenotePOPS = Path(__file__).parent / "POPS_dNdlogDp.txt"
     
     # Read the DP notes file
     dp_notes = pd.read_csv(filenotePOPS, sep="\t", skiprows=[0])

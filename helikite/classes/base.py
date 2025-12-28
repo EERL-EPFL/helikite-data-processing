@@ -104,11 +104,9 @@ class OutputSchemas:
         return getattr(cls, name.upper())
 
 
-def function_dependencies(required_operations: list[str] = [], use_once=False):
+def function_dependencies(required_operations: list[str], changes_df: bool, use_once: bool):
     """A decorator to enforce that a method can only run if the required
     operations have been completed and not rerun.
-
-    If used without a list, the function can only run once.
     """
 
     def decorator(func):
@@ -147,6 +145,7 @@ def function_dependencies(required_operations: list[str] = [], use_once=False):
         # Store dependencies and use_once information in the wrapper function
         wrapper.__dependencies__ = required_operations
         wrapper.__use_once__ = use_once
+        wrapper.__changes_df__ = changes_df
 
         return wrapper
 

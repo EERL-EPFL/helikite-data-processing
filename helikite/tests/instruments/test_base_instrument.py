@@ -8,7 +8,8 @@ import pandas as pd
 
 import helikite.instruments
 from helikite.classes.base import OutputSchemas
-from helikite.instruments import Instrument, cpc, filter, mcpc, pops
+from helikite.classes.data_processing_level1 import DataProcessorLevel1
+from helikite.instruments import Instrument, cpc, filter, mcpc, pops, flight_computer_v2
 from helikite.instruments.base import filter_columns_by_instrument
 from helikite.instruments.flight_computer import FlightComputer
 
@@ -82,7 +83,7 @@ def test_expected_columns_level0_oracles(
 
     for instrument in OutputSchemas.ORACLES.instruments:
         expected_columns = filter_columns_by_instrument(columns, instrument)
-        actual_columns = instrument.get_expected_columns(level=0, is_reference=isinstance(instrument, FlightComputer))
+        actual_columns = instrument.get_expected_columns_level0(is_reference=isinstance(instrument, FlightComputer))
 
         # TODO: remove once filter is integrated in the pipeline
         if instrument.name == "filter":
@@ -106,6 +107,41 @@ def test_expected_columns_level0_turtmann(
 
     for instrument in OutputSchemas.TURTMANN.instruments:
         expected_columns = filter_columns_by_instrument(columns, instrument)
-        actual_columns = instrument.get_expected_columns(level=0, is_reference=isinstance(instrument, FlightComputer))
+        actual_columns = instrument.get_expected_columns_level0(is_reference=isinstance(instrument, FlightComputer))
 
         assert set(expected_columns) == set(actual_columns)
+
+
+def test_expected_columns_level1_oracles(
+    campaign_data_location_2025: str
+):
+    df = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level1_2025-02-14_D_header.csv", index_col="DateTime")
+
+    expected_columns = df.columns.to_list()
+    actual_columns = DataProcessorLevel1.get_expected_columns(OutputSchemas.ORACLES,
+                                                              reference_instrument=flight_computer_v2,
+                                                              with_dtype=False)
+
+    # TODO: remove once filter is integrated in the pipeline
+    filter_columns = filter_columns_by_instrument(actual_columns, filter)
+    actual_columns = set(col for col in actual_columns if col not in filter_columns)
+
+    assert set(expected_columns) == set(actual_columns)
+
+
+# TODO: enable testing of Turtmann data
+# def test_expected_columns_level1_turtmann(
+#     campaign_data_location_turtmann: str
+# ):
+#     df = pd.read_csv(pathlib.Path(campaign_data_location_turtmann) / "level1_2024-02-20_B_header.csv", index_col="DateTime")
+#
+#     expected_columns = df.columns.to_list()
+#     actual_columns = DataProcessorLevel1.get_expected_columns(OutputSchemas.TURTMANN,
+#                                                               reference_instrument=flight_computer_v1,
+#                                                               with_dtype=False)
+#
+#     # TODO: remove once filter is integrated in the pipeline
+#     filter_columns = filter_columns_by_instrument(actual_columns, filter)
+#     actual_columns = set(col for col in actual_columns if col not in filter_columns)
+#
+#     assert set(expected_columns) == set(actual_columns)
