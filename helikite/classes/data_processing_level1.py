@@ -1,5 +1,7 @@
+import datetime
 import logging
 import pathlib
+from graphlib import TopologicalSorter
 from numbers import Number
 from typing import Any
 
@@ -20,13 +22,14 @@ from helikite.instruments import Instrument, pops, msems_inverted, mcda, cpc, \
     stap, co2
 from helikite.instruments.co2 import process_CO2_STP
 from helikite.instruments.cpc3007 import CPC
-from helikite.instruments.flight_computer import FlightComputer
 from helikite.instruments.mcda_instrument import mcda_concentration_calculations, mCDA_STP_normalization, \
     plot_mcda_distribution, plot_mcda_vertical_distribution, Midpoint_diameter_list
 from helikite.instruments.msems import mSEMS_total_conc_dN, mSEMS_STP_normalization, plot_msems_distribution
 from helikite.instruments.pops import POPS_total_conc_dNdlogDp, POPS_STP_normalization
 from helikite.instruments.stap import STAP_STP_normalization
+from helikite.metadata.models import Level0
 from helikite.processing import choose_outliers
+from helikite.processing.helpers import suppress_plots
 from helikite.processing.post.TandRH import T_RH_averaging, plot_T_RH
 from helikite.processing.post.altitude import altitude_calculation_barometric, plot_altitude
 from helikite.processing.post.level1 import flight_profiles_1
@@ -80,10 +83,10 @@ class DataProcessorLevel1(BaseProcessor):
 
         return state_info
 
-    @function_dependencies(required_operations=[], use_once=False)
+    @function_dependencies(required_operations=[], changes_df=False, use_once=False)
     def choose_outliers(
         self,
-        y: str,
+        y: str = "flight_computer_pressure",
         outlier_file: str = "outliers.csv",
         use_coupled_columns: bool = True,
     ) -> VBox:
@@ -108,8 +111,11 @@ class DataProcessorLevel1(BaseProcessor):
 
         return vbox
 
-    @function_dependencies(required_operations=[], use_once=False)
-    def fillna_if_all_missing(self, values_dict: dict[str, Any]):
+    @function_dependencies(required_operations=[], changes_df=True, use_once=False)
+    def fillna_if_all_missing(self, values_dict: dict[str, Any] | None = None):
+        if values_dict is None:
+            values_dict = {}
+
         for column, value in values_dict.items():
             if column not in self._df.columns:
                 logger.warning(f"Column '{column}' not found in dataframe. Skipping fill.")
@@ -120,28 +126,28 @@ class DataProcessorLevel1(BaseProcessor):
             else:
                 print(f"Column '{column}' has data present. Skipping fill.")
 
-    @function_dependencies(required_operations=["choose_outliers"], use_once=False)
+    @function_dependencies(required_operations=["choose_outliers"], changes_df=True, use_once=False)
     def set_outliers_to_nan(self):
         for outlier_file in self._outlier_files:
             outliers = pd.read_csv(outlier_file, index_col=0, parse_dates=True)
 
             self._df.loc[outliers.index] = self._df.loc[outliers.index].mask(outliers)
 
-    @function_dependencies(required_operations=["set_outliers_to_nan"], use_once=False)
+    @function_dependencies(required_operations=["set_outliers_to_nan"], changes_df=False, use_once=False)
     def plot_outliers_check(self):
         plot_outliers_check(self._df, self._flight_computer)
 
-    @function_dependencies(required_operations=[""], use_once=False)
+    @function_dependencies(required_operations=["set_outliers_to_nan"], changes_df=True, use_once=False)
     def convert_gps_coordinates(self,
                                 lat_col='flight_computer_Lat', lon_col='flight_computer_Long',
                                 lat_dir='S', lon_dir='W'):
         self._df = convert_gps_coordinates(self._df, lat_col, lon_col, lat_dir, lon_dir)
 
-    @function_dependencies(required_operations=[], use_once=False)
+    @function_dependencies(required_operations=["convert_gps_coordinates"], changes_df=False, use_once=False)
     def plot_gps_on_map(self, center_coords=(-70.6587, -8.2850), zoom_start=13) -> folium.Map:
         return plot_gps_on_map(self._df, center_coords, zoom_start)
 
-    @function_dependencies(required_operations=["set_outliers_to_nan"], use_once=False)
+    @function_dependencies(required_operations=["set_outliers_to_nan"], changes_df=True, use_once=False)
     def T_RH_averaging(self,
                        columns_t: list[str] | None = None, columns_rh: list[str] | None = None,
                        nan_threshold: int = 400):
@@ -149,7 +155,7 @@ class DataProcessorLevel1(BaseProcessor):
         columns_rh = columns_rh if columns_rh is not None else self._build_FC_RH_columns()
         self._df = T_RH_averaging(self._df, columns_t, columns_rh, nan_threshold)
 
-    @function_dependencies(required_operations=["T_RH_averaging"], use_once=False)
+    @function_dependencies(required_operations=["T_RH_averaging"], changes_df=False, use_once=False)
     def plot_T_RH(self, save_path: str | pathlib.Path | None = None):
         plot_T_RH(self._df, self._flight_computer, save_path)
 
@@ -165,21 +171,21 @@ class DataProcessorLevel1(BaseProcessor):
             f"{self._flight_computer.name}_{self._flight_computer.H2_column}",
         ]
 
-    @function_dependencies(required_operations=["T_RH_averaging"], use_once=False)
+    @function_dependencies(required_operations=["T_RH_averaging"], changes_df=True, use_once=False)
     def altitude_calculation_barometric(self, offset_to_add: Number = 0):
         self._df = altitude_calculation_barometric(self._df, self._metadata, offset_to_add)
 
-    @function_dependencies(required_operations=["altitude_calculation_barometric"], use_once=False)
+    @function_dependencies(required_operations=["altitude_calculation_barometric"], changes_df=False, use_once=False)
     def plot_altitude(self):
         plot_altitude(self._df)
 
-    @function_dependencies(required_operations=[], use_once=True)
+    @function_dependencies(required_operations=[], changes_df=True, use_once=True)
     def add_missing_columns(self):
         all_missing_columns = {}
         for instrument in self._output_schema.instruments:
             is_reference = instrument == self._reference_instrument
 
-            all_columns = instrument.get_expected_columns(level=0, is_reference=is_reference, with_dtype=True)
+            all_columns = instrument.get_expected_columns_level0(is_reference=is_reference, with_dtype=True)
             missing_columns = {column: t for column, t in all_columns.items() if column not in self._df.columns}
 
             if len(missing_columns) != 0:
@@ -197,71 +203,81 @@ class DataProcessorLevel1(BaseProcessor):
 
 
     @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
-                           use_once=False)
+                           changes_df=True, use_once=False)
     def process_CO2_STP(self, min_threshold=200, max_threshold=500):
         if self._check_schema_contains_instrument(co2):
             self._df = process_CO2_STP(self._df, min_threshold, max_threshold)
 
     @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
-                           use_once=False)
+                           changes_df=True, use_once=False)
     def STAP_STP_normalization(self):
         if self._check_schema_contains_instrument(stap):
             self._df = STAP_STP_normalization(self._df)
 
     @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
-                           use_once=False)
+                           changes_df=True, use_once=False)
     def POPS_total_conc_dNdlogDp(self):
         if self._check_schema_contains_instrument(pops):
             self._df = POPS_total_conc_dNdlogDp(self._df)
 
-    @function_dependencies(required_operations=["POPS_total_conc_dNdlogDp"], use_once=False)
+    @function_dependencies(required_operations=["POPS_total_conc_dNdlogDp"], changes_df=True, use_once=False)
     def POPS_STP_normalization(self):
         if self._check_schema_contains_instrument(pops):
             self._df = POPS_STP_normalization(self._df)
 
     @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
-                           use_once=False)
+                           changes_df=True, use_once=False)
     def mSEMS_total_conc_dN(self):
         if self._check_schema_contains_instrument(msems_inverted):
             self._df = mSEMS_total_conc_dN(self._df)
 
-    @function_dependencies(required_operations=["mSEMS_total_conc_dN"], use_once=False)
+    @function_dependencies(required_operations=["mSEMS_total_conc_dN"], changes_df=True, use_once=False)
     def mSEMS_STP_normalization(self):
         if self._check_schema_contains_instrument(msems_inverted):
             self._df = mSEMS_STP_normalization(self._df)
 
-    @function_dependencies(required_operations=["mSEMS_STP_normalization"], use_once=False)
+    @function_dependencies(required_operations=["mSEMS_STP_normalization"], changes_df=False, use_once=False)
     def plot_msems_distribution(self, time_start=None, time_end=None):
         if self._check_schema_contains_instrument(msems_inverted):
             plot_msems_distribution(self._df, time_start, time_end)
 
     @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
-                           use_once=False)
+                           changes_df=True, use_once=False)
     def mcda_concentration_calculations(self):
         if self._check_schema_contains_instrument(mcda):
             self._df = mcda_concentration_calculations(self._df)
 
-    @function_dependencies(required_operations=["mcda_concentration_calculations"], use_once=False)
+    @function_dependencies(required_operations=["mcda_concentration_calculations"], changes_df=True, use_once=False)
     def mCDA_STP_normalization(self):
         if self._check_schema_contains_instrument(mcda):
             self._df = mCDA_STP_normalization(self._df)
 
-    @function_dependencies(required_operations=["mCDA_STP_normalization"], use_once=False)
+    @function_dependencies(required_operations=["mCDA_STP_normalization"], changes_df=False, use_once=False)
     def plot_mcda_distribution(self, midpoint_diameter_list, time_start=None, time_end=None):
         if self._check_schema_contains_instrument(mcda):
             plot_mcda_distribution(self._df, midpoint_diameter_list, time_start, time_end)
 
-    @function_dependencies(required_operations=["mCDA_STP_normalization"], use_once=False)
+    @function_dependencies(required_operations=["mCDA_STP_normalization"], changes_df=False, use_once=False)
     def plot_mcda_vertical_distribution(self, Midpoint_diameter_list):
         if self._check_schema_contains_instrument(mcda):
             plot_mcda_vertical_distribution(self._df, Midpoint_diameter_list)
 
     @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
-                           use_once=False)
+                           changes_df=True, use_once=False)
     def CPC_STP_normalization(self):
         if self._check_schema_contains_instrument(cpc):
             self._df = CPC.CPC_STP_normalization(self._df)
 
+    @function_dependencies(
+        required_operations=[
+            "POPS_STP_normalization",
+            "mSEMS_STP_normalization",
+            "mCDA_STP_normalization",
+            "CPC_STP_normalization",
+        ],
+        changes_df=False,
+        use_once=False
+    )
     def plot_flight_profiles(self, flight_basename: str, save_path: str | pathlib.Path):
         # Limits for x-axis (T, RH, mSEMS, CPC, POPS, mCDA, WS, WD)
         custom_xlim = {
@@ -294,6 +310,16 @@ class DataProcessorLevel1(BaseProcessor):
         print("Saving figure to:", save_path)
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
 
+    @function_dependencies(
+        required_operations=[
+            "POPS_STP_normalization",
+            "mSEMS_STP_normalization",
+            "mCDA_STP_normalization",
+            "CPC_STP_normalization",
+        ],
+        changes_df=False,
+        use_once=False
+    )
     def plot_size_distr(self, save_path: str | pathlib.Path):
         # TEMPORAL PLOT OF FLIGHT with POPS and mSEMS HEAT MAPS
 
@@ -484,3 +510,53 @@ class DataProcessorLevel1(BaseProcessor):
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
 
         plt.show()
+
+    @classmethod
+    def get_expected_columns(cls,
+                             output_schema: OutputSchema,
+                             reference_instrument: Instrument,
+                             with_dtype: bool) -> list[str] | dict[str, str]:
+        data = {}
+        for instrument in output_schema.instruments:
+            instrument_expected_columns = instrument.get_expected_columns_level0(
+                is_reference=instrument == reference_instrument,
+                with_dtype=True
+            )
+            data |= {c: pd.Series(dtype=t) for c, t in instrument_expected_columns.items()}
+
+        df_level0 = pd.DataFrame(data)
+
+        start = datetime.datetime(2000, 1, 1, 00, 00, 00)
+        end = start + datetime.timedelta(seconds=2)
+
+        df_level0["DateTime"] = pd.date_range(start, end, freq="1S")
+        df_level0.set_index("DateTime", inplace=True)
+        df_level0.index = df_level0.index.astype("datetime64[s]")
+
+        metadata = Level0(
+            flight="0",
+            flight_date=start.date(),
+            takeoff_time=start,
+            landing_time=end,
+            reference_instrument=reference_instrument.name,
+            instruments=[instrument.name for instrument in output_schema.instruments],
+        )
+        operations = {}
+        for attr_name, attr in cls.__dict__.items():
+            if callable(attr) and getattr(attr, "__changes_df__", False):
+                operations[attr_name] = getattr(attr, "__dependencies__")
+        operations_sorted = list(TopologicalSorter(operations).static_order())
+
+        data_processor = cls(output_schema, df_level0, metadata)
+
+        with suppress_plots():
+            for operation in operations_sorted:
+                print(f"Applying operation: {operation}")
+                getattr(data_processor, operation)()
+
+        expected_columns = {column: str(t) for column, t in data_processor.df.dtypes.to_dict().items()}
+
+        if not with_dtype:
+            return list(expected_columns.keys())
+
+        return expected_columns

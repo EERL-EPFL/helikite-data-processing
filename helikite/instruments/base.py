@@ -341,40 +341,28 @@ class Instrument(ABC):
 
         return df_unique
 
-    def get_expected_columns(self, level: float | None, is_reference: bool,
-                             with_dtype: bool = False) -> list[str] | dict[str, str]:
-        expected_columns = None
-        match level:
-            case None:
-                expected_columns = self.dtype
+    def get_expected_columns_level0(self, is_reference: bool, with_dtype: bool = False) -> list[str] | dict[str, str]:
+        df = pd.DataFrame({c: pd.Series(dtype=t) for c, t in self.dtype.items()})
+        with temporary_attr(self, "date", date(year=2000, month=1, day=1)):
+            df = self.set_time_as_index(df)
 
-            case 0:
-                df = pd.DataFrame({c: pd.Series(dtype=t) for c, t in self.dtype.items()})
-                with temporary_attr(self, "date", date(year=2000, month=1, day=1)):
-                    df = self.set_time_as_index(df)
+        # TODO: Remove this once addition of `scan_direction` is integrated in the cleaning pipeline
+        if self.name == "msems_inverted":
+            df.insert(len(df.columns), "scan_direction", pd.Series([], dtype="Int64"))
 
-                # TODO: Remove this once addition of `scan_direction` is integrated in the cleaning pipeline
-                if self.name == "msems_inverted":
-                    df.insert(len(df.columns), "scan_direction", pd.Series([], dtype="Int64"))
+        df = self.data_corrections(df)
 
-                df = self.data_corrections(df)
+        if self.pressure_variable is not None:
+            df = self.set_housekeeping_pressure_offset_variable(df, constants.HOUSEKEEPING_VAR_PRESSURE)
 
-                if self.pressure_variable is not None:
-                    df = self.set_housekeeping_pressure_offset_variable(df, constants.HOUSEKEEPING_VAR_PRESSURE)
+        if not is_reference and self.pressure_variable is not None:
+            df.insert(0, "DateTime", df.index)
 
-                if not is_reference and self.pressure_variable is not None:
-                    df.insert(0, "DateTime", df.index)
-
-                expected_columns = {f"{self.name}_{column}": str(t) for column, t in zip(df.columns, df.dtypes)}
-
-            case 1 | 1.5 | 2:
-                raise ValueError(f"Unsupported level: {level}")
-
-            case _:
-                raise ValueError(f"Unexpected level: {level}")
+        expected_columns = {f"{self.name}_{column}": str(t) for column, t in df.dtypes.to_dict().items()}
 
         if not with_dtype:
             return list(expected_columns.keys())
+
         return expected_columns
 
     def _get_instantiation_info(self) -> tuple[str, str | None] | None:

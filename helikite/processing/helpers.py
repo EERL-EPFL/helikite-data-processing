@@ -1,4 +1,5 @@
 import pandas as pd
+import matplotlib.pyplot as plt
 from typing import Any
 import logging
 from helikite.constants import constants
@@ -76,3 +77,16 @@ def temporary_attr(obj, name, value):
             delattr(obj, name)
         else:
             setattr(obj, name, old_value)
+
+
+@contextmanager
+def suppress_plots():
+    plt.ioff()
+    _show = plt.show
+    plt.show = lambda *args, **kwargs: None
+    try:
+        yield
+    finally:
+        plt.show = _show
+        plt.ion()
+        plt.close('all')

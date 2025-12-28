@@ -41,6 +41,7 @@ class CPC(Instrument):
             )
 
         df["DateTime"] = df["Time"].apply(lambda t: pd.to_datetime(f"{self.date} {t}"))
+        df.drop(columns=["Time"], inplace=True)
         df.set_index("DateTime", inplace=True)
         df.index = df.index.astype("datetime64[s]")
 

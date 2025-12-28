@@ -1,3 +1,4 @@
+import datetime
 from numbers import Number
 
 import matplotlib.pyplot as plt
@@ -262,7 +263,7 @@ def calculate_ground(df, takeoff_time, landing_time, time_col, pressure_col, tem
     return df[['Pressure_ground', 'Temperature_ground']]
     
 
-def calculate_ground_average(df, takeoff_time, landing_time, time_col, pressure_col, temp_col):
+def calculate_ground_average(df, takeoff_time, landing_time, pressure_col, temp_col):
     """
     Averages pressure and temperature 60 seconds before takeoff and after landing,
     then interpolates between them across the flight duration.
@@ -271,7 +272,6 @@ def calculate_ground_average(df, takeoff_time, landing_time, time_col, pressure_
         df (pd.DataFrame): DataFrame containing flight data.
         takeoff_time (datetime): Timestamp of takeoff.
         landing_time (datetime): Timestamp of landing.
-        time_col (str): Column name containing timestamps.
         pressure_col (str): Column name containing pressure data.
         temp_col (str): Column name containing temperature data.
 
@@ -296,15 +296,15 @@ def calculate_ground_average(df, takeoff_time, landing_time, time_col, pressure_
     Tground = [takeoff[temp_col].mean() + 273.15, landing[temp_col].mean() + 273.15]
 
     # Create interpolation DataFrame
-    interp_df = pd.DataFrame({'Pressure': Pground, 'Temperature': Tground}, index=[takeoff_time, landing_time])
+    interp_df = pd.DataFrame({'Pressure': Pground, 'Temperature': Tground}, index=[takeoff_time, landing_time], dtype="Float64")
 
     # Interpolate linearly between those two average points
-    time_range = df.loc[takeoff_time:landing_time, time_col]
+    time_range = df.loc[takeoff_time:landing_time].index
     interp_df = interp_df.reindex(interp_df.index.union(time_range)).interpolate(method='time')
 
     # Map interpolated values
-    df['Pressure_ground'] = df['DateTime'].map(interp_df['Pressure']).astype("Float64")
-    df['Temperature_ground'] = df['DateTime'].map(interp_df['Temperature']).astype("Float64")
+    df['Pressure_ground'] = df.index.map(interp_df['Pressure']).astype("Float64")
+    df['Temperature_ground'] = df.index.map(interp_df['Temperature']).astype("Float64")
 
     # Fill NaNs before takeoff and after landing using nearest values
     df[['Pressure_ground', 'Temperature_ground']] = df[['Pressure_ground', 'Temperature_ground']].ffill().bfill()
@@ -326,16 +326,12 @@ def altitude_calculation_barometric(df: pd.DataFrame, metadata: BaseModel, offse
         pd.DataFrame: Updated DataFrame with 'Pressure_ground', 'Temperature_ground', and 'Altitude' columns.
     """
     plt.close('all')
-    
-    # Make sure DateTime column is properly set
-    df['DateTime'] = df.index
 
     # Interpolate ground pressure and temperature
     df[['Pressure_ground', 'Temperature_ground']] = altitude.calculate_ground_average(
         df,
         metadata.takeoff_time,
         metadata.landing_time,
-        time_col='DateTime',
         pressure_col='flight_computer_pressure',
         temp_col='Average_Temperature'
     )
