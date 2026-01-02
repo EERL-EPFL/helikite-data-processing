@@ -31,6 +31,8 @@ def _build_colors_defaultdict():
 
 @dataclass(frozen=True)
 class OutputSchema:
+    campaign: str | None
+    """Campaign name"""
     instruments: list[Instrument]
     """List of instruments whose columns should be present in the output dataframe."""
     colors: dict[Instrument, str]
@@ -41,6 +43,7 @@ class OutputSchema:
 
 class OutputSchemas:
     ORACLES = OutputSchema(
+        campaign="ORACLES",
         instruments=[
             flight_computer_v2,
             smart_tether,
@@ -69,6 +72,7 @@ class OutputSchemas:
     )
 
     TURTMANN = OutputSchema(
+        campaign="TURTMANN",
         instruments=[
             flight_computer_v1,
             smart_tether,
@@ -96,6 +100,7 @@ class OutputSchemas:
     )
 
     ALL = OutputSchema(
+        campaign=None,
         instruments=list(Instrument.REGISTRY.values()),
         colors=_build_colors_defaultdict(),
         reference_instrument_candidates=[flight_computer_v2, flight_computer_v1, smart_tether, pops],

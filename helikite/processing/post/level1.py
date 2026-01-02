@@ -359,14 +359,14 @@ def flight_profiles_2(df, metadata, xlims=None, xticks=None, fig_title=None):
         if not cloud_points.empty:
             label_added = False
             delta_alt = 5  # meters to extend single-point shading
-    
+
             # Find the position of max altitude
             max_alt_pos = df.index.get_loc(df['Altitude'].idxmax())
-            
+
             # Split ascent and descent using iloc (integer positions)
             df_up = df.iloc[:max_alt_pos + 1]
             df_down = df.iloc[max_alt_pos + 1:]
-    
+
             def shade_cloud_segment(df_segment, ax_list):
                 cloud_times_seg = df_segment[df_segment['flag_cloud'] == 1].index
                 if not cloud_times_seg.empty:
@@ -385,7 +385,7 @@ def flight_profiles_2(df, metadata, xlims=None, xticks=None, fig_title=None):
                                            label='Cloud' if not label_added else None)
                             label_added = True
                             start_idx = cloud_times_seg[i]
-            
+
                     # Final segment
                     ymin = df_segment.loc[start_idx, 'Altitude']
                     ymax = df_segment.loc[cloud_times_seg[-1], 'Altitude']
@@ -396,7 +396,7 @@ def flight_profiles_2(df, metadata, xlims=None, xticks=None, fig_title=None):
                     for ax in ax_list:
                         ax.axhspan(ymin, ymax, color='lightblue', alpha=0.3,
                                    label='Cloud' if not label_added else None)
-    
+
             # Apply separately for ascent and descent
             shade_cloud_segment(df_up, [ax3, ax5])
             shade_cloud_segment(df_down, [ax3, ax5])
@@ -420,7 +420,7 @@ def flight_profiles_2(df, metadata, xlims=None, xticks=None, fig_title=None):
             ymax = df.loc[pollution_times[-1], 'Altitude']
             ax3.axhspan(ymin, ymax, color='lightcoral', alpha=0.3,
                         label='Pollution' if not label_added else None)
-    
+
     # Plot ascent data
     ax1.plot(df_up["TEMP"], df_up["Altitude"], color="brown", linewidth=3.0)
     ax2.plot(df_up["RH"], df_up["Altitude"], color="orange", linewidth=3.0)
@@ -537,7 +537,7 @@ def flight_profiles_2(df, metadata, xlims=None, xticks=None, fig_title=None):
         Patch(facecolor='lightblue', alpha=0.3, label='Cloud'),
         Patch(facecolor='lightcoral', alpha=0.3, label='Pollution')
     ]
-    
+
     ax[4].legend(
         handles=legend_lines,
         loc='upper right',

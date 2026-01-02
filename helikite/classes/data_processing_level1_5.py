@@ -52,7 +52,7 @@ class DataProcessorLevel1_5(BaseProcessor):
 
     @function_dependencies(required_operations=["filter_columns"], changes_df=True, use_once=True)
     def round_flightnbr_campaign(self, decimals=2):
-        self._df = round_flightnbr_campaign(self._df, self._metadata, decimals)
+        self._df = round_flightnbr_campaign(self._df, self._metadata, self._output_schema, decimals)
 
     @classmethod
     def get_expected_columns(cls,
