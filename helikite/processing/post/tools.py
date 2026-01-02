@@ -1,3 +1,5 @@
+import pathlib
+
 import pandas as pd
 import plotly.graph_objects as go
 from ipywidgets import Output, VBox, Dropdown, ToggleButton
@@ -62,6 +64,9 @@ def choose_outliers(df, y, coupled_columns=None, outlier_file="outliers.csv") ->
     except FileNotFoundError:
         print(f"Outlier file not found. Creating new one at {outlier_file}")
         outliers = pd.DataFrame(columns=df.columns).fillna(False)
+
+        dirpath = pathlib.Path(outlier_file).parent
+        dirpath.mkdir(parents=True, exist_ok=True)
 
         # Store outliers file even if no outliers were selected
         outliers.to_csv(outlier_file, date_format="%Y-%m-%d %H:%M:%S")
