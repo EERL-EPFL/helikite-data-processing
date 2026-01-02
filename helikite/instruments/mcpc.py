@@ -21,7 +21,7 @@ class MCPC(Instrument):
         return "mCPC"
 
     def file_identifier(self, first_lines_of_csv) -> bool:
-        if "#MCPC-UAV" in first_lines_of_csv[0]:
+        if any(s in first_lines_of_csv[0] for s in ["#MCPC-UAV", "#aMCPC"]):
             return True
 
         return False
