@@ -2,11 +2,11 @@ from pydantic_settings import BaseSettings
 from pathlib import Path
 import logging
 from functools import lru_cache
-
+from importlib.resources import files
 
 class Constants(BaseSettings):
-    INPUTS_FOLDER: Path = Path.cwd().joinpath("inputs")
-    OUTPUTS_FOLDER: Path = Path.cwd().joinpath("outputs")
+    INPUTS_FOLDER: Path = files("helikite").parent.joinpath("inputs")
+    OUTPUTS_FOLDER: Path = files("helikite").parent.joinpath("outputs")
     OUTPUTS_INSTRUMENT_SUBFOLDER: str = "instruments"
     CONFIG_FILE: str = "config.yaml"
     MASTER_CSV_FILENAME: str = "helikite-data.csv"
