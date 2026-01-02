@@ -592,6 +592,8 @@ msems_inverted = MSEMSInverted(
     cols_export=[],
     cols_housekeeping=[],
     cols_final=[f"Bin_Conc{i}_stp" for i in range(1, 61)] + ["dN_totalconc_stp"],
+    rename_dict={f'msems_inverted_Bin_Conc{i}_stp': f'mSEMS_Bin_Conc{i}' for i in range(1, 61)} |
+                {'msems_inverted_dN_totalconc_stp': 'mSEMS_total_N'},
 )
 
 

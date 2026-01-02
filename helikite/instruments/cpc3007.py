@@ -131,4 +131,5 @@ cpc = CPC(
     cols_final=["totalconc_stp"],
     header=17,
     pressure_variable=None,
+    rename_dict={'cpc_totalconc_stp': 'CPC_total_N'},
 )

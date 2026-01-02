@@ -691,5 +691,9 @@ flight_computer_v2 = FlightComputerV2(
         ('flight_computer_Out1_T', 'flight_computer_Out1_H'),
         ('flight_computer_Out2_T', 'flight_computer_Out2_H'),
         ('flight_computer_Lat', 'flight_computer_Long'),
-    ]
+    ],
+    rename_dict={
+        'flight_computer_F_cur_pos': 'Filter_position',
+        'flight_computer_F_smp_flw': 'Filter_flow'
+    },
 )

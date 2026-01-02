@@ -48,7 +48,7 @@ class DataProcessorLevel1_5(BaseProcessor):
 
     @function_dependencies(required_operations=["filter_columns"], changes_df=True, use_once=True)
     def rename_columns(self):
-        self._df = rename_columns(self._df)
+        self._df = rename_columns(self._df, self._output_schema)
 
     @function_dependencies(required_operations=["filter_columns"], changes_df=True, use_once=True)
     def round_flightnbr_campaign(self, decimals=2):

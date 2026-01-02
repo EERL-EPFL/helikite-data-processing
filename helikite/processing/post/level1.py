@@ -33,51 +33,33 @@ def create_level1_dataframe(df: pd.DataFrame, output_schema: OutputSchema):
     return df[selected_columns].copy()
 
 
-def rename_columns(df):
+def rename_columns(df: pd.DataFrame, output_schema: OutputSchema):
     """
-    Renames columns of the input DataFrame according to predefined rules.
+    Renames columns of the input DataFrame according to predefined rules and instrument-specific rules.
+    See `Instrument.rename_dict`
 
     Parameters:
         df (pd.DataFrame): The DataFrame with columns to be renamed.
+        output_schema (OutputSchema): The OutputSchema object containing the instruments.
 
     Returns:
         pd.DataFrame: DataFrame with renamed columns.
     """
-    # Define all the renaming rules
-    manual_rename = {
+    rename_dict = {
         'DateTime': 'datetime',
         'latitude_dd': 'Lat',
         'longitude_dd': 'Long',
         'flight_computer_pressure': 'P',
         'Average_Temperature': 'TEMP',
         'Average_RH': 'RH',
-        'smart_tether_Wind (m/s)': 'WindSpeed',
-        'smart_tether_Wind (degrees)': 'WindDir',
-        'pops_total_conc_stp': 'POPS_total_N',
-        'msems_inverted_dN_totalconc_stp': 'mSEMS_total_N',
-        'mcda_dN_totalconc_stp': 'mCDA_total_N',
-        'cpc_totalconc_stp': 'CPC_total_N',
-        'flight_computer_F_cur_pos': 'Filter_position',
-        'flight_computer_F_smp_flw': 'Filter_flow'
     }
+    for instrument in output_schema.instruments:
+        rename_dict = rename_dict | instrument.rename_dict
 
-    # Ranges to rename
-    pops_range = [f'pops_b{i}_dlogDp_stp' for i in range(3, 16)]
-    msems_range = [f'msems_inverted_Bin_Conc{i}_stp' for i in range(1, 61)]
-    mcda_range = [f'mcda_dataB {i}_dN_dlogDp_stp' for i in range(1, 257)]
-
-    # Automatically generated rename mappings
-    pops_rename = {col: f'POPS_b{i}' for i, col in zip(range(3, 16), pops_range)}
-    msems_rename = {col: f'mSEMS_Bin_Conc{i}' for i, col in zip(range(1, 61), msems_range)}
-    mcda_rename = {col: f'mCDA_dataB{i}' for i, col in zip(range(1, 257), mcda_range)}
-
-    # Combine all rename mappings
-    rename_dict = {**manual_rename, **pops_rename, **msems_rename, **mcda_rename}
-
-    # Apply renaming
     df_renamed = df.rename(columns=rename_dict)
 
     return df_renamed
+
 
 def round_flightnbr_campaign(df, metadata, decimals):
     """

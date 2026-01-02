@@ -167,7 +167,11 @@ smart_tether = SmartTether(
     pressure_variable="P (mbar)",
     coupled_columns=[
         ('smart_tether_Wind (m/s)', 'smart_tether_Wind (degrees)'),
-    ]
+    ],
+    rename_dict={
+        'smart_tether_Wind (m/s)': 'WindSpeed',
+        'smart_tether_Wind (degrees)': 'WindDir',
+    },
 )
 
 
