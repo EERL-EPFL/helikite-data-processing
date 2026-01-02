@@ -41,6 +41,7 @@ class Instrument(ABC):
         # Groups of columns that are coupled. If a row contains an outlier in any column within a tuple,
         # then the values in all other columns of that tuple should also be treated as outliers.
         coupled_columns: list[tuple[str, ...]] | None = None,
+        rename_dict: dict[str, str] | None = None,
     ) -> None:
         self.name = name
         self.dtype = dtype
@@ -57,7 +58,8 @@ class Instrument(ABC):
         self.cols_final = cols_final
         self.export_order = export_order
         self.pressure_variable = pressure_variable
-        self.coupled_columns = coupled_columns if coupled_columns else []
+        self.coupled_columns = coupled_columns if coupled_columns is not None else []
+        self._rename_dict = rename_dict if rename_dict is not None else {}
 
         # Properties that are not part of standard config, can be added
         self.filename: str | None = None
@@ -185,6 +187,13 @@ class Instrument(ABC):
         Otherwise, returns None.
         """
         return self.cols_final
+
+    @property
+    def rename_dict(self) -> dict[str, str]:
+        """
+        Returns a dictionary of column names to rename for the final data file.
+        """
+        return self._rename_dict
 
     @abstractmethod
     def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:

@@ -218,6 +218,7 @@ pops = POPS(
     ],
     cols_final=[f"b{i}_dlogDp_stp" for i in range(3, 16)] + ["total_conc_stp"],
     pressure_variable="P",
+    rename_dict={f'pops_b{i}_dlogDp_stp': f'POPS_b{i}' for i in range(3, 16)} | {'pops_total_conc_stp': 'POPS_total_N'},
 )
 
 
