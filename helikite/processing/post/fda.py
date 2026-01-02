@@ -1,4 +1,5 @@
 import datetime
+import logging
 import pathlib
 import string
 from dataclasses import dataclass
@@ -9,12 +10,17 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
+from helikite.constants import constants
+
 CONC_COLUMN_NAME = "concentration"
 GRAD_COLUMN_NAME = "gradient"
 FLAG_COLUMN_NAME = "flag"
 
 COLOR_RED = "#d73027"
 
+# Define logger for this file
+logger = logging.getLogger(__name__)
+logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 @dataclass
 class FDAParameters:
@@ -51,11 +57,11 @@ class FDAParameters:
     pl_m: float = 0
     iqr_window: str | None = None
     iqr_factor: float | None = None
-    lower_thr: float = 0
+    lower_thr: float = -np.inf
     upper_thr: float = np.inf
     median_window: str | None = None
     median_factor: float | None = None
-    sparse_window: str | None = None
+    sparse_window: int | None = None
     sparse_thr: float | None = None
 
 
@@ -77,6 +83,8 @@ class FDA:
     def __init__(self, df: pd.DataFrame, conc_column_name: str, flag_column_name: str | None, params: FDAParameters):
         self._title = conc_column_name
         self._params = params
+        self._df_orig = df.copy()
+        self._conc_orig = conc_column_name
 
         columns = [conc_column_name]
         if flag_column_name is not None:
@@ -86,9 +94,15 @@ class FDA:
         self._df.rename(columns={conc_column_name: CONC_COLUMN_NAME, flag_column_name: FLAG_COLUMN_NAME}, inplace=True)
 
         if self._params.avg_time is not None:
-            self._df = self._df.resample(self._params.avg_time).mean().dropna(how="all")
-            if FLAG_COLUMN_NAME in self._df.columns:
-                self._df[FLAG_COLUMN_NAME] = self._df[FLAG_COLUMN_NAME] >= 0.5
+            freq = pd.infer_freq(self._df.index)
+            if freq is None or pd.to_timedelta(freq) <= pd.to_timedelta(self._params.avg_time):
+                self._df = self._df.resample(self._params.avg_time).mean().dropna(how="all")
+                if FLAG_COLUMN_NAME in self._df.columns:
+                    self._df[FLAG_COLUMN_NAME] = self._df[FLAG_COLUMN_NAME] >= 0.5
+            else:
+                self._params.avg_time = None
+                logger.warning(f"Dataframe has lower frequency ({freq}) than the specified averaging "
+                               f"frequency ({self._params.avg_time}). No averaging will be performed.")
 
         self._df[GRAD_COLUMN_NAME] = np.abs(np.gradient(self._df[CONC_COLUMN_NAME]))
         self._filters: list[Callable] | None = None
@@ -178,7 +192,7 @@ class FDA:
 
         plt.show()
 
-    def detect_pollution(self):
+    def detect_pollution(self) -> pd.Series:
         self._filters = []
         match self._params.main_filter:
             case "iqr":
@@ -205,7 +219,14 @@ class FDA:
             flag = filter(conc, grad, flag, self._params)
             self._intermediate_flags.append(flag)
 
-        return self._intermediate_flags[-1]
+        final_flag = pd.DataFrame({FLAG_COLUMN_NAME: self._intermediate_flags[-1]}, index=self._df.index)
+
+        if self._params.avg_time is not None:
+            final_flag = final_flag.reindex(self._df_orig.index, method="nearest")
+            final_flag.where(~self._df_orig[self._conc_orig].isna(), pd.NA, inplace=True)
+
+        return final_flag[FLAG_COLUMN_NAME]
+
 
     def plot_detection(self, use_time_index: bool = True, figsize=None, fontsize=14, markersize=3,
                        save_path: str | pathlib.Path | None = None, start_time: datetime.datetime | None = None,
