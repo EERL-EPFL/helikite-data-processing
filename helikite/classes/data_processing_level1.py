@@ -1,19 +1,11 @@
-import datetime
 import logging
 import pathlib
-from graphlib import TopologicalSorter
 from numbers import Number
 from typing import Any
 
 import folium
-import matplotlib.colors as mcolors
-import matplotlib.dates as mdates
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 from ipywidgets import VBox
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from pydantic import BaseModel
 
 from helikite.classes.base import BaseProcessor, function_dependencies, OutputSchema, get_instruments_from_cleaned_data, \
@@ -24,16 +16,15 @@ from helikite.instruments import Instrument, pops, msems_inverted, mcda, cpc, \
 from helikite.instruments.co2 import process_CO2_STP
 from helikite.instruments.cpc3007 import CPC
 from helikite.instruments.mcda_instrument import mcda_concentration_calculations, mCDA_STP_normalization, \
-    plot_mcda_distribution, plot_mcda_vertical_distribution, Midpoint_diameter_list
+    plot_mcda_distribution, plot_mcda_vertical_distribution
 from helikite.instruments.msems import mSEMS_total_conc_dN, mSEMS_STP_normalization, plot_msems_distribution
 from helikite.instruments.pops import POPS_total_conc_dNdlogDp, POPS_STP_normalization
 from helikite.instruments.stap import STAP_STP_normalization
 from helikite.metadata.models import Level0
 from helikite.processing import choose_outliers
-from helikite.processing.helpers import suppress_plots
 from helikite.processing.post.TandRH import T_RH_averaging, plot_T_RH
 from helikite.processing.post.altitude import altitude_calculation_barometric, plot_altitude
-from helikite.processing.post.level1 import flight_profiles_1
+from helikite.processing.post.level1 import flight_profiles_1, plot_size_distributions
 from helikite.processing.post.outliers import plot_outliers_check, plot_gps_on_map, convert_gps_coordinates
 
 logger = logging.getLogger(__name__)
@@ -268,33 +259,10 @@ class DataProcessorLevel1(BaseProcessor):
         changes_df=False,
         use_once=False
     )
-    def plot_flight_profiles(self, flight_basename: str, save_path: str | pathlib.Path):
-        # Limits for x-axis (T, RH, mSEMS, CPC, POPS, mCDA, WS, WD)
-        custom_xlim = {
-            'ax1': (-6, 2),
-            'ax2': (60, 100),
-            'ax3': (0, 1200),
-            'ax4': (0, 1200),
-            'ax5': (0, 60),
-            'ax6': (0, 60),
-            'ax7': (0, 12)
-        }
-
-        custom_xticks = {
-            'ax1': np.arange(-6, 3, 2),
-            'ax2': np.arange(60, 101, 10),
-            'ax3': np.arange(0, 1201, 200),
-            'ax4': np.arange(0, 1201, 200),
-            'ax5': np.arange(0, 61, 10),
-            'ax6': np.arange(0, 61, 10),
-            'ax7': np.arange(0, 13, 3)
-        }
-
-        # Plot title
-        custom_title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1]'
-
-        fig = flight_profiles_1(self._df, self._metadata,
-                                xlims=custom_xlim, xticks=custom_xticks, fig_title=custom_title)
+    def plot_flight_profiles(self, flight_basename: str, save_path: str | pathlib.Path,
+                             xlims: dict | None = None, xticks: dict | None = None):
+        title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1]'
+        fig = flight_profiles_1(self._df, xlims, xticks, fig_title=title)
 
         # Save the figure after plotting
         print("Saving figure to:", save_path)
@@ -311,195 +279,12 @@ class DataProcessorLevel1(BaseProcessor):
         use_once=False
     )
     def plot_size_distr(self, save_path: str | pathlib.Path):
-        # TEMPORAL PLOT OF FLIGHT with POPS and mSEMS HEAT MAPS
+        title = f'Flight {self._metadata.flight} ({self._metadata.flight_date}_A) [Level 1]'
+        fig = plot_size_distributions(self._df, title)
 
-        # Create figure with 3 subplots, sharing the same x-axis
-        fig, axes = plt.subplots(4, 1, figsize=(16, 12), sharex=True, gridspec_kw={'height_ratios': [1, 1, 1, 1]})
-        plt.subplots_adjust(hspace=0.1)
-
-        """ SET THE TITLE OF THE PLOT (FLIGHT N° with DATE_X) """
-        # 'i' will automatically be replaced by the set flight number
-        # '_X' has to be changed manually in function of the flight index of the day (A, B, ...)
-        fig.suptitle(f'Flight {self._metadata.flight} ({self._metadata.flight_date}_A) [Level 1]', fontsize=16,
-                     fontweight='bold',
-                     y=0.91)
-
-        ### SUBPLOT 1: Altitude vs. Time
-        ax1 = axes[0]
-        ax1.plot(self._df.index, self._df['Altitude'], color='black', linewidth=2, label='Altitude')
-
-        ax1.set_ylabel('Altitude (m)', fontsize=12, fontweight='bold')
-        ax1.tick_params(axis='y', labelsize=11)
-        ax1.grid(True, linestyle='--', linewidth=0.5)
-        ax1.tick_params(axis='x', labelbottom=False)
-        ax1.set_ylim(-40, self._df['Altitude'].max() * 1.04)
-
-        ### SUBPLOT 2: mSEMS heatmmap & total concentration
-        ax2 = axes[1]
-
-        # Get diameter bin averages
-        start_dia = 'msems_inverted_Bin_Dia1'
-        end_dia = 'msems_inverted_Bin_Dia60'
-        bin_diameter_averages = self._df.loc[:, start_dia:end_dia].mean()
-
-        # Get concentration data
-        start_conc = 'msems_inverted_Bin_Conc1_stp'
-        end_conc = 'msems_inverted_Bin_Conc60_stp'
-        counts = self._df.loc[:, start_conc:end_conc]
-        counts.index = self._df.index
-        counts = counts.astype(float).dropna(how='any')
-        counts = counts.clip(lower=1)
-
-        # Create 2D grid
-        xx, yy = np.meshgrid(counts.index.values, bin_diameter_averages)
-
-        # Contour plot
-        norm = mcolors.LogNorm(vmin=1, vmax=1000)
-        mesh = ax2.pcolormesh(xx, yy, counts.values.T, cmap='viridis', norm=norm, shading="gouraud")
-
-        # Colorbar
-        divider = make_axes_locatable(ax2)
-        cax = inset_axes(ax2, width="1.5%", height="100%", loc='lower left',
-                         bbox_to_anchor=(1.08, -0.025, 1, 1), bbox_transform=ax2.transAxes)
-        cb = fig.colorbar(mesh, cax=cax, orientation='vertical')
-        cb.set_label('dN/dlogD$_p$ (cm$^{-3}$)', fontsize=13, fontweight='bold')
-        cb.ax.tick_params(labelsize=11)
-
-        # Add Secondary Y-axis for Total Concentration
-        ax2_right = ax2.twinx()
-        total_conc = self._df['msems_inverted_dN_totalconc_stp']
-        ax2_right.scatter(self._df.index, total_conc, color='red', marker='.')
-        ax2_right.set_ylabel('mSEMS conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red', labelpad=8)
-        ax2_right.tick_params(axis='y', labelsize=11, colors='red')
-        # ax2_right.set_ylim(0, total_conc.max() * 1.1)
-
-        # Labels and limits
-        ax2.set_yscale('log')
-        ax2.set_ylabel('Part. Diameter (nm)', fontsize=12, fontweight='bold')
-        ax2.set_ylim(8, 236)
-        ax2.grid(True, linestyle='--', alpha=0.6, axis='x')
-
-        ### SUBPLOT 3: POPS heatmap & total concentration
-        ax3 = axes[2]
-
-        # Define pops_dlogDp variable from Hendix documentation
-        pops_dia = [
-            149.0801282, 162.7094017, 178.3613191, 195.2873341,
-            212.890625, 234.121875, 272.2136986, 322.6106374,
-            422.0817873, 561.8906456, 748.8896681, 1054.138693,
-            1358.502538, 1802.347716, 2440.99162, 3061.590212
-        ]
-
-        pops_dlogDp = [
-            0.036454582, 0.039402553, 0.040330922, 0.038498955,
-            0.036550107, 0.045593506, 0.082615487, 0.066315868,
-            0.15575785, 0.100807113, 0.142865049, 0.152476328,
-            0.077693935, 0.157186601, 0.113075192, 0.086705426
-        ]
-
-        # Define the range of columns for POPS concentration
-        start_conc = 'pops_b3_dlogDp_stp'
-        end_conc = 'pops_b15_dlogDp_stp'
-
-        # Get POPS concentration data
-        pops_counts = self._df.loc[:, start_conc:end_conc]
-        pops_counts = pops_counts.set_index(self._df.index).astype(float)
-
-        # Create 2D grid
-        # pops_dia = np.logspace(np.log10(180), np.log10(3370), num=pops_counts.shape[1])
-        bin_diameters = pops_dia[3:16]
-        xx, yy = np.meshgrid(pops_counts.index.values, bin_diameters)
-
-        # Heatmap
-        norm = mcolors.LogNorm(vmin=1, vmax=300)
-        mesh = ax3.pcolormesh(xx, yy, pops_counts.values.T, cmap='viridis', norm=norm, shading="gouraud")
-
-        # Colorbar
-        divider = make_axes_locatable(ax3)
-        cax = inset_axes(ax3, width="1.5%", height="100%", loc='lower left',
-                         bbox_to_anchor=(1.08, -0.025, 1, 1), bbox_transform=ax3.transAxes)
-        cb = fig.colorbar(mesh, cax=cax, orientation='vertical')
-        cb.set_label('dN/dlogD$_p$ (cm$^{-3}$)', fontsize=12, fontweight='bold')
-        cb.ax.tick_params(labelsize=11)
-
-        # Labels and grid
-        ax3.set_yscale('log')
-        ax3.set_ylabel('Part. Diameter (nm)', fontsize=12, fontweight='bold')
-        ax3.tick_params(axis='y', labelsize=11)
-        ax3.grid(True, linestyle='--', linewidth=0.5, axis='x')
-        ax3.grid(False, axis='y')
-        ax3.set_ylim(180, 3370)
-
-        # Add Secondary Y-axis for Total POPS Concentration
-        ax3_right = ax3.twinx()
-        ax3_right.plot(self._df.index, self._df['pops_total_conc_stp'], color='red', linewidth=2,
-                       label='Total POPS Conc.')
-        ax3_right.set_ylabel('POPS conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red', labelpad=8)
-        ax3_right.tick_params(axis='y', labelsize=11, colors='red')
-        ax3_right.spines['right'].set_color('red')
-        ax3_right.set_ylim(-20, self._df['pops_total_conc_stp'].max() * 1.1)
-
-        ### Subplot 4: mCDA heatmap & total concentration
-        ax4 = axes[3]
-
-        # Prepare data
-        counts = self._df.loc[:, 'mcda_dataB 1_dN_dlogDp_stp':'mcda_dataB 256_dN_dlogDp_stp']
-        counts = counts.set_index(self._df.index)
-        counts = counts.astype(float)
-        counts[counts == 0] = np.nan
-
-        bin_diameters = Midpoint_diameter_list
-        xx, yy = np.meshgrid(counts.index.values, bin_diameters)
-        Z = counts.values.T
-
-        # Plot heatmap
-        norm = mcolors.LogNorm(vmin=1, vmax=50)
-        mesh = ax4.pcolormesh(xx, yy, Z, cmap='viridis', norm=norm, shading="gouraud")
-
-        # Colorbar
-        divider = make_axes_locatable(ax4)
-        cax = inset_axes(ax4, width="1.5%", height="100%", loc='lower left',
-                         bbox_to_anchor=(1.08, -0.025, 1, 1), bbox_transform=ax4.transAxes)
-        cb = fig.colorbar(mesh, cax=cax, orientation='vertical')
-        cb.set_label('dN/dlogD$_p$ (cm$^{-3}$)', fontsize=12, fontweight='bold')
-        cb.ax.tick_params(labelsize=11)
-
-        # Total concentration
-        ax4_right = ax4.twinx()
-        total_conc = self._df['mcda_dN_totalconc_stp']
-        ax4_right.plot(self._df.index, total_conc, color='red', linewidth=2)
-        ax4_right.set_ylabel('mCDA conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red', labelpad=15)
-        ax4_right.tick_params(axis='y', labelsize=11, colors='red')
-        # ax4_right.set_ylim(0, total_conc.max() * 2)
-        # ax4_right.set_xlim(ax4.get_xlim())
-
-        # Axis styling
-        ax4.set_yscale('log')
-        ax4.set_ylabel('Part. Diameter (μm)', fontsize=12, fontweight='bold')
-        ax4.set_ylim(0.4, 20)
-        ax4.grid(True, linestyle='--', linewidth=0.5, axis='x')
-        ax4.grid(False, axis='y')
-
-        # Legend for secondary y-axis
-        # ax2_right.legend(['mSEMS total conc.'], loc='upper right', fontsize=11, frameon=False)
-        # ax3_right.legend(['POPS total conc.'], loc='upper right', fontsize=11, frameon=False)
-        # ax4_right.legend(['mCDA total conc.'], loc='upper right', fontsize=11, frameon=False)
-
-        # X-axis formatting for all subplots
-        ax4.xaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
-        ax4.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
-        ax4.set_xlabel('Time', fontsize=13, fontweight='bold', labelpad=10)
-        ax4.tick_params(axis='x', rotation=90, labelsize=11)
-
-        """ SET TIME RANGE (DATE + TIME) """
-        # ax3.set_xlim(pd.Timestamp('2025-02-12T07:55:00'), pd.Timestamp('2025-02-12T10:20:00'))
-
-        """ SAVE PLOT """
-
+        # Save the figure after plotting
         print("Saving figure to:", save_path)
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
-
-        plt.show()
 
     @classmethod
     def get_expected_columns(cls,
