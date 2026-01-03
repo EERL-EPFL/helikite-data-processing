@@ -183,7 +183,7 @@ mcda = mCDA(
 )
 
 # Midpoint diameters
-Midpoint_diameter_list = np.array([
+MCDA_MIDPOINT_DIAMETER_LIST = np.array([
     0.244381, 0.246646, 0.248908, 0.251144, 0.253398, 0.255593,
     0.257846, 0.260141, 0.262561, 0.265062, 0.267712, 0.270370,
     0.273159, 0.275904, 0.278724, 0.281554, 0.284585, 0.287661,
@@ -246,7 +246,7 @@ def mcda_concentration_calculations(df: pd.DataFrame) -> pd.DataFrame:
     # Compute total concentration
     mcda_dN_totalconc = mcda_dN.sum(axis=1, skipna=True, min_count=1).to_frame(name='mcda_dN_totalconc')
     
-    log_midpoints = np.log10(Midpoint_diameter_list)
+    log_midpoints = np.log10(MCDA_MIDPOINT_DIAMETER_LIST)
     log_edges = np.zeros(len(log_midpoints) + 1)
     log_edges[1:-1] = (log_midpoints[:-1] + log_midpoints[1:]) / 2
     log_edges[0] = log_midpoints[0] - (log_midpoints[1] - log_midpoints[0]) / 2
