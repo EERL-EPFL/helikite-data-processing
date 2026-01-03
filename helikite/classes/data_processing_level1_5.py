@@ -1,3 +1,6 @@
+import shutil
+from pathlib import Path
+
 import pandas as pd
 from pydantic import BaseModel
 
@@ -6,6 +9,8 @@ from helikite.classes.base import BaseProcessor, OutputSchema, get_instruments_f
 from helikite.classes.data_processing_level1 import DataProcessorLevel1
 from helikite.instruments import Instrument
 from helikite.metadata.models import Level0
+from helikite.processing import choose_outliers
+from helikite.processing.post.fda import FDAParameters, FDA
 from helikite.processing.post.level1 import fill_msems_takeoff_landing, create_level1_dataframe, rename_columns, \
     round_flightnbr_campaign
 
@@ -53,6 +58,57 @@ class DataProcessorLevel1_5(BaseProcessor):
     @function_dependencies(required_operations=["filter_columns"], changes_df=True, use_once=True)
     def round_flightnbr_campaign(self, decimals=2):
         self._df = round_flightnbr_campaign(self._df, self._metadata, self._output_schema, decimals)
+
+    @function_dependencies(required_operations=["rename_columns"], changes_df=True, use_once=False,
+                           complete_with_arg="flag_name")
+    def detect_flag(self,
+                    flag_name: str = "flag_pollution",
+                    column_name: str = "CPC_total_N",
+                    params: FDAParameters | None = None,
+                    auto_path: str | Path = "flag_auto.csv",
+                    plot_detection: bool = True):
+        if params is None:
+            params = FDAParameters(inverse=False)
+
+        fda = FDA(self._df, column_name, flag_column_name=None, params=params)
+        flag = fda.detect()
+        if plot_detection:
+            fda.plot_detection()
+        self._df[flag_name] = flag
+
+        if isinstance(auto_path, str):
+            auto_path = Path(auto_path)
+        auto_path.parent.mkdir(parents=True, exist_ok=True)
+
+        flag_df = pd.DataFrame(data={"datetime": True}, index=self._df.index[(~flag.isna()) & flag])
+        flag_df.to_csv(auto_path, index=True)
+
+    @function_dependencies(required_operations=["rename_columns"], changes_df=True, use_once=False,
+                           complete_with_arg="flag_name")
+    def choose_flag(self,
+                    flag_name: str = "flag_pollution",
+                    column_name: str = "CPC_total_N",
+                    auto_path: str | Path | None = None,
+                    corr_path: str | Path = "flag_corr.csv",
+                    yscale: str = "linear"):
+        if auto_path is not None:
+            shutil.copy(auto_path, corr_path)
+
+        vbox = choose_outliers(self._df[["datetime", column_name]], y=column_name,
+                               coupled_columns=[], outlier_file=str(corr_path),
+                               yscale=yscale, colorscale=None)
+
+        return vbox
+
+    @function_dependencies(required_operations=["choose_flag"], changes_df=True, use_once=False,
+                           complete_with_arg="flag_name", complete_req=True)
+    def set_flag(self,
+                 flag_name: str = "flag_pollution",
+                 column_name: str = "CPC_total_N",
+                 corr_path: str | Path = "flag_corr.csv"):
+        flag = pd.read_csv(corr_path, index_col=0)["datetime"]
+
+        self._df.loc[flag[flag].index, flag_name] = True
 
     @classmethod
     def get_expected_columns(cls,

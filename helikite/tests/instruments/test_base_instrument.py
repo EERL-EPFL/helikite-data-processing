@@ -117,6 +117,7 @@ def test_expected_columns_level1_oracles(
     campaign_data_location_2025: str
 ):
     df = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level1_2025-02-14_D_header.csv", index_col="DateTime")
+    df.rename(columns={"DateTime.1": "DateTime"}, inplace=True)
 
     expected_columns = df.columns.to_list()
     actual_columns = DataProcessorLevel1.get_expected_columns(OutputSchemas.ORACLES,
@@ -150,7 +151,7 @@ def test_expected_columns_level1_oracles(
 def test_expected_columns_level1_5_oracles(
     campaign_data_location_2025: str
 ):
-    df = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level1.5_2025-02-14_D_header.csv", index_col="datetime")
+    df = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level1.5_2025-02-14_D_header.csv")
 
     expected_columns = df.columns.to_list()
     actual_columns = DataProcessorLevel1_5.get_expected_columns(OutputSchemas.ORACLES,

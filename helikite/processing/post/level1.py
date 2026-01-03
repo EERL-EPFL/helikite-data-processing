@@ -61,7 +61,7 @@ def rename_columns(df: pd.DataFrame, output_schema: OutputSchema):
     return df_renamed
 
 
-def round_flightnbr_campaign(df, metadata, decimals):
+def round_flightnbr_campaign(df: pd.DataFrame, metadata: BaseModel, output_schema: OutputSchema, decimals: int):
     """
     Round numeric columns of the DataFrame with special handling for 'Lat' and 'Long',
     and add columns for flight number and campaign.
@@ -69,6 +69,7 @@ def round_flightnbr_campaign(df, metadata, decimals):
     Parameters:
         df (pd.DataFrame): The DataFrame to be rounded and modified.
         metadata (object): Metadata object containing the 'flight' attribute.
+        output_schema (OutputSchema): The OutputSchema object containing the campaign name.
         decimals (int, optional): The number of decimal places to round to (default is 2).
 
     Returns:
@@ -92,8 +93,11 @@ def round_flightnbr_campaign(df, metadata, decimals):
         df['WindDir'] = df['WindDir'].astype('Int64')
 
     # Add metadata columns
-    df['flight_nr'] = metadata.flight
-    df['campaign'] = 'ORACLES'
+    df = pd.concat([
+        df,
+        pd.DataFrame({'flight_nr': metadata.flight, 'campaign': output_schema.campaign}, index=df.index)
+    ])
+
 
     return df
 
