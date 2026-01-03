@@ -104,7 +104,11 @@ class FDA:
                 logger.warning(f"Dataframe has lower frequency ({freq}) than the specified averaging "
                                f"frequency ({self._params.avg_time}). No averaging will be performed.")
 
-        self._df[GRAD_COLUMN_NAME] = np.abs(np.gradient(self._df[CONC_COLUMN_NAME]))
+        if (~self._df[CONC_COLUMN_NAME].isna()).sum() < 2:
+            self._df[GRAD_COLUMN_NAME] = pd.NA
+        else:
+            self._df[GRAD_COLUMN_NAME] = np.abs(np.gradient(self._df[CONC_COLUMN_NAME]))
+
         self._filters: list[Callable] | None = None
         self._intermediate_flags: list[pd.Series] | None = None
 
@@ -192,7 +196,7 @@ class FDA:
 
         plt.show()
 
-    def detect_pollution(self) -> pd.Series:
+    def detect(self) -> pd.Series:
         self._filters = []
         match self._params.main_filter:
             case "iqr":
@@ -219,7 +223,10 @@ class FDA:
             flag = filter(conc, grad, flag, self._params)
             self._intermediate_flags.append(flag)
 
-        final_flag = pd.DataFrame({FLAG_COLUMN_NAME: self._intermediate_flags[-1]}, index=self._df.index)
+        final_flag = pd.DataFrame(
+            data={FLAG_COLUMN_NAME: pd.Series(self._intermediate_flags[-1], dtype="boolean")},
+            index=self._df.index,
+        )
 
         if self._params.avg_time is not None:
             final_flag = final_flag.reindex(self._df_orig.index, method="nearest")
@@ -247,10 +254,8 @@ class FDA:
         for n, ax in enumerate(axes):
             ax.text(-0.1, 1.1, '(' + string.ascii_lowercase[n] + ')', transform=ax.transAxes, size=20, weight='bold')
 
-        start_time = start_time if start_time is not None else self._df.index[0]
-        end_time = end_time if end_time is not None else self._df.index[-1]
-        start_time = pd.to_datetime(start_time)
-        end_time = pd.to_datetime(end_time)
+        start_time = pd.to_datetime(start_time) if start_time is not None else 0
+        end_time = pd.to_datetime(end_time) if end_time is not None else -1
 
         data = self._df[start_time:end_time]
         data = data[~data[CONC_COLUMN_NAME].isna()]

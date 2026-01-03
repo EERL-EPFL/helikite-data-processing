@@ -189,6 +189,8 @@ class DataProcessorLevel1(BaseProcessor):
                                       index=self._df.index)
             self._df = pd.concat([self._df, missing_df], axis=1)
 
+        if "DateTime" not in self._df.columns:
+            self._df.insert(0, "DateTime", self._df.index)
 
     @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
                            changes_df=True, use_once=False)

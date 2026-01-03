@@ -5,7 +5,8 @@ import plotly.graph_objects as go
 from ipywidgets import Output, VBox, Dropdown, ToggleButton
 
 
-def choose_outliers(df, y, coupled_columns=None, outlier_file="outliers.csv") -> VBox:
+def choose_outliers(df, y, coupled_columns, outlier_file,
+                    yscale: str="linear", colorscale: str | None="Viridis") -> VBox:
     """Creates a plot to interactively select outliers in the data.
 
     A plot is generated where two variables are plotted, and the user can
@@ -228,6 +229,21 @@ def choose_outliers(df, y, coupled_columns=None, outlier_file="outliers.csv") ->
             # Update the plot
             update_plot()
 
+    marker_size = 5
+    marker_dict = dict(size=marker_size)
+
+    if colorscale is not None:
+        marker_dict["color"] = df.index.to_series().astype(int)
+        marker_dict["colorscale"] = colorscale
+        marker_dict["colorbar"] = dict(
+            tickvals=[df.index.min().value, df.index.max().value],
+            ticktext=[
+                df.index.min().strftime("%Y-%m-%d %H:%M:%S"),
+                df.index.max().strftime("%Y-%m-%d %H:%M:%S"),
+            ],
+        )
+    else:
+        marker_dict["color"] = "#440154"
     # Initial plot
     fig.add_trace(
         go.Scattergl(
@@ -236,17 +252,7 @@ def choose_outliers(df, y, coupled_columns=None, outlier_file="outliers.csv") ->
             name=x,
             opacity=1,
             mode="markers",
-            marker=dict(
-                color=df.index.to_series().astype(int),
-                colorscale="Viridis",
-                colorbar=dict(
-                    tickvals=[df.index.min().value, df.index.max().value],
-                    ticktext=[
-                        df.index.min().strftime("%Y-%m-%d %H:%M:%S"),
-                        df.index.max().strftime("%Y-%m-%d %H:%M:%S"),
-                    ],
-                ),
-            ),
+            marker=marker_dict,
             hoverinfo="text",
             text=[
                 f"Time: {time} X: {x_val} Y: {y_val}"
@@ -275,13 +281,13 @@ def choose_outliers(df, y, coupled_columns=None, outlier_file="outliers.csv") ->
             mode="markers",
             marker=dict(
                 color="red",
-                symbol="x",
-                size=10,
+                size=marker_size,
             ),
             showlegend=True,
         )
     )
 
+    fig.update_yaxes(type=yscale)
     fig.update_layout(
         legend=dict(yanchor="top", y=0.99, xanchor="left", x=0.01),
         title=f"{y} vs {x}",
@@ -290,7 +296,7 @@ def choose_outliers(df, y, coupled_columns=None, outlier_file="outliers.csv") ->
         hovermode="closest",
         showlegend=True,
         height=600,
-        width=1000,
+        width=1200,
     )
 
     # Observe variable selection changes
