@@ -927,7 +927,10 @@ class Cleaner(BaseProcessor):
             lag=max_lag,
             NON_DER=[self.reference_instrument.name],
         )
-        self.df_corr = df_new.corr()
+
+        with np.errstate(invalid='ignore', divide='ignore'):
+            self.df_corr = df_new.corrwith(df_new.iloc[:, 0]).to_frame().T
+            self.df_corr.index = [df_new.columns[0]]
 
         print("Cross correlation:")
         for instrument in self._instruments:
