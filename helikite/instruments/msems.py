@@ -138,6 +138,11 @@ class MSEMSInverted(Instrument):
             )
             df = pd.concat([df, extension])
 
+        # Set scan direction from MSEMS scan dataframe
+        msems_scan_df = getattr(msems_scan, "df", None)
+        if msems_scan_df is not None:
+            df['scan_direction'] = msems_scan_df['scan_direction']  # To have 0 / 1 values when changing scans
+
         return df
 
     def header_lines(self, file_path: str | pathlib.Path) -> list[str]:
@@ -173,7 +178,7 @@ class MSEMSInverted(Instrument):
 
         # Define the datetime column as the index
         df.set_index("DateTime", inplace=True)
-        df.index = df.index.floor("s")  # astype("datetime64[s]")
+        df.index = df.index.floor("s").astype("datetime64[s]")
 
         return df
 
@@ -230,7 +235,7 @@ class MSEMSReadings(Instrument):
 
         # Define the datetime column as the index
         df.set_index("DateTime", inplace=True)
-        df.index = df.index.floor("s")  # astype("datetime64[s]")
+        df.index = df.index.floor("s").astype("datetime64[s]")
 
         return df
 
@@ -285,7 +290,7 @@ class MSEMSScan(Instrument):
 
         # Define the datetime column as the index
         df.set_index("DateTime", inplace=True)
-        df.index = df.index.floor("s")  # astype("datetime64[s]")
+        df.index = df.index.floor("s").astype("datetime64[s]")
 
         return df
 
