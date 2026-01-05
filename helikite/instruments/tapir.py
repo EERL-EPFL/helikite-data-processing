@@ -38,7 +38,6 @@ class TAPIR(Instrument):
 
     def data_corrections(self, df, *args, **kwargs):
         df = df.resample("1s").asfreq()
-        df.insert(0, "DateTime", df.index)
 
         return df
 

@@ -58,25 +58,11 @@ def df_lagshift(
     """
     print(f"\tShifting {instrument_name} by {shift_quantity} index")
 
-    # Remove index name
-    df_reference_index = df_reference.copy().index.to_frame()
-    df_reference_index = df_reference_index.rename_axis(None, axis=1)
-
     df_shifted = df_instrument.copy()
     df_shifted.index = df_shifted.index.shift(periods=shift_quantity, freq="1s")
+    df_shifted = df_shifted.reindex(index=df_reference.index)
 
-    # Ensure both indices have the same datetime dtype before merging
-    df_reference_index.index = df_reference_index.index.astype('datetime64[ns]')
-    df_shifted.index = df_shifted.index.astype('datetime64[ns]')
-    # Get only the index of the reference and merge with instrument
-    df_synchronised = pd.merge_asof(
-        df_reference_index,
-        df_shifted,
-        left_index=True,
-        right_index=True,
-    )
-
-    return (df_instrument, df_synchronised)
+    return df_instrument, df_shifted
 
 
 # correct the other instrument pressure with the reference pressure

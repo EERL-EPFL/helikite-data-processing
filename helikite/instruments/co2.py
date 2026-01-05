@@ -25,7 +25,6 @@ class CO2(Instrument):
         return "CO2" in columns
 
     def data_corrections(self, df, *args, **kwargs) -> pd.DataFrame:
-        df.insert(0, "DateTime", df.index)
         return df
 
     def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:

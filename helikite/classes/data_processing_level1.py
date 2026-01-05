@@ -161,11 +161,14 @@ class DataProcessorLevel1(BaseProcessor):
     @function_dependencies(required_operations=[], changes_df=True, use_once=True)
     def add_missing_columns(self):
         all_missing_columns = {}
-        for instrument in self._output_schema.instruments:
-            is_reference = instrument == self._reference_instrument
+        expected_columns = Cleaner.get_expected_columns(self.output_schema, with_dtype=True)
 
-            all_columns = instrument.get_expected_columns_level0(is_reference=is_reference, with_dtype=True)
-            missing_columns = {column: t for column, t in all_columns.items() if column not in self._df.columns}
+        for instrument in self._output_schema.instruments:
+            instrument_expected_columns = filter_columns_by_instrument(list(expected_columns.keys()), instrument)
+            missing_columns = {
+                column: t for column, t in expected_columns.items()
+                if column not in self._df.columns and column in instrument_expected_columns
+            }
 
             if len(missing_columns) != 0:
                 missing_columns_names = list(missing_columns.keys())
@@ -180,8 +183,8 @@ class DataProcessorLevel1(BaseProcessor):
                                       index=self._df.index)
             self._df = pd.concat([self._df, missing_df], axis=1)
 
-        if "DateTime" not in self._df.columns:
-            self._df.insert(0, "DateTime", self._df.index)
+        if self._df.index.name not in self._df.columns:
+            self._df.insert(0, self._df.index.name, self._df.index)
 
     @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
                            changes_df=True, use_once=False)
@@ -291,13 +294,7 @@ class DataProcessorLevel1(BaseProcessor):
                              output_schema: OutputSchema,
                              reference_instrument: Instrument,
                              with_dtype: bool) -> list[str] | dict[str, str]:
-        data = {}
-        for instrument in output_schema.instruments:
-            instrument_expected_columns = instrument.get_expected_columns_level0(
-                is_reference=instrument == reference_instrument,
-                with_dtype=True
-            )
-            data |= {c: pd.Series(dtype=t) for c, t in instrument_expected_columns.items()}
+        data = Cleaner.get_expected_columns(output_schema, with_dtype=True)
 
         df_level0 = pd.DataFrame(data)
         metadata = Level0.mock(reference_instrument.name,
