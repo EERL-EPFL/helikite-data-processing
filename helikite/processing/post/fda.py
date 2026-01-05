@@ -22,6 +22,7 @@ COLOR_RED = "#d73027"
 logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
+
 @dataclass
 class FDAParameters:
     """
@@ -80,6 +81,7 @@ class FDA:
     flag_column_name (str | None): Name of the column with ground truth flags
     params (FDAParameters): Configuration object for the detection logic
     """
+
     def __init__(self, df: pd.DataFrame, conc_column_name: str, flag_column_name: str | None, params: FDAParameters):
         self._title = conc_column_name
         self._params = params
@@ -95,6 +97,9 @@ class FDA:
 
         if self._params.avg_time is not None:
             freq = pd.infer_freq(self._df.index)
+            if freq is not None and not str.isdigit(freq[0]):
+                freq = f"1{freq}"
+
             if freq is None or pd.to_timedelta(freq) <= pd.to_timedelta(self._params.avg_time):
                 self._df = self._df.resample(self._params.avg_time).mean().dropna(how="all")
                 if FLAG_COLUMN_NAME in self._df.columns:
@@ -224,7 +229,7 @@ class FDA:
             self._intermediate_flags.append(flag)
 
         final_flag = pd.DataFrame(
-            data={FLAG_COLUMN_NAME: pd.Series(self._intermediate_flags[-1], dtype="boolean")},
+            data={FLAG_COLUMN_NAME: pd.Series(self._intermediate_flags[-1], dtype="Int64")},
             index=self._df.index,
         )
 
@@ -233,7 +238,6 @@ class FDA:
             final_flag.where(~self._df_orig[self._conc_orig].isna(), pd.NA, inplace=True)
 
         return final_flag[FLAG_COLUMN_NAME]
-
 
     def plot_detection(self, use_time_index: bool = True, figsize=None, fontsize=14, markersize=3,
                        save_path: str | pathlib.Path | None = None, start_time: datetime.datetime | None = None,
