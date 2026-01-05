@@ -1185,7 +1185,7 @@ class Cleaner(BaseProcessor):
 
         print("Shifted msems_inverted and msems_scan columns by 90 seconds.")
 
-
+    @function_dependencies(["set_time_as_index"], changes_df=True, use_once=False)
     def fill_missing_timestamps(
         self,
         instrument: Instrument,

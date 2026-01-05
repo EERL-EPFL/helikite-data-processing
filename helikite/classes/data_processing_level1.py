@@ -319,5 +319,15 @@ class DataProcessorLevel1(BaseProcessor):
 
         return df_level1
 
+    @function_dependencies(
+        required_operations=[
+            "POPS_STP_normalization",
+            "mSEMS_STP_normalization",
+            "mCDA_STP_normalization",
+            "CPC_STP_normalization",
+        ],
+        changes_df=False,
+        use_once=False
+    )
     def export_data(self, filepath: str | pathlib.Path | None = None):
         self._df.to_csv(filepath, index=True)
