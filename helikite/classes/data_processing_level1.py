@@ -311,3 +311,13 @@ class DataProcessorLevel1(BaseProcessor):
         expected_columns = {column: str(t) for column, t in data_processor.df.dtypes.to_dict().items()}
 
         return list(expected_columns.keys()) if not with_dtype else expected_columns
+
+    @staticmethod
+    def read_data(level1_filepath: str | pathlib.Path) -> pd.DataFrame:
+        df_level1 = pd.read_csv(level1_filepath, index_col='DateTime', parse_dates=['DateTime'])
+        df_level1.rename(columns={"DateTime.1": "DateTime"}, inplace=True)
+
+        return df_level1
+
+    def export_data(self, filepath: str | pathlib.Path | None = None):
+        self._df.to_csv(filepath, index=True)
