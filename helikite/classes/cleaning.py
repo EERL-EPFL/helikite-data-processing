@@ -193,6 +193,7 @@ class Cleaner(BaseProcessor):
                 instrument.df = instrument.set_time_as_index(instrument.df)
                 instrument.df = instrument.df[~instrument.df.index.duplicated(keep="first")]
                 success.append(instrument.name)
+                assert instrument.df.index.dtype == "datetime64[s]", f"Unexpected index type: {instrument.df.index.dtype}"
             except Exception as e:
                 errors.append((instrument.name, e))
 
@@ -297,7 +298,7 @@ class Cleaner(BaseProcessor):
         fig.show()
 
     @function_dependencies(
-        required_operations=[("correct_time_and_pressure", "correct_time_and_pressure_iterative")],
+        required_operations=[("correct_time_and_pressure", "pressure_based_time_synchronization")],
         changes_df=False,
         use_once=False
     )
@@ -399,7 +400,7 @@ class Cleaner(BaseProcessor):
         self._print_success_errors("duplicate removal", success, errors)
 
     @function_dependencies(
-        required_operations=[("correct_time_and_pressure", "correct_time_and_pressure_iterative"), "remove_duplicates"],
+        required_operations=[("correct_time_and_pressure", "pressure_based_time_synchronization"), "remove_duplicates"],
         changes_df=True,
         use_once=False
     )
@@ -475,7 +476,7 @@ class Cleaner(BaseProcessor):
     @function_dependencies(["define_flight_times", "merge_instruments"], changes_df=False, use_once=False)
     def export_data(
         self,
-        filename: str | None = None,
+        filepath: str | pathlib.Path | None = None,
     ) -> None:
         """Export all data columns from all instruments to local files
 
@@ -494,7 +495,7 @@ class Cleaner(BaseProcessor):
                 "merge_instruments() method."
             )
 
-        if filename is None:
+        if filepath is None:
             # Include the date and time of the first row of the reference
             # instrument in the filename
             time = (
@@ -502,7 +503,8 @@ class Cleaner(BaseProcessor):
                 .to_pydatetime()
                 .strftime("%Y-%m-%dT%H-%M")
             )
-            filename = f"level0_{time}"  # noqa
+            filepath = f"level0_{time}"  # noqa
+
 
         metadata = Level0(
             flight=self.flight,
@@ -528,17 +530,17 @@ class Cleaner(BaseProcessor):
             **existing_metadata,
         }
 
-        dirpath = pathlib.Path(filename).parent
+        dirpath = pathlib.Path(filepath).parent
         dirpath.mkdir(parents=True, exist_ok=True)
 
         # Save the metadata to the Parquet file
         table = table.replace_schema_metadata(merged_metadata)
-        pq.write_table(table, f"{filename}.parquet")
+        pq.write_table(table, f"{filepath}.parquet")
 
-        self.master_df[all_columns].to_csv(f"{filename}.csv")
+        self.master_df[all_columns].to_csv(f"{filepath}.csv")
 
         print(
-            f"\nDone. The file '{filename}'.{{csv|parquet}} contains all "
+            f"\nDone. The file '{filepath}'.{{csv|parquet}} contains all "
             "instrument data. The metadata is stored in the Parquet file."
         )
 
@@ -710,6 +712,7 @@ class Cleaner(BaseProcessor):
         # Show plot with interactive click functionality
         return VBox([fig, out])  # Use VBox to stack the plot and output
 
+    @function_dependencies(["set_pressure_column", "data_corrections"], changes_df=True, use_once=False)
     def pressure_based_time_synchronization(self, max_lag: int | None = None):
         """
         Time-synchronizes instruments by maximizing cross-correlation between the pressure data of the reference
@@ -1163,64 +1166,48 @@ class Cleaner(BaseProcessor):
         full_index = pd.date_range(start=self.df_pressure.index.min(), end=self.df_pressure.index.max(), freq="1s")
         self.df_pressure = self.df_pressure.reindex(full_index)
 
-
-    def shift_msems_columns_by_90s(self, df: pd.DataFrame) -> pd.DataFrame:
+    @function_dependencies(["merge_instruments"], changes_df=True, use_once=True)
+    def shift_msems_columns_by_90s(self):
         """
         Shift all 'msems_inverted_' and 'msems_scan_' columns by 90 seconds in time.
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            The DataFrame containing the time-indexed data to shift.
-
-        Returns
-        -------
-        pd.DataFrame
-            The DataFrame with specified columns time-shifted by 90 seconds.
         """
-        if not isinstance(df.index, pd.DatetimeIndex):
+        if not isinstance(self.master_df.index, pd.DatetimeIndex):
             raise ValueError("DataFrame index must be a DateTimeIndex to apply a time-based shift.")
 
-
-        cols_to_shift = (filter_columns_by_instrument(df.columns, msems_inverted) +
-                         filter_columns_by_instrument(df.columns, msems_scan))
+        cols_to_shift = (filter_columns_by_instrument(self.master_df, msems_inverted) +
+                         filter_columns_by_instrument(self.master_df, msems_scan))
 
         if not cols_to_shift:
             print("No msems_inverted_ or msems_scan_ columns found to shift.")
-            return df
+            return
 
-        df_shifted = df.copy()
-        df_shifted[cols_to_shift] = df_shifted[cols_to_shift].shift(freq="90s")
+        self.master_df[cols_to_shift] = self.master_df[cols_to_shift].shift(freq="90s")
 
         print("Shifted msems_inverted and msems_scan columns by 90 seconds.")
 
-        return df_shifted
 
     def fill_missing_timestamps(
         self,
-        df: pd.DataFrame,
+        instrument: Instrument,
         freq: str = "1S",
         fill_method: str | None = None  # Optional: "ffill", "bfill", or None
-    ) -> pd.DataFrame:
+    ):
         """
-        Reindex the DataFrame to fill in missing timestamps at the specified frequency.
+        Reindex the DataFrame of the instrument to fill in missing timestamps at the specified frequency.
         Optionally forward- or backward-fill missing values.
         Prints the number of timestamps added.
 
         Parameters
         ----------
-        df : pd.DataFrame
+        instrument : Instrument
             The input DataFrame with a DateTimeIndex.
         freq : str
             The desired frequency for the DateTimeIndex (e.g., "1S" for 1 second).
         fill_method : str or None
             Method to fill missing values: "ffill", "bfill", or None (default: None).
-
-        Returns
-        -------
-        pd.DataFrame
-            A DataFrame with missing timestamps added and values optionally filled.
         """
+        df = instrument.df
+
         if not isinstance(df.index, pd.DatetimeIndex):
             raise ValueError("DataFrame index must be a DateTimeIndex.")
 
@@ -1232,8 +1219,7 @@ class Cleaner(BaseProcessor):
         print(f"Added {num_missing} missing timestamps.")
 
         # Reindex
-        df_full = df[~df.index.duplicated(keep='first')]
-        df_full = df_full.reindex(full_index)
+        df_full = df.reindex(full_index)
 
         # Optionally fill
         if fill_method == "ffill":
@@ -1241,7 +1227,7 @@ class Cleaner(BaseProcessor):
         elif fill_method == "bfill":
             df_full = df_full.bfill()
 
-        return df_full
+        instrument.df = df_full
 
     @staticmethod
     def detect_instruments(output_schema: OutputSchema, input_folder: str | pathlib.Path) -> list[Instrument]:
