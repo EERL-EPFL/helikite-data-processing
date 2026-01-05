@@ -3,6 +3,7 @@ import logging
 import os
 import pathlib
 from itertools import cycle
+from numbers import Number
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -190,6 +191,7 @@ class Cleaner(BaseProcessor):
         for instrument in self._instruments:
             try:
                 instrument.df = instrument.set_time_as_index(instrument.df)
+                instrument.df = instrument.df[~instrument.df.index.duplicated(keep="first")]
                 success.append(instrument.name)
             except Exception as e:
                 errors.append((instrument.name, e))
@@ -294,7 +296,11 @@ class Cleaner(BaseProcessor):
 
         fig.show()
 
-    @function_dependencies(["correct_time_and_pressure"], changes_df=False, use_once=False)
+    @function_dependencies(
+        required_operations=[("correct_time_and_pressure", "correct_time_and_pressure_iterative")],
+        changes_df=False,
+        use_once=False
+    )
     def plot_time_sync(self, save_path: str | pathlib.Path, skip: list[Instrument]):
         plt.close('all')
         fig, (ax) = plt.subplots(1, 1, figsize=(10, 8))
@@ -392,7 +398,11 @@ class Cleaner(BaseProcessor):
 
         self._print_success_errors("duplicate removal", success, errors)
 
-    @function_dependencies(["correct_time_and_pressure", "remove_duplicates"], changes_df=True, use_once=False)
+    @function_dependencies(
+        required_operations=[("correct_time_and_pressure", "correct_time_and_pressure_iterative"), "remove_duplicates"],
+        changes_df=True,
+        use_once=False
+    )
     def merge_instruments(
         self, tolerance_seconds: int = 0, remove_duplicates: bool = True
     ) -> None:
@@ -700,6 +710,103 @@ class Cleaner(BaseProcessor):
         # Show plot with interactive click functionality
         return VBox([fig, out])  # Use VBox to stack the plot and output
 
+    def pressure_based_time_synchronization(self, max_lag: int | None = None):
+        """
+        Time-synchronizes instruments by maximizing cross-correlation between the pressure data of the reference
+        instrument and the other instruments. Runs multiple iterations using a coarse-to-fine scheme,
+        starting with a coarse adjustment and refining until the final lags are found.
+
+        Parameters
+        ----------
+        max_lag : int, optional
+            Maximum allowed time lag in seconds used at the first (coarsest) level.
+            If None, it defaults to half of the flight duration.
+        """
+        self._build_df_pressure()
+
+        df_pressure = self.df_pressure.copy()
+        ref_index = self.reference_instrument.df.index
+
+        instrument_lags = {}
+        final_lags = {}
+
+        for instrument in self._instruments:
+            # skip reference or instruments without pressure data
+            if instrument == self._reference_instrument or instrument.name not in df_pressure.columns:
+                continue
+
+            instrument_lags[instrument] = 0
+            final_lags[instrument] = 0
+
+            # preliminary coarse adjustment if indices don't overlap at all
+            instr_index = instrument.df.index
+            if instr_index.max() < ref_index.min() or instr_index.min() > ref_index.max():
+                instrument_lags[instrument] = int((ref_index.mean() - instr_index.mean()).total_seconds())
+                df_pressure[instrument.name] = df_pressure[instrument.name].shift(instrument_lags[instrument], freq="s")
+                final_lags[instrument] = instrument_lags[instrument]
+
+        if max_lag is None:
+            max_lag = (ref_index.max() - ref_index.min()).total_seconds() // 2
+
+        max_lag_count = 200
+
+        # iteratively narrow down the best lag using a decreasing step size
+        while max_lag >= max_lag_count:
+            step = max_lag // max_lag_count
+            max_lag = step * max_lag_count
+
+            lags = np.arange(-max_lag, max_lag + 1, step, dtype=int)
+
+            instrument_lags = self._get_best_instrument_lags(df_pressure, lags)
+            for instrument, lag in instrument_lags.items():
+                col = instrument.name
+                shifted = df_pressure[col].shift(lag, freq="s")
+
+                # ensure we don't shift data too far out of bounds (keep at least 80% coverage)
+                if shifted.reindex(df_pressure.index).count() / df_pressure[col].count() < 0.8:
+                    continue
+
+                new_index = df_pressure.index.union(shifted.index)
+                df_pressure = df_pressure.reindex(new_index)
+                df_pressure[col] = shifted
+                final_lags[instrument] += lag
+
+            # reduce the search range for the next iteration
+            max_lag = (max_lag + 1) // 2
+
+        # apply the final calculated lags to the actual instrument dataframes
+        for instrument, final_lag in final_lags.items():
+            print(f"Shifting {instrument.name} by {final_lag} seconds")
+            # if time correction was already performed, then we don't need to set `df_before_timeshift` again
+            if len(instrument.df_before_timeshift) == 0:
+                instrument.df_before_timeshift = instrument.df.copy()
+            instrument.df.index = instrument.df.index.shift(final_lag, freq="s")
+
+    def _get_best_instrument_lags(self, df_pressure, lags: np.ndarray) -> dict[Instrument, Number]:
+        best_instrument_lags = {}
+
+        df_new = crosscorrelation.df_derived_by_shift(df_pressure, lags, NON_DER=[self.reference_instrument.name])
+
+        with np.errstate(invalid='ignore', divide='ignore'):
+            self.df_corr = df_new.corrwith(df_new.iloc[:, 0]).to_frame().T
+            self.df_corr.index = [df_new.columns[0]]
+
+        for instrument in self._instruments:
+            if instrument == self._reference_instrument:
+                continue
+
+            if instrument.pressure_column in instrument.df.columns:
+                instrument.corr_df = crosscorrelation.df_findtimelag(
+                    self.df_corr, lags, instrument,
+                )
+
+                instrument.corr_max_val = max(instrument.corr_df)
+                instrument.corr_max_idx = instrument.corr_df.idxmax(axis=0)
+
+                best_instrument_lags[instrument] = instrument.corr_max_idx
+
+        return best_instrument_lags
+
     @function_dependencies(["set_pressure_column", "data_corrections"], changes_df=True, use_once=False)
     def correct_time_and_pressure(
         self,
@@ -810,42 +917,9 @@ class Cleaner(BaseProcessor):
                     window_size=rolling_window_size,
                 )
 
-        # 0 is ignore because it's at the beginning of the df_corr, not
-        # in the range
-        rangelag = [i for i in range(-max_lag, max_lag + 1) if i != 0]
+        lags = np.arange(-max_lag, max_lag + 1)
 
-        self.df_pressure = self._reference_instrument.df[
-            [self.reference_instrument.pressure_column]
-        ].copy()
-        self.df_pressure.rename(
-            columns={
-                self._reference_instrument.pressure_column: self._reference_instrument.name  # noqa
-            },
-            inplace=True,
-        )
-
-        for instrument in self._instruments:
-            if instrument == self._reference_instrument:
-                # We principally use the ref for this, don't merge with itself
-                continue
-
-            if instrument.pressure_column in instrument.df.columns:
-                df = instrument.df[[instrument.pressure_column]].copy()
-                df.index = df.index.astype(
-                    self._reference_instrument.df.index.dtype
-                )
-
-                df.rename(
-                    columns={instrument.pressure_column: instrument.name},
-                    inplace=True,
-                )
-
-                self.df_pressure = pd.merge_asof(
-                    self.df_pressure,
-                    df,
-                    left_index=True,
-                    right_index=True,
-                )
+        self._build_df_pressure()
 
         takeofftime = self.df_pressure.index.asof(
             pd.Timestamp(self.time_takeoff)
@@ -931,7 +1005,7 @@ class Cleaner(BaseProcessor):
 
         df_new = crosscorrelation.df_derived_by_shift(
             self.df_pressure,
-            lag=max_lag,
+            lags,
             NON_DER=[self.reference_instrument.name],
         )
 
@@ -958,7 +1032,7 @@ class Cleaner(BaseProcessor):
                 continue
             if instrument.pressure_column in instrument.df.columns:
                 instrument.corr_df = crosscorrelation.df_findtimelag(
-                    self.df_corr, rangelag, instrument,
+                    self.df_corr, lags, instrument,
                 )
                 if instrument.corr_df.isna().all():
                     raise ValueError(
@@ -1053,6 +1127,42 @@ class Cleaner(BaseProcessor):
             or "jupyter-notebook" in parent_process
         ):
             fig.show()
+
+    def _build_df_pressure(self):
+        self.df_pressure = self._reference_instrument.df[
+            [self.reference_instrument.pressure_column]
+        ].copy()
+        self.df_pressure.rename(
+            columns={
+                self._reference_instrument.pressure_column: self._reference_instrument.name  # noqa
+            },
+            inplace=True,
+        )
+
+        for instrument in self._instruments:
+            if instrument == self._reference_instrument:
+                # We principally use the ref for this, don't merge with itself
+                continue
+
+            if instrument.pressure_column in instrument.df.columns:
+                df = instrument.df[[instrument.pressure_column]].copy()
+                df.index = df.index.astype(self._reference_instrument.df.index.dtype)
+                df.rename(
+                    columns={instrument.pressure_column: instrument.name},
+                    inplace=True,
+                )
+                self.df_pressure = pd.merge(
+                    self.df_pressure,
+                    df,
+                    left_index=True,
+                    right_index=True,
+                    how="outer",
+                )
+                assert self.df_pressure[instrument.name].count() == df[instrument.name].count()
+
+        full_index = pd.date_range(start=self.df_pressure.index.min(), end=self.df_pressure.index.max(), freq="1s")
+        self.df_pressure = self.df_pressure.reindex(full_index)
+
 
     def shift_msems_columns_by_90s(self, df: pd.DataFrame) -> pd.DataFrame:
         """
