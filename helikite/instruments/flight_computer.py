@@ -151,7 +151,7 @@ class FlightComputerV1(FlightComputer):
         df.set_index("DateTime", inplace=True)
 
         # Set to index type to seconds
-        df.index = df.index.floor('s')  # astype("datetime64[s]")
+        df.index = df.index.floor('s').astype("datetime64[s]")
 
         return df
 
@@ -382,7 +382,7 @@ class FlightComputerV2(FlightComputer):
         df.set_index("DateTime", inplace=True)
 
         # Set to index type to seconds
-        df.index = df.index.floor('s')  # astype("datetime64[s]")
+        df.index = df.index.floor('s').astype("datetime64[s]")
 
         return df
 
