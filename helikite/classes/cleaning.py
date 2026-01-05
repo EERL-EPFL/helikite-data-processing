@@ -35,6 +35,7 @@ class Cleaner(BaseProcessor):
         flight_date: datetime.date,
         instruments: list[Instrument] | None = None,
         reference_instrument: Instrument | None = None,
+        reference_instrument_shift: str | None = None,
         flight: str | None = None,
         time_takeoff: datetime.datetime | None = None,
         time_landing: datetime.datetime | None = None,
@@ -58,6 +59,7 @@ class Cleaner(BaseProcessor):
         self.master_df: pd.DataFrame | None = None
         self.housekeeping_df: pd.DataFrame | None = None
         self._reference_instrument: Instrument = reference_instrument
+        self._reference_instrument_shift: str | None = reference_instrument_shift
 
         # Create an attribute from each instrument.name
         for instrument in instruments:
@@ -215,6 +217,11 @@ class Cleaner(BaseProcessor):
                 success.append(instrument.name)
             except Exception as e:
                 errors.append((instrument.name, e))
+
+        if self._reference_instrument_shift is not None:
+            self._reference_instrument.df = self._reference_instrument.df.shift(
+                periods=self._reference_instrument_shift, freq="s"
+            )
 
         self._print_success_errors("data corrections", success, errors)
 
