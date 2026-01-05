@@ -105,8 +105,8 @@ tapir = TAPIR(
         "YrMoDy", "HrMnSd", "Lat", "Lon", "Le", "speed", "route", "Tproc1", "Tproc2", "Tproc3", "Tproc4", "Thead1", "Thead2", "Thead3", "Thead4", "Tbox"
     ],
     cols_final=[
-        "GL", "Lat", "Le", "Lon", "Lm", "speed", "route", "TP", "Tproc1", "Tproc2", "Tproc3", "Tproc4",
-        "TH", "Thead1", "Thead2", "Thead3", "Thead4", "TB", "Tbox"
+        "Lat", "Lon", "speed", "route", "Tproc1", "Tproc2", "Tproc3", "Tproc4",
+        "Thead1", "Thead2", "Thead3", "Thead4", "Tbox"
     ],
     pressure_variable=None  # Add if TAPIR has pressure data
 )
