@@ -13,7 +13,7 @@ from helikite.metadata.models import Level0
 from helikite.processing import choose_outliers
 from helikite.processing.post.fda import FDAParameters, FDA
 from helikite.processing.post.level1 import fill_msems_takeoff_landing, create_level1_dataframe, rename_columns, \
-    round_flightnbr_campaign
+    round_flightnbr_campaign, flight_profiles_2, plot_size_distributions
 
 
 class DataProcessorLevel1_5(BaseProcessor):
@@ -22,17 +22,17 @@ class DataProcessorLevel1_5(BaseProcessor):
         super().__init__(output_schema, instruments, reference_instrument)
         self._df = df.copy()
         self._metadata = metadata
-        self._automatic_flags_file: str | None = None
-        self._final_flags_file: str | None = None
+        self._automatic_flags_files: set[str] = set()
+        self._final_flags_files: set[str] = set()
 
     def _data_state_info(self) -> list[str]:
         state_info = []
 
-        if self._automatic_flags_file is not None:
-            state_info += self._outliers_file_state_info(self._automatic_flags_file, add_all=True)
+        for flag_file in self._automatic_flags_files:
+            state_info += self._outliers_file_state_info(flag_file, add_all=True)
 
-        if self._final_flags_file is not None:
-            state_info += self._outliers_file_state_info(self._final_flags_file, add_all=True)
+        for flag_file in self._final_flags_files:
+            state_info += self._outliers_file_state_info(flag_file, add_all=True)
 
         return state_info
 
@@ -84,10 +84,12 @@ class DataProcessorLevel1_5(BaseProcessor):
         flag_df = pd.DataFrame(data={"datetime": True}, index=self._df.index[(~flag.isna()) & flag])
         flag_df.to_csv(auto_path, index=True)
 
+        self._automatic_flags_files.add(str(auto_path))
+
     @function_dependencies(required_operations=["rename_columns"], changes_df=True, use_once=False,
                            complete_with_arg="flag_name")
     def choose_flag(self,
-                    flag_name: str = "flag_pollution",
+                    flag_name: str = "flag_pollution", # do not remove, it is used to complete the operation name
                     column_name: str = "CPC_total_N",
                     auto_path: str | Path | None = None,
                     corr_path: str | Path = "flag_corr.csv",
@@ -98,6 +100,7 @@ class DataProcessorLevel1_5(BaseProcessor):
         vbox = choose_outliers(self._df[["datetime", column_name]], y=column_name,
                                coupled_columns=[], outlier_file=str(corr_path),
                                yscale=yscale, colorscale=None)
+        self._final_flags_files.add(str(corr_path))
 
         return vbox
 
@@ -110,6 +113,25 @@ class DataProcessorLevel1_5(BaseProcessor):
         flag = pd.read_csv(corr_path, index_col=0)["datetime"]
 
         self._df.loc[flag[flag].index, flag_name] = True
+
+    @function_dependencies(required_operations=["rename_columns"], changes_df=False, use_once=False)
+    def plot_flight_profiles(self, flight_basename: str, save_path: str | pathlib.Path,
+                             xlims: dict | None = None, xticks: dict | None = None):
+        title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1.5]'
+        fig = flight_profiles_2(self._df, self._metadata, xlims, xticks, fig_title=title)
+
+        # Save the figure after plotting
+        print("Saving figure to:", save_path)
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+
+    @function_dependencies(required_operations=["rename_columns"], changes_df=False, use_once=False)
+    def plot_size_distr(self, flight_basename: str, save_path: str | pathlib.Path):
+        title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1.5]'
+        fig = plot_size_distributions(self._df, title)
+
+        # Save the figure after plotting
+        print("Saving figure to:", save_path)
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
 
     @classmethod
     def get_expected_columns(cls,

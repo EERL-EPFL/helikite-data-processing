@@ -278,8 +278,8 @@ class DataProcessorLevel1(BaseProcessor):
         changes_df=False,
         use_once=False
     )
-    def plot_size_distr(self, save_path: str | pathlib.Path):
-        title = f'Flight {self._metadata.flight} ({self._metadata.flight_date}_A) [Level 1]'
+    def plot_size_distr(self, flight_basename: str, save_path: str | pathlib.Path):
+        title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1]'
         fig = plot_size_distributions(self._df, title)
 
         # Save the figure after plotting
