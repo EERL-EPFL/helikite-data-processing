@@ -24,7 +24,6 @@ class CPC(Instrument):
         df = df.rename(columns={'Concentration (#/cm3)': 'totalconc_raw'})
 
         df = df.resample("1s").asfreq()
-        df.insert(0, "DateTime", df.index)
 
         return df
 

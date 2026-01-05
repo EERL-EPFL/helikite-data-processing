@@ -7,6 +7,7 @@ import re
 import pandas as pd
 
 import helikite.instruments
+from helikite import Cleaner
 from helikite.classes.base import OutputSchemas
 from helikite.classes.data_processing_level1 import DataProcessorLevel1
 from helikite.classes.data_processing_level1_5 import DataProcessorLevel1_5
@@ -73,51 +74,43 @@ def test_columns_consistency():
 def test_expected_columns_level0_oracles(
     campaign_data_location_2025: str
 ):
-    df = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level0_2025-02-14T16-16_header.csv")
+    df = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level0_2025-02-14T16-16_header.csv", index_col="DateTime")
     df_cpc = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level0_2025-02-14T18-32_header.csv")
 
     # in the old version of processing "cpc_DateTime" was the last CPC column
     cpc_columns = filter_columns_by_instrument(df_cpc.columns, cpc)
     cpc_columns = ["cpc_DateTime"] + cpc_columns[:-1]
 
-    columns = df.columns.to_list() + cpc_columns
+    expected_columns = df.columns.to_list() + cpc_columns
+    actual_columns = Cleaner.get_expected_columns(output_schema=OutputSchemas.ORACLES, with_dtype=False)
 
-    for instrument in OutputSchemas.ORACLES.instruments:
-        expected_columns = filter_columns_by_instrument(columns, instrument)
-        actual_columns = instrument.get_expected_columns_level0(is_reference=isinstance(instrument, FlightComputer))
+    # TODO: remove once filter is integrated in the pipeline
+    filter_columns = filter_columns_by_instrument(actual_columns, filter)
+    actual_columns = set(col for col in actual_columns if col not in filter_columns)
 
-        # TODO: remove once filter is integrated in the pipeline
-        if instrument.name == "filter":
-            continue
-
-        assert set(expected_columns) == set(actual_columns)
+    assert set(expected_columns) == set(actual_columns)
 
 
 def test_expected_columns_level0_turtmann(
     campaign_data_location_turtmann: str
 ):
-    df = pd.read_csv(pathlib.Path(campaign_data_location_turtmann) / "level0_2024-02-20_B_header.csv")
-    df_filter_mcpc_pops = pd.read_csv(pathlib.Path(campaign_data_location_turtmann) / "level0_2024-02-26_B_header.csv")
+    df = pd.read_csv(pathlib.Path(campaign_data_location_turtmann) / "level0_2024-02-20_B_header.csv", index_col="DateTime")
+    df_filter_pops = pd.read_csv(pathlib.Path(campaign_data_location_turtmann) / "level0_2024-02-26_B_header.csv")
 
     # in the old version of processing "cpc_DateTime" was the last CPC column
-    filter_columns = filter_columns_by_instrument(df_filter_mcpc_pops.columns, filter)
-    mcpc_columns = filter_columns_by_instrument(df_filter_mcpc_pops.columns, mcpc)
-    pops_columns = filter_columns_by_instrument(df_filter_mcpc_pops.columns, pops)
+    filter_columns = filter_columns_by_instrument(df_filter_pops.columns, filter)
+    pops_columns = filter_columns_by_instrument(df_filter_pops.columns, pops)
 
-    columns = df.columns.to_list() + filter_columns + mcpc_columns + pops_columns
+    expected_columns = df.columns.to_list() + filter_columns + pops_columns
+    actual_columns = Cleaner.get_expected_columns(output_schema=OutputSchemas.TURTMANN, with_dtype=False)
 
-    for instrument in OutputSchemas.TURTMANN.instruments:
-        expected_columns = filter_columns_by_instrument(columns, instrument)
-        actual_columns = instrument.get_expected_columns_level0(is_reference=isinstance(instrument, FlightComputer))
-
-        assert set(expected_columns) == set(actual_columns)
+    assert set(expected_columns) == set(actual_columns)
 
 
 def test_expected_columns_level1_oracles(
     campaign_data_location_2025: str
 ):
-    df = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level1_2025-02-14_D_header.csv", index_col="DateTime")
-    df.rename(columns={"DateTime.1": "DateTime"}, inplace=True)
+    df = DataProcessorLevel1.read_data(pathlib.Path(campaign_data_location_2025) / "level1_2025-02-14_D_header.csv")
 
     expected_columns = df.columns.to_list()
     actual_columns = DataProcessorLevel1.get_expected_columns(OutputSchemas.ORACLES,

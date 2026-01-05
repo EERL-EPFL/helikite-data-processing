@@ -21,6 +21,7 @@ from helikite.constants import constants
 from helikite.instruments import msems_inverted, msems_scan
 from helikite.instruments.base import Instrument, filter_columns_by_instrument
 from helikite.metadata.models import Level0
+from helikite.processing.helpers import temporary_attr
 from helikite.processing.post import crosscorrelation
 
 parent_process = psutil.Process().parent().cmdline()[-1]
@@ -192,6 +193,9 @@ class Cleaner(BaseProcessor):
             try:
                 instrument.df = instrument.set_time_as_index(instrument.df)
                 instrument.df = instrument.df[~instrument.df.index.duplicated(keep="first")]
+                instrument.df.index = instrument.df.index.astype("datetime64[s]")
+                if instrument.df.index.name not in instrument.df.columns:
+                    instrument.df.insert(0, instrument.df.index.name, instrument.df.index)
                 success.append(instrument.name)
                 assert instrument.df.index.dtype == "datetime64[s]", f"Unexpected index type: {instrument.df.index.dtype}"
             except Exception as e:
@@ -1056,7 +1060,7 @@ class Cleaner(BaseProcessor):
                         instrument.df,
                         self._reference_instrument.df,
                         instrument.corr_max_idx,
-                        f"{instrument.name}_",
+                        instrument.name,
                     )
                 )
 
@@ -1092,7 +1096,7 @@ class Cleaner(BaseProcessor):
                 secondary_instrument.df,
                 self._reference_instrument.df,
                 primary_instrument.corr_max_idx,
-                f"{secondary_instrument.name}_",
+                secondary_instrument.name,
             )
             print(
                 f"\tApplied time adjustment from {primary_instrument.name} to "
@@ -1258,3 +1262,29 @@ class Cleaner(BaseProcessor):
                 return candidate
 
         return None
+
+    @classmethod
+    def get_expected_columns(cls, output_schema: OutputSchema, with_dtype: bool) -> list[str] | dict[str, str]:
+        expected_columns = {}
+        for instrument in output_schema.instruments:
+            df = pd.DataFrame({c: pd.Series(dtype=t) for c, t in instrument.dtype.items()})
+            with temporary_attr(instrument, "date", datetime.date(year=2000, month=1, day=1)):
+                df = instrument.set_time_as_index(df)
+                if df.index.name not in df.columns:
+                    df.insert(0, df.index.name, df.index)
+
+            # TODO: Remove this once addition of `scan_direction` is integrated in the cleaning pipeline
+            if instrument.name == "msems_inverted":
+                df.insert(len(df.columns), "scan_direction", pd.Series([], dtype="Int64"))
+
+            df = instrument.data_corrections(df)
+
+            if instrument.pressure_variable is not None:
+                df = instrument.set_housekeeping_pressure_offset_variable(df, constants.HOUSEKEEPING_VAR_PRESSURE)
+
+            expected_columns |= {f"{instrument.name}_{column}": str(t) for column, t in df.dtypes.to_dict().items()}
+
+        if not with_dtype:
+            return list(expected_columns.keys())
+
+        return expected_columns
