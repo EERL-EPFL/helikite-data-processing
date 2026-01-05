@@ -1,5 +1,6 @@
 import inspect
 import logging
+import pathlib
 from abc import abstractmethod, ABC
 from collections import defaultdict
 from dataclasses import dataclass
@@ -318,6 +319,10 @@ class BaseProcessor(ABC):
         print(f"Errors ({len(errors)}/{len(self._instruments)}):")
         for error in errors:
             print(f"Error ({error[0]}): {error[1]}")
+
+    @abstractmethod
+    def export_data(self, filepath: str | pathlib.Path | None = None):
+        ...
 
 
 def get_instruments_from_cleaned_data(df: pd.DataFrame, metadata: BaseModel) -> tuple[list[Instrument], Instrument]:
