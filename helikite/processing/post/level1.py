@@ -216,16 +216,10 @@ def flight_profiles_1(df, xlims, xticks, fig_title):
     ax7.scatter(df_down["smart_tether_Wind (m/s)"], df_down["Altitude"], color='palevioletred', alpha=0.2, marker='.')
     ax8.scatter(df_down["smart_tether_Wind (degrees)"], df_down["Altitude"], color='olivedrab', alpha=0.3, marker='.')
 
-    def get_bounds(x: pd.Series, divider: int) -> tuple[int, int]:
-        min_bound = np.floor(x.min()).astype(int)
-        min_bound = min_bound - min_bound % divider
-        max_bound = np.ceil(x.max()).astype(int)
-        max_bound = max_bound + max_bound % divider
-
-        return min_bound, max_bound
-
-    temp_min_bound, temp_max_bound = get_bounds(df["Average_Temperature"], divider=2)
-    wind_speed_min_bound, wind_speed_max_bound = get_bounds(df["smart_tether_Wind (m/s)"], divider=2)
+    temp_divider = 2
+    ws_divider = 2
+    (temp_min_bound, temp_max_bound), temp_divider = _get_series_bounds(df["Average_Temperature"], temp_divider)
+    (ws_min_bound, ws_max_bound), ws_divider = _get_series_bounds(df["smart_tether_Wind (m/s)"], ws_divider)
 
     # Default axis limits and ticks if none provided
     default_xlim = {
@@ -235,21 +229,20 @@ def flight_profiles_1(df, xlims, xticks, fig_title):
         'ax4': (0, 1200),
         'ax5': (0, 60),
         'ax6': (0, 60),
-        'ax7': (wind_speed_min_bound, wind_speed_max_bound),
+        'ax7': (ws_min_bound, ws_max_bound),
         'ax8': (0, 360)
     }
 
     default_xticks = {
-        'ax1': np.arange(temp_min_bound, temp_max_bound + 1, 2),
+        'ax1': np.arange(temp_min_bound, temp_max_bound + 1, temp_divider),
         'ax2': np.arange(60, 101, 10),
         'ax3': np.arange(0, 1201, 200),
         'ax4': np.arange(0, 1201, 200),
         'ax5': np.arange(0, 61, 10),
         'ax6': np.arange(0, 61, 10),
-        'ax7': np.arange(wind_speed_min_bound, wind_speed_max_bound + 1, 2),
+        'ax7': np.arange(ws_min_bound, ws_max_bound + 1, ws_divider),
         'ax8': np.arange(0, 361, 90)
     }
-
 
     xlims = xlims or default_xlim
     xticks = xticks or default_xticks
@@ -466,16 +459,10 @@ def flight_profiles_2(df, metadata, xlims=None, xticks=None, fig_title=None):
     ax7.scatter(df_down["WindSpeed"], df_down["Altitude"], color='palevioletred', alpha=0.2, marker='.')
     ax8.scatter(df_down["WindDir"], df_down["Altitude"], color='olivedrab', alpha=0.3, marker='.')
 
-    def get_bounds(x: pd.Series, divider: int) -> tuple[int, int]:
-        min_bound = np.floor(x.min()).astype(int)
-        min_bound = min_bound - min_bound % divider
-        max_bound = np.ceil(x.max()).astype(int)
-        max_bound = max_bound + max_bound % divider
-
-        return min_bound, max_bound
-
-    temp_min_bound, temp_max_bound = get_bounds(df["TEMP"], divider=2)
-    wind_speed_min_bound, wind_speed_max_bound = get_bounds(df["WindSpeed"], divider=2)
+    temp_divider = 2
+    ws_divider = 2
+    (temp_min_bound, temp_max_bound), temp_divider = _get_series_bounds(df["TEMP"], temp_divider)
+    (ws_min_bound, ws_max_bound), ws_divider = _get_series_bounds(df["WindSpeed"], ws_divider)
 
     # Default axis limits and ticks if none provided
     default_xlim = {
@@ -485,7 +472,7 @@ def flight_profiles_2(df, metadata, xlims=None, xticks=None, fig_title=None):
         'ax4': (0, 1200),
         'ax5': (0, 60),
         'ax6': (0, 60),
-        'ax7': (wind_speed_min_bound, wind_speed_max_bound),
+        'ax7': (ws_min_bound, ws_max_bound),
         'ax8': (0, 360)
     }
 
@@ -496,7 +483,7 @@ def flight_profiles_2(df, metadata, xlims=None, xticks=None, fig_title=None):
         'ax4': np.arange(0, 1201, 200),
         'ax5': np.arange(0, 61, 10),
         'ax6': np.arange(0, 61, 10),
-        'ax7': np.arange(wind_speed_min_bound, wind_speed_max_bound + 1, 2),
+        'ax7': np.arange(ws_min_bound, ws_max_bound + 1, 2),
         'ax8': np.arange(0, 361, 90)
     }
 
@@ -598,6 +585,22 @@ def flight_profiles_2(df, metadata, xlims=None, xticks=None, fig_title=None):
     plt.tight_layout()
     plt.show()
     return fig
+
+
+def _get_series_bounds(x: pd.Series, default_divider: int) -> tuple[tuple[int, int], int]:
+    min_bound = np.floor(x.quantile(0.01)).astype(int)
+    max_bound = np.ceil(x.quantile(0.99)).astype(int)
+
+    if max_bound - min_bound > default_divider * 7:
+        divider = ((max_bound - min_bound) // 7)
+        divider = (divider + default_divider - divider % default_divider) if divider % default_divider else divider
+    else:
+        divider = default_divider
+
+    min_bound = min_bound - min_bound % divider
+    max_bound = max_bound + max_bound % divider
+
+    return (min_bound, max_bound), divider
 
 
 def plot_size_distributions(df: pd.DataFrame, fig_title: str, freq: str = "1s",  min_loc_interval: int = 10):
