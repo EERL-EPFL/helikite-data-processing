@@ -78,5 +78,6 @@ class DataProcessorLevel2(BaseProcessor):
 
         return df_level2
 
+    @function_dependencies(required_operations=["average"], changes_df=False, use_once=False)
     def export_data(self, filepath: str | pathlib.Path | None = None):
         self._df.to_csv(filepath, index=True)

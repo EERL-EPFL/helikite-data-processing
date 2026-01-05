@@ -154,5 +154,10 @@ class DataProcessorLevel1_5(BaseProcessor):
 
         return df_level1_5
 
+    @function_dependencies(
+        required_operations=["rename_columns", "round_flightnbr_campaign"],
+        changes_df=False,
+        use_once=False
+    )
     def export_data(self, filepath: str | pathlib.Path | None = None):
         self._df.to_csv(filepath, index=False)
