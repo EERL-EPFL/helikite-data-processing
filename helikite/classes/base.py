@@ -113,7 +113,7 @@ class OutputSchemas:
         return getattr(cls, name.upper())
 
 
-def function_dependencies(required_operations: list[str], changes_df: bool, use_once: bool,
+def function_dependencies(required_operations: list[str | tuple[str, ...]], changes_df: bool, use_once: bool,
                           complete_with_arg: str | None = None, complete_req: bool = False):
     """A decorator to enforce that a method can only run if the required
     operations have been completed and not rerun.
@@ -148,14 +148,19 @@ def function_dependencies(required_operations: list[str], changes_df: bool, use_
             functions_required = []
             # Ensure all required operations have been completed
             for operation in dependencies:
-                if operation not in self._completed_operations:
-                    functions_required.append(operation)
+                # for operations tuple any of the operations in the tuple can be completed to satisfy the dependency
+                if isinstance(operation, tuple):
+                    if all(op not in self._completed_operations for op in operation):
+                        functions_required.append(f"{' | '.join(operation)}")
+                else:
+                    if operation not in self._completed_operations:
+                        functions_required.append(operation)
 
             if functions_required:
                 print(
-                    f"This function '{operation_name}()' requires the "
+                    f"This function '{operation_name}' requires the "
                     "following operations first: "
-                    f"{'(), '.join(functions_required)}()."
+                    f"{', '.join(functions_required)}."
                 )
                 return  # Halt execution of the function if dependency missing
 
