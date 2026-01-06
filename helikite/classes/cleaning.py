@@ -16,7 +16,8 @@ import pyarrow
 import pyarrow.parquet as pq
 from ipywidgets import Output, VBox
 
-from helikite.classes.base import BaseProcessor, function_dependencies, OutputSchema
+from helikite.classes.base import BaseProcessor, function_dependencies
+from helikite.classes.output_schemas import OutputSchema
 from helikite.constants import constants
 from helikite.instruments import msems_inverted, msems_scan
 from helikite.instruments.base import Instrument, filter_columns_by_instrument

@@ -9,7 +9,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from pydantic import BaseModel
 
-from helikite.classes.base import OutputSchema
+from helikite.classes.output_schemas import OutputSchema
 from helikite.instruments import msems_inverted, pops
 from helikite.instruments.base import filter_columns_by_instrument
 from helikite.instruments.mcda_instrument import mcda, MCDA_MIDPOINT_DIAMETER_LIST

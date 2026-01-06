@@ -8,7 +8,7 @@ import pandas as pd
 
 import helikite.instruments
 from helikite import Cleaner
-from helikite.classes.base import OutputSchemas
+from helikite.classes.output_schemas import OutputSchemas
 from helikite.classes.data_processing_level1 import DataProcessorLevel1
 from helikite.classes.data_processing_level1_5 import DataProcessorLevel1_5
 from helikite.instruments import Instrument, cpc, filter, mcpc, pops, flight_computer_v2

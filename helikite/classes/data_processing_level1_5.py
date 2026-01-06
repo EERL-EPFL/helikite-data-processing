@@ -5,8 +5,9 @@ from pathlib import Path
 import pandas as pd
 from pydantic import BaseModel
 
-from helikite.classes.base import BaseProcessor, OutputSchema, get_instruments_from_cleaned_data, function_dependencies, \
+from helikite.classes.base import BaseProcessor, get_instruments_from_cleaned_data, function_dependencies, \
     launch_operations_changing_df
+from helikite.classes.output_schemas import OutputSchema
 from helikite.classes.data_processing_level1 import DataProcessorLevel1
 from helikite.instruments import Instrument
 from helikite.metadata.models import Level0

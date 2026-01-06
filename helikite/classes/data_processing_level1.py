@@ -11,8 +11,9 @@ from ipywidgets import VBox
 from pydantic import BaseModel
 
 from helikite import Cleaner
-from helikite.classes.base import BaseProcessor, function_dependencies, OutputSchema, get_instruments_from_cleaned_data, \
+from helikite.classes.base import BaseProcessor, function_dependencies, get_instruments_from_cleaned_data, \
     launch_operations_changing_df
+from helikite.classes.output_schemas import OutputSchema
 from helikite.constants import constants
 from helikite.instruments import Instrument
 from helikite.instruments.base import filter_columns_by_instrument

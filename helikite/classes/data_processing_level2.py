@@ -4,7 +4,8 @@ import pandas as pd
 from pydantic import BaseModel
 from scipy.stats import circmean
 
-from helikite.classes.base import BaseProcessor, OutputSchema, get_instruments_from_cleaned_data, function_dependencies
+from helikite.classes.base import BaseProcessor, get_instruments_from_cleaned_data, function_dependencies
+from helikite.classes.output_schemas import OutputSchema
 from helikite.processing.post.level1 import flight_profiles_2, plot_size_distributions
 
 
