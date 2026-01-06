@@ -4,15 +4,18 @@ from numbers import Number
 from typing import Any
 
 import folium
+import matplotlib.pyplot as plt
 import pandas as pd
 from ipywidgets import VBox
 from pydantic import BaseModel
 
+from helikite import Cleaner
 from helikite.classes.base import BaseProcessor, function_dependencies, OutputSchema, get_instruments_from_cleaned_data, \
     launch_operations_changing_df
 from helikite.constants import constants
 from helikite.instruments import Instrument, pops, msems_inverted, mcda, cpc, \
     stap, co2
+from helikite.instruments.base import filter_columns_by_instrument
 from helikite.instruments.co2 import process_CO2_STP
 from helikite.instruments.cpc3007 import CPC
 from helikite.instruments.mcda_instrument import mcda_concentration_calculations, mCDA_STP_normalization, \
@@ -66,8 +69,9 @@ class DataProcessorLevel1(BaseProcessor):
     def choose_outliers(
         self,
         y: str = "flight_computer_pressure",
-        outlier_file: str = "outliers.csv",
+        outliers_file: str = "outliers.csv",
         use_coupled_columns: bool = True,
+        instruments: list[Instrument] | None = None,
     ) -> VBox:
         """Creates a plot to interactively select outliers in the data.
 
@@ -84,9 +88,22 @@ class DataProcessorLevel1(BaseProcessor):
             outlier_file (str): The path to the CSV file to store the outliers
             use_coupled_columns (bool): if True, use the coupled columns defined in the instruments
         """
-        coupled_columns = self.coupled_columns if use_coupled_columns else []
-        vbox = choose_outliers(self._df, y, coupled_columns, outlier_file)
-        self._outliers_files.add(outlier_file)
+        plt.close("all")
+
+        if instruments is None:
+            columns = self._df.columns
+            coupled_columns = self.coupled_columns
+        else:
+            columns = [y]
+            coupled_columns = []
+            for instrument in instruments:
+                columns += filter_columns_by_instrument(self._df.columns, instrument)
+                coupled_columns += instrument.coupled_columns
+
+        coupled_columns = coupled_columns if use_coupled_columns else []
+
+        vbox = choose_outliers(self._df[columns], y, coupled_columns, outliers_file)
+        self._outliers_files.add(outliers_file)
 
         return vbox
 
@@ -109,8 +126,8 @@ class DataProcessorLevel1(BaseProcessor):
     def set_outliers_to_nan(self):
         for outlier_file in self._outliers_files:
             outliers = pd.read_csv(outlier_file, index_col=0, parse_dates=True)
-
-            self._df.loc[outliers.index] = self._df.loc[outliers.index].mask(outliers)
+            columns = [col for col in outliers.columns if col in self._df.columns]
+            self._df.loc[outliers.index, columns] = self._df.loc[outliers.index, columns].mask(outliers)
 
     @function_dependencies(required_operations=["set_outliers_to_nan"], changes_df=False, use_once=False)
     def plot_outliers_check(self):

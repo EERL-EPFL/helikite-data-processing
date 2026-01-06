@@ -178,6 +178,12 @@ mcda = mCDA(
     cols_final=[f"dataB {i}_dN_dlogDp_stp" for i in range(1, 257)] + ["dN_totalconc_stp"],
     export_order=730,
     pressure_variable="Pressure",
+    coupled_columns=[
+        [f"mcda_dataB {i}" for i in range(1, 513)] +
+        [f"mcda_dataB {i}_dN" for i in range(1, 257)] +
+        [f"mcda_dataB {i}_dN_dlogDp" for i in range(1, 257)] +
+        [f"mcda_dN_totalconc"],
+    ],
     rename_dict={f'mcda_dataB {i}_dN_dlogDp_stp': f'mCDA_dataB{i}' for i in range(1, 257)} |
                 {'mcda_dN_totalconc_stp': 'mCDA_total_N'},
 )
