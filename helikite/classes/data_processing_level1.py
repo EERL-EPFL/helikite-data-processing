@@ -224,10 +224,6 @@ class DataProcessorLevel1(BaseProcessor):
     def plot_distribution(self, instrument: Instrument, verbose: bool = True,
                           time_start: datetime | None = None, time_end: datetime | None = None, *args, **kwargs):
         if self._check_schema_contains_instrument(instrument):
-            if time_start is None:
-                time_start = self._df.index[0] if not self._df.empty else datetime.min
-            if time_end is None:
-                time_end = self._df.index[-1] if not self._df.empty else datetime.max
             plt.close("all")
             instrument.plot_distribution(self._df, verbose, time_start, time_end, *args, **kwargs)
 
@@ -250,9 +246,10 @@ class DataProcessorLevel1(BaseProcessor):
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
 
     @function_dependencies(required_operations=[], changes_df=False, use_once=False)
-    def plot_size_distr(self, flight_basename: str, save_path: str | pathlib.Path):
+    def plot_size_distr(self, flight_basename: str, save_path: str | pathlib.Path,
+                        time_start: datetime | None = None, time_end: datetime | None = None,):
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1]'
-        fig = plot_size_distributions(self._df, title)
+        fig = plot_size_distributions(self._df, self._output_schema, title, time_start, time_end)
 
         # Save the figure after plotting
         print("Saving figure to:", save_path)

@@ -50,10 +50,10 @@ class OutputSchemas:
         instruments=[
             flight_computer_v2,
             smart_tether,
-            pops,
             msems_readings,
             msems_inverted,
             msems_scan,
+            pops,
             mcda,
             filter,
             tapir,
@@ -73,16 +73,15 @@ class OutputSchemas:
         },
         reference_instrument_candidates=[flight_computer_v2, smart_tether, pops],
     )
-
     TURTMANN = OutputSchema(
         campaign="TURTMANN",
         instruments=[
             flight_computer_v1,
             smart_tether,
-            pops,
             msems_readings,
             msems_inverted,
             msems_scan,
+            pops,
             stap,
             co2,
             filter,

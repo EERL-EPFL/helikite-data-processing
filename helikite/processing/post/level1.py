@@ -1,22 +1,18 @@
-import matplotlib.colors as mcolors
+import datetime
+
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
 import pandas as pd
 from matplotlib.lines import Line2D
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from pydantic import BaseModel
 from matplotlib.patches import Patch
-
+from pydantic import BaseModel
 
 from helikite.classes.base import OutputSchema
 from helikite.instruments import msems_inverted, pops
-from helikite.instruments.base import filter_columns_by_instrument, Instrument
-from helikite.instruments.mcda_instrument import MCDA_MIDPOINT_DIAMETER_LIST, mcda
-
-from helikite.instruments.msems import MSEMS_BIN_DIAMETER_AVERAGES
+from helikite.instruments.base import filter_columns_by_instrument
+from helikite.instruments.mcda_instrument import mcda, MCDA_MIDPOINT_DIAMETER_LIST
 
 
 def create_level1_dataframe(df: pd.DataFrame, output_schema: OutputSchema):
@@ -603,11 +599,15 @@ def _get_series_bounds(x: pd.Series, default_divider: int) -> tuple[tuple[int, i
     return (min_bound, max_bound), divider
 
 
-def plot_size_distributions(df: pd.DataFrame, fig_title: str, freq: str = "1s",  min_loc_interval: int = 10):
+def plot_size_distributions(df: pd.DataFrame, output_schema: OutputSchema, fig_title: str,
+                            time_start: datetime.datetime | None, time_end: datetime.datetime | None,
+                            freq: str = "1s", min_loc_interval: int = 10):
     # TEMPORAL PLOT OF FLIGHT with POPS and mSEMS HEAT MAPS
+    instruments_with_size_distr = [instr for instr in output_schema.instruments if instr.has_size_distribution]
+    nrows = len(instruments_with_size_distr) + 1
 
     # Create figure with 3 subplots, sharing the same x-axis
-    fig, axes = plt.subplots(4, 1, figsize=(16, 12), sharex=True, gridspec_kw={'height_ratios': [1, 1, 1, 1]})
+    fig, axes = plt.subplots(nrows, ncols=1, figsize=(16, 12), sharex=True, gridspec_kw={'height_ratios': [1, 1, 1, 1]})
     plt.subplots_adjust(hspace=0.1)
 
     """ SET THE TITLE OF THE PLOT (FLIGHT N° with DATE_X) """
@@ -683,183 +683,27 @@ def plot_size_distributions(df: pd.DataFrame, fig_title: str, freq: str = "1s", 
     by_label = dict(zip(labels, handles))
     ax1.legend(by_label.values(), by_label.keys(), fontsize=10)
 
-    ### SUBPLOT 2: mSEMS heatmmap & total concentration
-    ax2 = axes[1]
-
-    # Get diameter bin averages
-    start_dia = 'msems_inverted_Bin_Dia1'
-    end_dia = 'msems_inverted_Bin_Dia60'
-    if start_dia and end_dia in df.columns:
-        bin_diameter_averages = df.loc[:, start_dia:end_dia].mean()
-    else:
-        bin_diameter_averages = MSEMS_BIN_DIAMETER_AVERAGES
-
-    def column_name(before_rename: str, instrument: Instrument) -> str:
-        return before_rename if before_rename in df.columns else instrument.rename_dict[before_rename]
-
-    # Get concentration data
-    start_conc = column_name('msems_inverted_Bin_Conc1_stp', msems_inverted)
-    end_conc = column_name('msems_inverted_Bin_Conc60_stp', msems_inverted)
-
-    counts = df.loc[:, start_conc:end_conc]
-    counts.index = df.index
-    counts = counts.astype(float).dropna(how='any') if not counts.isna().all().all() else counts
-    counts = counts.clip(lower=1)
-
-    # Create 2D grid
-    xx, yy = np.meshgrid(counts.index.values, bin_diameter_averages)
-
-    # Contour plot
-    norm = mcolors.LogNorm(vmin=1, vmax=1000)
-    mesh = ax2.pcolormesh(xx, yy, counts.values.T, cmap='viridis', norm=norm, shading="gouraud")
-
-    # Colorbar
-    divider = make_axes_locatable(ax2)
-    cax = inset_axes(ax2, width="1.5%", height="100%", loc='lower left',
-                     bbox_to_anchor=(1.08, -0.025, 1, 1), bbox_transform=ax2.transAxes)
-    cb = fig.colorbar(mesh, cax=cax, orientation='vertical')
-    cb.set_label('dN/dlogD$_p$ (cm$^{-3}$)', fontsize=13, fontweight='bold')
-    cb.ax.tick_params(labelsize=11)
-
-    # Add Secondary Y-axis for Total Concentration
-    ax2_right = ax2.twinx()
-    total_conc = df[column_name('msems_inverted_dN_totalconc_stp', msems_inverted)]
-    total_conc_max = total_conc.max() if not total_conc.isna().all() else 2000
-    ax2_right.scatter(df.index, total_conc, color='red', marker='.')
-    ax2_right.set_ylabel('mSEMS conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red', labelpad=8)
-    ax2_right.tick_params(axis='y', labelsize=11, colors='red')
-    ax2_right.set_ylim(0, total_conc_max * 1.1)
-
-    # Labels and limits
-    ax2.set_yscale('log')
-    ax2.set_ylabel('Part. Diameter (nm)', fontsize=12, fontweight='bold')
-    ax2.set_ylim(8, 250)
-    ax2.grid(True, linestyle='--', alpha=0.6, axis='x')
-
-    ### SUBPLOT 3: POPS heatmap & total concentration
-    ax3 = axes[2]
-
-    # Define pops_dlogDp variable from Hendix documentation
-    pops_dia = [
-        149.0801282, 162.7094017, 178.3613191, 195.2873341,
-        212.890625, 234.121875, 272.2136986, 322.6106374,
-        422.0817873, 561.8906456, 748.8896681, 1054.138693,
-        1358.502538, 1802.347716, 2440.99162, 3061.590212
-    ]
-
-    pops_dlogDp = [
-        0.036454582, 0.039402553, 0.040330922, 0.038498955,
-        0.036550107, 0.045593506, 0.082615487, 0.066315868,
-        0.15575785, 0.100807113, 0.142865049, 0.152476328,
-        0.077693935, 0.157186601, 0.113075192, 0.086705426
-    ]
-
-    # Define the range of columns for POPS concentration
-    start_conc = column_name('pops_b3_dlogDp_stp', pops)
-    end_conc = column_name('pops_b15_dlogDp_stp', pops)
-
-    # Get POPS concentration data
-    pops_counts = df.loc[:, start_conc:end_conc]
-    pops_counts = pops_counts.set_index(df.index).astype(float)
-
-    # Create 2D grid
-    # pops_dia = np.logspace(np.log10(180), np.log10(3370), num=pops_counts.shape[1])
-    bin_diameters = pops_dia[3:16]
-    xx, yy = np.meshgrid(pops_counts.index.values, bin_diameters)
-
-    # Heatmap
-    norm = mcolors.LogNorm(vmin=1, vmax=300)
-    mesh = ax3.pcolormesh(xx, yy, pops_counts.values.T, cmap='viridis', norm=norm, shading="gouraud")
-
-    # Colorbar
-    divider = make_axes_locatable(ax3)
-    cax = inset_axes(ax3, width="1.5%", height="100%", loc='lower left',
-                     bbox_to_anchor=(1.08, -0.025, 1, 1), bbox_transform=ax3.transAxes)
-    cb = fig.colorbar(mesh, cax=cax, orientation='vertical')
-    cb.set_label('dN/dlogD$_p$ (cm$^{-3}$)', fontsize=12, fontweight='bold')
-    cb.ax.tick_params(labelsize=11)
-
-    # Labels and grid
-    ax3.set_yscale('log')
-    ax3.set_ylabel('Part. Diameter (nm)', fontsize=12, fontweight='bold')
-    ax3.tick_params(axis='y', labelsize=11)
-    ax3.grid(True, linestyle='--', linewidth=0.5, axis='x')
-    ax3.grid(False, axis='y')
-    ax3.set_ylim(180, 3370)
-
-    # Add Secondary Y-axis for Total POPS Concentration
-    pops_total_conc = df[column_name('pops_total_conc_stp', pops)]
-    pops_total_conc_max = pops_total_conc.max() if not pops_total_conc.isna().all() else 40
-    ax3_right = ax3.twinx()
-    ax3_right.plot(df.index, pops_total_conc, color='red', linewidth=2, label='Total POPS Conc.')
-    ax3_right.set_ylabel('POPS conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red', labelpad=8)
-    ax3_right.tick_params(axis='y', labelsize=11, colors='red')
-    ax3_right.spines['right'].set_color('red')
-    ax3_right.set_ylim(-20, pops_total_conc_max * 1.1)
-
-    ### Subplot 4: mCDA heatmap & total concentration
-    ax4 = axes[3]
-
-    # Prepare data
-    start_conc = column_name('mcda_dataB 1_dN_dlogDp_stp', mcda)
-    end_conc = column_name('mcda_dataB 256_dN_dlogDp_stp', mcda)
-    counts = df.loc[:, start_conc:end_conc]
-    counts = counts.set_index(df.index)
-    counts = counts.astype(float)
-    counts[counts == 0] = np.nan
-
-    bin_diameters = MCDA_MIDPOINT_DIAMETER_LIST
-    xx, yy = np.meshgrid(counts.index.values, bin_diameters)
-    Z = counts.values.T
-
-    # Plot heatmap
-    norm = mcolors.LogNorm(vmin=1, vmax=50)
-    mesh = ax4.pcolormesh(xx, yy, Z, cmap='viridis', norm=norm, shading="gouraud")
-
-    # Colorbar
-    divider = make_axes_locatable(ax4)
-    cax = inset_axes(ax4, width="1.5%", height="100%", loc='lower left',
-                     bbox_to_anchor=(1.08, -0.025, 1, 1), bbox_transform=ax4.transAxes)
-    cb = fig.colorbar(mesh, cax=cax, orientation='vertical')
-    cb.set_label('dN/dlogD$_p$ (cm$^{-3}$)', fontsize=12, fontweight='bold')
-    cb.ax.tick_params(labelsize=11)
-
-    # Total concentration
-    ax4_right = ax4.twinx()
-    total_conc = df[column_name('mcda_dN_totalconc_stp', mcda)]
-    total_conc_max = total_conc.max() if not total_conc.isna().all() else 15
-    ax4_right.plot(df.index, total_conc, color='red', linewidth=2)
-    ax4_right.set_ylabel('mCDA conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red', labelpad=15)
-    ax4_right.tick_params(axis='y', labelsize=11, colors='red')
-    ax4_right.set_ylim(0, total_conc_max * 2)
-
-    # Axis styling
-    ax4.set_yscale('log')
-    ax4.set_ylabel('Part. Diameter (μm)', fontsize=12, fontweight='bold')
-    ax4.set_ylim(0.4, 20)
-    ax4.grid(True, linestyle='--', linewidth=0.5, axis='x')
-    ax4.grid(False, axis='y')
-
-    # Legend for secondary y-axis
-    # ax2_right.legend(['mSEMS total conc.'], loc='upper right', fontsize=11, frameon=False)
-    # ax3_right.legend(['POPS total conc.'], loc='upper right', fontsize=11, frameon=False)
-    # ax4_right.legend(['mCDA total conc.'], loc='upper right', fontsize=11, frameon=False)
+    verbose = True
+    for i, instrument in enumerate(instruments_with_size_distr):
+        instrument.plot_distribution(df, verbose, time_start, time_end, subplot=(fig, axes[i + 1]))
 
     # X-axis formatting for all subplots
     span = df.index.max() - df.index.min()
 
+    ax_last = axes[-1]
     if span <= pd.Timedelta(days=1):
-        ax4.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
-        ax4.xaxis.set_major_locator(mdates.MinuteLocator(interval=min_loc_interval))
+        ax_last.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+        ax_last.xaxis.set_major_locator(mdates.MinuteLocator(interval=min_loc_interval))
     else:
-        ax4.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d %H:%M"))
-        ax4.xaxis.set_major_locator(mdates.HourLocator(interval=min_loc_interval // 24))
+        ax_last.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d %H:%M"))
+        ax_last.xaxis.set_major_locator(mdates.HourLocator(interval=min_loc_interval // 24))
 
-    ax4.set_xlabel('Time', fontsize=13, fontweight='bold', labelpad=10)
-    ax4.tick_params(axis='x', rotation=90, labelsize=11)
+    ax_last.set_xlabel('Time', fontsize=13, fontweight='bold', labelpad=10)
+    ax_last.tick_params(axis='x', rotation=90, labelsize=11)
 
-    """ SET TIME RANGE (DATE + TIME) """
-    # ax3.set_xlim(pd.Timestamp('2025-02-12T07:55:00'), pd.Timestamp('2025-02-12T10:20:00'))
+    xlim = ax_last.get_xlim()
+    xlim = (time_start if time_start is not None else xlim[0], time_end if time_end is not None else xlim[1])
+    ax_last.set_xlim(xlim)
 
     plt.show()
     return fig
@@ -867,7 +711,7 @@ def plot_size_distributions(df: pd.DataFrame, fig_title: str, freq: str = "1s", 
 
 def filter_data(df):
     fig, ax1 = plt.subplots(figsize=(12, 6))
-    
+
     # Plot Filter_position
     ax1.plot(df.index, df['flight_computer_F_cur_pos'], color='tab:blue', label='Filter Position')
     ax1.set_xlabel('Time')

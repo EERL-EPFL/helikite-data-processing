@@ -17,14 +17,15 @@ Housekeeping variables to look at:
 POPS_flow -> flow should be just below 3, and check for variability increase
 """
 import datetime
-import os
 from pathlib import Path
 
-import matplotlib.colors as mcols
+import matplotlib.colors as mcolors
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 from helikite.instruments.base import Instrument, filter_columns_by_instrument
 
@@ -35,6 +36,10 @@ class POPS(Instrument):
 
     def __repr__(self):
         return "POPS"
+
+    @property
+    def has_size_distribution(self) -> bool:
+        return True
 
     def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
         """Set the DateTime as index of the dataframe and correct if needed
@@ -207,7 +212,8 @@ class POPS(Instrument):
         plt.show()
 
     def plot_distribution(self, df: pd.DataFrame, verbose: bool,
-                          time_start: datetime.datetime, time_end: datetime.datetime):
+                          time_start: datetime.datetime, time_end: datetime.datetime,
+                          subplot: tuple[plt.Figure, plt.Axes] | None = None):
         """
         This function generates a contour plot for POPS size distribution and total concentration.
 
@@ -216,6 +222,18 @@ class POPS(Instrument):
         - time_start: Optional, start time for the x-axis (datetime formatted).
         - time_end: Optional, end time for the x-axis (datetime formatted).
         """
+        if subplot is not None:
+            fig, ax = subplot
+            is_custom_subplot = True
+        else:
+            fig, ax = plt.subplots(figsize=(12, 4), constrained_layout=True)
+            is_custom_subplot = False
+
+        if time_start is not None:
+            df = df[df.index >= pd.to_datetime(time_start)]
+        if time_end is not None:
+            df = df[df.index <= pd.to_datetime(time_end)]
+
         # Define pops_dlogDp variable from Hendix documentation
         pops_dia = [
             149.0801282, 162.7094017, 178.3613191, 195.2873341,
@@ -231,83 +249,83 @@ class POPS(Instrument):
             0.077693935, 0.157186601, 0.113075192, 0.086705426
         ]
 
-        # Define the range of columns for which you want the concentration
-        start_conc = 'pops_b3_dlogDp_stp'
-        end_conc = 'pops_b15_dlogDp_stp'
+        # Define the range of columns for POPS concentration
+        start_conc = self.column_name(df, 'pops_b3_dlogDp_stp')
+        end_conc = self.column_name(df, 'pops_b15_dlogDp_stp')
 
         # Extract the relevant columns
         counts = df.loc[:, start_conc:end_conc]
-        dtimes = df.index
+        counts = counts.set_index(df.index).astype(float)
 
-        # Set dataframe index to time to allow resampling if needed
-        counts = counts.set_index(dtimes)
-
-        # Ensure values are float (important for pcolormesh)
-        counts = counts.astype(float)
         vmax_value = counts.values.max()
-        print(vmax_value)
+        print(f"max value ({self.name}): {vmax_value}")
 
-        # Create 2D grid from times and bin diameters
-        bin_diameters = pops_dia[3:16]  # Pops diameters corresponding to b3 to b15 (13 values)
+        # Create 2D grid
+        bin_diameters = pops_dia[3:16]
         xx, yy = np.meshgrid(counts.index.values, bin_diameters)
-        Z = counts.values.T  # Shape must be (nrows = bins, ncols = time steps)
-
-        # Start plotting
-        fig, ax = plt.subplots(1, 1, figsize=(12, 4), constrained_layout=True)
+        Z = counts.values.T
 
         # Color normalization
-        norm = mcols.LogNorm(vmin=1, vmax=600)
+        norm = mcolors.LogNorm(vmin=1, vmax=300)
 
         # Create the pcolormesh plot
         mesh = ax.pcolormesh(xx, yy, Z, cmap='viridis', norm=norm, shading="gouraud")
 
         # Add colorbar
-        cb = fig.colorbar(mesh, ax=ax, orientation='vertical', location='right', pad=0.02)
+        divider = make_axes_locatable(ax)
+        cax = inset_axes(ax, width="1.5%", height="100%", loc='lower left',
+                         bbox_to_anchor=(1.08, -0.025, 1, 1), bbox_transform=ax.transAxes)
+        cb = fig.colorbar(mesh, cax=cax, orientation='vertical')
         cb.set_label('dN/dlogD$_p$ (cm$^{-3}$)', fontsize=12, fontweight='bold')
-        cb.ax.tick_params(labelsize=12)
+        cb.ax.tick_params(labelsize=11)
 
-        # Define custom date formatter for better x-axis labels
-        class CustomDateFormatter(mdates.DateFormatter):
-            def __init__(self, fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M", *args, **kwargs):
-                super().__init__(fmt, *args, **kwargs)
-                self.date_fmt = date_fmt
-                self.prev_date = None
+        if not is_custom_subplot:
+            # Define custom date formatter for better x-axis labels
+            class CustomDateFormatter(mdates.DateFormatter):
+                def __init__(self, fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M", *args, **kwargs):
+                    super().__init__(fmt, *args, **kwargs)
+                    self.date_fmt = date_fmt
+                    self.prev_date = None
 
-            def __call__(self, x, pos=None):
-                date = mdates.num2date(x)
-                current_date = date.date()
-                if self.prev_date != current_date:
-                    self.prev_date = current_date
-                    return date.strftime(self.date_fmt)
-                else:
-                    return date.strftime(self.fmt)
+                def __call__(self, x, pos=None):
+                    date = mdates.num2date(x)
+                    current_date = date.date()
+                    if self.prev_date != current_date:
+                        self.prev_date = current_date
+                        return date.strftime(self.date_fmt)
+                    else:
+                        return date.strftime(self.fmt)
 
-        # Apply custom formatter
-        custom_formatter = CustomDateFormatter(fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M")
-        ax.xaxis.set_major_formatter(custom_formatter)
-        ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
-        ax.tick_params(axis='x', rotation=90, labelsize=12)
+            # Apply custom formatter
+            custom_formatter = CustomDateFormatter(fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M")
+            ax.xaxis.set_major_formatter(custom_formatter)
+            ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
+            ax.tick_params(axis='x', rotation=90, labelsize=11)
 
         # Set axis labels and limits
-        if time_start and time_end:
-            ax.set_xlim(pd.Timestamp(time_start), pd.Timestamp(time_end))
         ax.set_ylim(180, 3370)
-        ax.tick_params(axis='y', labelsize=12)
+        ax.tick_params(axis='y', labelsize=11)
         ax.set_yscale('log')
-        ax.set_ylabel('Particle Diameter (nm)', fontsize=12, fontweight='bold')
-        ax.set_title('POPS size distribution and total concentration', fontsize=13, fontweight='bold')
-        ax.set_xlabel('Time', fontsize=12, fontweight='bold', labelpad=10)
+        ax.set_ylabel('Part. Diameter (nm)', fontsize=12, fontweight='bold')
+        ax.grid(True, linestyle='--', linewidth=0.5, axis='x')
+        ax.grid(False, axis='y')
+
+        if not is_custom_subplot:
+            ax.set_title('POPS size distribution and total concentration', fontsize=13, fontweight='bold')
+            ax.set_xlabel('Time', fontsize=12, fontweight='bold', labelpad=10)
 
         # Plot total concentration on a secondary y-axis
-        total_conc = df['pops_total_conc_stp']
+        total_conc = df[self.column_name(df, 'pops_total_conc_stp')]
         total_conc_max = total_conc.max() if not total_conc.isna().all() else 40
         ax2 = ax.twinx()
-        ax2.plot(total_conc.index, total_conc, color='red', linewidth=2)
-        ax2.set_ylabel('POPS total conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red')
-        ax2.tick_params(axis='y', labelsize=12, colors='red')
+        ax2.plot(df.index, total_conc, color='red', linewidth=2, label='Total POPS Conc.')
+        ax2.set_ylabel('POPS conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red', labelpad=8)
+        ax2.tick_params(axis='y', labelsize=11, colors='red')
+        ax2.spines['right'].set_color('red')
         ax2.set_ylim(-20, total_conc_max * 1.1)
 
-        plt.show()
+        if not is_custom_subplot:
+            plt.show()
 
     @staticmethod
     def _dNdlogDp_calculation(df_pops, dp_notes):

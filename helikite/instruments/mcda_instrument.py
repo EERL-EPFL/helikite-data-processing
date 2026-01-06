@@ -8,16 +8,19 @@ Important variables to keep:
 
 """
 import datetime
-from numbers import Number
-
-from helikite.instruments.base import Instrument, filter_columns_by_instrument
-from helikite.constants import constants
-import pandas as pd
-import numpy as np
 import logging
-import matplotlib.pyplot as plt
+
+import matplotlib.colors as mcolors
 import matplotlib.colors as mcols
 import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+from mpl_toolkits.axes_grid1.inset_locator import inset_axes
+
+from helikite.constants import constants
+from helikite.instruments.base import Instrument, filter_columns_by_instrument
 
 # Define logger
 logger = logging.getLogger(__name__)
@@ -85,6 +88,10 @@ class mCDA(Instrument):
         
     def __repr__(self):
         return "mCDA"
+
+    @property
+    def has_size_distribution(self) -> bool:
+        return True
 
     def file_identifier(self, first_lines_of_csv) -> bool:
         """
@@ -268,7 +275,7 @@ class mCDA(Instrument):
 
     def plot_distribution(self, df: pd.DataFrame, verbose: bool,
                           time_start: datetime.datetime, time_end: datetime.datetime,
-                          midpoint_diameter_list: list[Number]):
+                          subplot: tuple[plt.Figure, plt.Axes] | None = None):
         """
         Plot mCDA size distribution and total concentration.
 
@@ -276,81 +283,94 @@ class mCDA(Instrument):
         - df (pd.DataFrame): DataFrame containing mCDA size distribution and total concentration.
         - Midpoint_diameter_list (list or np.array): List of particle diameters corresponding to the diameter bin midpoints.
         """
+        if subplot is not None:
+            fig, ax = subplot
+            is_custom_subplot = True
+        else:
+            fig, ax = plt.subplots(figsize=(12, 4), constrained_layout=True)
+            is_custom_subplot = False
+
+        if time_start is not None:
+            df = df[df.index >= pd.to_datetime(time_start)]
+        if time_end is not None:
+            df = df[df.index <= pd.to_datetime(time_end)]
 
         # Define the range of columns for concentration
-        start_conc = 'mcda_dataB 1_dN_dlogDp_stp'
-        end_conc = 'mcda_dataB 256_dN_dlogDp_stp'
+        start_conc = self.column_name(df, 'mcda_dataB 1_dN_dlogDp_stp')
+        end_conc = self.column_name(df, 'mcda_dataB 256_dN_dlogDp_stp')
 
         # Extract the relevant concentration data
         counts = df.loc[:, start_conc:end_conc]
-        dtimes = df.index
-
-        # Set index and prepare the data
-        counts = counts.set_index(dtimes)
+        counts = counts.set_index(df.index)
         counts = counts.astype(float)
         counts[counts == 0] = np.nan
+
         vmax_value = np.nanmax(counts.values)
-        print(vmax_value)
+        print(f"max value ({self.name}): {vmax_value}")
 
         # Create 2D mesh grid
-        xx, yy = np.meshgrid(counts.index.values, midpoint_diameter_list)
+        xx, yy = np.meshgrid(counts.index.values, MCDA_MIDPOINT_DIAMETER_LIST)
         Z = counts.values.T
 
         # Start plotting
-        fig, ax = plt.subplots(1, 1, figsize=(12, 4), constrained_layout=True)
-        norm = mcols.LogNorm(vmin=1, vmax=100)
+        norm = mcolors.LogNorm(vmin=1, vmax=50)
         mesh = ax.pcolormesh(xx, yy, Z, cmap='viridis', norm=norm, shading="gouraud")
 
         # Add colorbar
-        cb = fig.colorbar(mesh, ax=ax, orientation='vertical', location='right', pad=0.02)
+        divider = make_axes_locatable(ax)
+        cax = inset_axes(ax, width="1.5%", height="100%", loc='lower left',
+                         bbox_to_anchor=(1.08, -0.025, 1, 1), bbox_transform=ax.transAxes)
+        cb = fig.colorbar(mesh, cax=cax, orientation='vertical')
         cb.set_label('dN/dlogD$_p$ (cm$^{-3}$)', fontsize=12, fontweight='bold')
-        cb.ax.tick_params(labelsize=12)
+        cb.ax.tick_params(labelsize=11)
 
-        # Custom x-axis formatter
-        class CustomDateFormatter(mdates.DateFormatter):
-            def __init__(self, fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M", *args, **kwargs):
-                super().__init__(fmt, *args, **kwargs)
-                self.date_fmt = date_fmt
-                self.prev_date = None
+        if not is_custom_subplot:
+            # Custom x-axis formatter
+            class CustomDateFormatter(mdates.DateFormatter):
+                def __init__(self, fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M", *args, **kwargs):
+                    super().__init__(fmt, *args, **kwargs)
+                    self.date_fmt = date_fmt
+                    self.prev_date = None
 
-            def __call__(self, x, pos=None):
-                date = mdates.num2date(x)
-                current_date = date.date()
-                if self.prev_date != current_date:
-                    self.prev_date = current_date
-                    return date.strftime(self.date_fmt)
-                else:
-                    return date.strftime(self.fmt)
+                def __call__(self, x, pos=None):
+                    date = mdates.num2date(x)
+                    current_date = date.date()
+                    if self.prev_date != current_date:
+                        self.prev_date = current_date
+                        return date.strftime(self.date_fmt)
+                    else:
+                        return date.strftime(self.fmt)
 
-        # Apply formatter
-        custom_formatter = CustomDateFormatter(fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M")
-        ax.xaxis.set_major_formatter(custom_formatter)
-        ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
-        ax.tick_params(axis='x', rotation=90, labelsize=12)
+            # Apply formatter
+            custom_formatter = CustomDateFormatter(fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M")
+            ax.xaxis.set_major_formatter(custom_formatter)
+            ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
+            ax.tick_params(axis='x', rotation=90, labelsize=11)
 
         # Set axis properties
-        if time_start and time_end:
-            ax.set_xlim(pd.Timestamp(time_start), pd.Timestamp(time_end))
         ax.set_ylim(0.4, 20)
         ax.set_yscale('log')
-        ax.set_ylabel('Particle Diameter (um)', fontsize=12, fontweight='bold')
-        ax.set_xlabel('Time', fontsize=12, fontweight='bold', labelpad=10)
-        ax.set_title('mCDA size distribution and total concentration', fontsize=13, fontweight='bold')
+        ax.set_ylabel('Part. Diameter (μm)', fontsize=12, fontweight='bold')
+        ax.tick_params(axis='y', labelsize=11)
+        ax.grid(True, linestyle='--', linewidth=0.5, axis='x')
+        ax.grid(False, axis='y')
+        if not is_custom_subplot:
+            ax.set_xlabel('Time', fontsize=12, fontweight='bold', labelpad=10)
+            ax.set_title('mCDA size distribution and total concentration', fontsize=13, fontweight='bold')
 
         # Plot total concentration
-        total_conc = df['mcda_dN_totalconc_stp']
+        total_conc = df[self.column_name(df, 'mcda_dN_totalconc_stp')]
         total_conc_max = total_conc.max() if not total_conc.isna().all() else 15
         ax2 = ax.twinx()
-        ax2.plot(total_conc.index, total_conc, color='red', linewidth=2)
-        ax2.set_ylabel('mCDA total conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red')
-        ax2.tick_params(axis='y', labelsize=12, colors='red')
+        ax2.plot(df.index, total_conc, color='red', linewidth=2)
+        ax2.set_ylabel('mCDA conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red', labelpad=15)
+        ax2.tick_params(axis='y', labelsize=11, colors='red')
         ax2.set_ylim(0, total_conc_max * 2)
-        ax2.set_xlim(ax.get_xlim())  # Synchronize x-axis
 
-        plt.show()
+        if not is_custom_subplot:
+            plt.show()
 
-    def plot_vertical_distribution(self, df: pd.DataFrame, verbose: bool,
-                                   midpoint_diameter_list: list[Number]):
+    def plot_vertical_distribution(self, df: pd.DataFrame, verbose: bool, *args, **kwargs):
         """
         Plots the vertical distribution of mCDA particle size distribution versus altitude.
 
@@ -375,7 +395,7 @@ class mCDA(Instrument):
         counts[counts == 0] = np.nan
 
         # Create 2D grid from altitude and bin diameters (reversed)
-        bin_diameters = midpoint_diameter_list
+        bin_diameters = MCDA_MIDPOINT_DIAMETER_LIST
         yy, xx = np.meshgrid(counts.index.values, bin_diameters)
         Z = counts.values.T  # Shape must be (nrows = bins, ncols = altitude steps)
 

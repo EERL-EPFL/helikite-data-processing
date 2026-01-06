@@ -51,6 +51,10 @@ class MSEMSInverted(Instrument):
     def __repr__(self):
         return "mSEMS_inv"
 
+    @property
+    def has_size_distribution(self) -> bool:
+        return True
+
     def data_corrections(self, df, **kwargs):
         """Create new columns to plot bins"""
 
@@ -338,7 +342,8 @@ class MSEMSInverted(Instrument):
         plt.show()
 
     def plot_distribution(self, df: pd.DataFrame, verbose: bool,
-                          time_start: datetime.datetime, time_end: datetime.datetime):
+                          time_start: datetime.datetime, time_end: datetime.datetime,
+                          subplot: tuple[plt.Figure, plt.Axes] | None = None):
         """
         Plots mSEMS size distribution and total concentration from a given DataFrame.
 
@@ -346,104 +351,111 @@ class MSEMSInverted(Instrument):
         - df: pandas DataFrame with required mSEMS columns
         - time_start, time_end: optional pandas.Timestamp or str for limiting the time range
         """
-        # Define diameter and concentration column ranges
-        start_dia = "msems_inverted_Bin_Dia1"
-        end_dia = "msems_inverted_Bin_Dia60"
-        start_conc = "msems_inverted_Bin_Conc1_stp"
-        end_conc = "msems_inverted_Bin_Conc60_stp"
-
-        # Bin diameter averages
-        bin_diameter_averages = df.loc[:, start_dia:end_dia].mean()
-        bin_diameter_averages = bin_diameter_averages if not bin_diameter_averages.isna().all() else np.zeros(60)
-
-        # Prepare the concentration data
-        counts = df.loc[:, start_conc:end_conc].astype(float)
-        counts.index = df.index
-        counts = counts.dropna(how="any") if not counts.isna().all().all() else counts
-        counts = counts.clip(lower=1)
+        if subplot is not None:
+            fig, ax = subplot
+            is_custom_subplot = True
+        else:
+            fig, ax = plt.subplots(figsize=(12, 4))
+            is_custom_subplot = False
 
         if time_start is not None:
-            counts = counts[counts.index >= pd.to_datetime(time_start)]
+            df = df[df.index >= pd.to_datetime(time_start)]
         if time_end is not None:
-            counts = counts[counts.index <= pd.to_datetime(time_end)]
+            df = df[df.index <= pd.to_datetime(time_end)]
+
+        # Define diameter and concentration column ranges
+        start_dia = 'msems_inverted_Bin_Dia1'
+        end_dia = 'msems_inverted_Bin_Dia60'
+        start_conc = self.column_name(df, 'msems_inverted_Bin_Conc1_stp')
+        end_conc = self.column_name(df, 'msems_inverted_Bin_Conc60_stp')
+
+        # Get diameter bin averages
+        if start_dia and end_dia in df.columns:
+            bin_diameter_averages = df.loc[:, start_dia:end_dia].mean()
+        else:
+            bin_diameter_averages = MSEMS_BIN_DIAMETER_AVERAGES
+
+        # Prepare the concentration data
+        counts = df.loc[:, start_conc:end_conc]
+        counts.index = df.index
+        counts = counts.astype(float).dropna(how='any') if not counts.isna().all().all() else counts
+        counts = counts.clip(lower=1)
 
         # Create the 2D meshgrid
         xx, yy = np.meshgrid(counts.index.values, bin_diameter_averages)
         vmax_value = np.nanmax(counts.values)
-        print(vmax_value)
-
-        # Begin plotting
-        fig, ax = plt.subplots(figsize=(12, 4))
+        print(f"max value ({self.name}): {vmax_value}")
 
         # Plot the pcolormesh
-        norm = mcolors.LogNorm(vmin=1, vmax=1200)
-        mesh = ax.pcolormesh(
-            xx, yy, counts.values.T, cmap="viridis", norm=norm, shading="gouraud"
-        )
+        norm = mcolors.LogNorm(vmin=1, vmax=1000)
+        mesh = ax.pcolormesh(xx, yy, counts.values.T, cmap='viridis', norm=norm, shading="gouraud")
 
         # Colorbar
         divider = make_axes_locatable(ax)
         cax = inset_axes(
             ax,
-            width="2.5%",
+            width="1.5%",
             height="100%",
             loc="lower left",
-            bbox_to_anchor=(1.1, -0.025, 1, 1),
-            bbox_transform=ax.transAxes,
+            bbox_to_anchor=(1.08, -0.025, 1, 1),
+            bbox_transform=ax.transAxes
         )
         cb = fig.colorbar(mesh, cax=cax, orientation="vertical")
-        cb.set_label("dN/dlogD$_p$ (cm$^{-3}$)", fontsize=12, fontweight="bold")
-        cb.ax.tick_params(labelsize=12)
+        cb.set_label("dN/dlogD$_p$ (cm$^{-3}$)", fontsize=13, fontweight="bold")
+        cb.ax.tick_params(labelsize=11)
 
-        # Custom x-axis formatter
-        class CustomDateFormatter(mdates.DateFormatter):
-            def __init__(
-                self, fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M", *args, **kwargs
-            ):
-                super().__init__(fmt, *args, **kwargs)
-                self.date_fmt = date_fmt
-                self.prev_date = None
+        if not is_custom_subplot:
+            # Custom x-axis formatter
+            class CustomDateFormatter(mdates.DateFormatter):
+                def __init__(
+                    self, fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M", *args, **kwargs
+                ):
+                    super().__init__(fmt, *args, **kwargs)
+                    self.date_fmt = date_fmt
+                    self.prev_date = None
 
-            def __call__(self, x, pos=None):
-                date = mdates.num2date(x)
-                current_date = date.date()
-                if self.prev_date != current_date:
-                    self.prev_date = current_date
-                    return date.strftime(self.date_fmt)
-                else:
-                    return date.strftime(self.fmt)
+                def __call__(self, x, pos=None):
+                    date = mdates.num2date(x)
+                    current_date = date.date()
+                    if self.prev_date != current_date:
+                        self.prev_date = current_date
+                        return date.strftime(self.date_fmt)
+                    else:
+                        return date.strftime(self.fmt)
 
-        ax.xaxis.set_major_formatter(
-            CustomDateFormatter(fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M")
-        )
-        ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
+            ax.xaxis.set_major_formatter(
+                CustomDateFormatter(fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M")
+            )
+            ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
+            ax.tick_params(axis="x", rotation=90, labelsize=11)
 
         # Axis labels and formatting
-        ax.tick_params(axis="x", rotation=90, labelsize=12)
         ax.set_yscale("log")
-        ax.set_ylabel("Particle Diameter (nm)", fontsize=12, fontweight="bold")
-        ax.set_xlabel("Time", fontsize=12, fontweight="bold", labelpad=10)
-        ax.set_ylim(8, 236)
-        ax.set_title(
-            "mSEMS size distribution and total concentration",
-            fontsize=13,
-            fontweight="bold",
-        )
-        ax.tick_params(axis="y", labelsize=12)
+        ax.set_ylabel("Part. Diameter (nm)", fontsize=12, fontweight="bold")
+        ax.set_ylim(8, 250)
+        ax.tick_params(axis='y', labelsize=11)
+        ax.grid(True, linestyle="--", alpha=0.6, axis="x")
+
+        if not is_custom_subplot:
+            ax.set_xlabel("Time", fontsize=12, fontweight="bold", labelpad=10)
+            ax.set_title(
+                "mSEMS size distribution and total concentration",
+                fontsize=13,
+                fontweight="bold",
+            )
 
         # Secondary y-axis for total concentration
-        total_conc = df["msems_inverted_dN_totalconc_stp"].dropna()
+        total_conc = df[self.column_name(df, "msems_inverted_dN_totalconc_stp")]
         total_conc_max = total_conc.max() if not total_conc.isna().all() else 2000
         ax2 = ax.twinx()
-        ax2.plot(total_conc.index, total_conc, color="red", linewidth=2)
-        ax2.set_ylabel(
-            "N$_{8-236}$ (cm$^{-3}$)", fontsize=12, fontweight="bold", color="red"
-        )
-        ax2.tick_params(axis="y", labelsize=12, colors="red")
+        ax2.scatter(df.index, total_conc, color="red", marker='.')
+        ax2.set_ylabel("mSEMS conc (cm$^{-3}$)", fontsize=12, fontweight="bold", color="red", labelpad=8)
+        ax2.tick_params(axis="y", labelsize=11, colors="red")
         ax2.set_ylim(0, total_conc_max * 1.1)
 
-        plt.subplots_adjust(bottom=0.25, right=0.85)
-        plt.show()
+        if not is_custom_subplot:
+            plt.subplots_adjust(bottom=0.25, right=0.85)
+            plt.show()
 
 
 class MSEMSReadings(Instrument):
