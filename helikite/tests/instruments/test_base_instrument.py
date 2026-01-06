@@ -82,7 +82,7 @@ def test_expected_columns_level0_oracles(
     cpc_columns = ["cpc_DateTime"] + cpc_columns[:-1]
 
     expected_columns = df.columns.to_list() + cpc_columns
-    actual_columns = Cleaner.get_expected_columns(output_schema=OutputSchemas.ORACLES, with_dtype=False)
+    actual_columns = Cleaner.get_expected_columns(output_schema=OutputSchemas.ORACLES_24_25, with_dtype=False)
 
     # TODO: remove once filter is integrated in the pipeline
     filter_columns = filter_columns_by_instrument(actual_columns, filter)
@@ -113,7 +113,7 @@ def test_expected_columns_level1_oracles(
     df = DataProcessorLevel1.read_data(pathlib.Path(campaign_data_location_2025) / "level1_2025-02-14_D_header.csv")
 
     expected_columns = df.columns.to_list()
-    actual_columns = DataProcessorLevel1.get_expected_columns(OutputSchemas.ORACLES,
+    actual_columns = DataProcessorLevel1.get_expected_columns(OutputSchemas.ORACLES_24_25,
                                                               reference_instrument=flight_computer_v2,
                                                               with_dtype=False)
 
@@ -147,7 +147,7 @@ def test_expected_columns_level1_5_oracles(
     df = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level1.5_2025-02-14_D_header.csv")
 
     expected_columns = df.columns.to_list()
-    actual_columns = DataProcessorLevel1_5.get_expected_columns(OutputSchemas.ORACLES,
+    actual_columns = DataProcessorLevel1_5.get_expected_columns(OutputSchemas.ORACLES_24_25,
                                                                 reference_instrument=flight_computer_v2,
                                                                 with_dtype=False)
 

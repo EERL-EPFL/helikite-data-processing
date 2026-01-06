@@ -17,6 +17,7 @@ def _build_colors_defaultdict():
 
     return color_dict
 
+
 @dataclass
 class FlightProfileVariable:
     column_name: str
@@ -44,7 +45,9 @@ class OutputSchema:
 
 
 class OutputSchemas:
-    ORACLES = OutputSchema(
+    _REGISTRY: dict[str, OutputSchema] = {}
+
+    ORACLES_24_25 = OutputSchema(
         campaign="ORACLES",
         instruments=[
             flight_computer_v2,
@@ -131,6 +134,23 @@ class OutputSchemas:
             ),
         ]
     )
+
+    # the difference from 24-25 is that there is no tapir
+    ORACLES_25_26 = dataclasses.replace(
+        ORACLES_24_25,
+        instruments=[
+            flight_computer_v2,
+            smart_tether,
+            msems_readings,
+            msems_inverted,
+            msems_scan,
+            pops,
+            mcda,
+            filter,
+            cpc,
+        ],
+    )
+
     TURTMANN = OutputSchema(
         campaign="TURTMANN",
         instruments=[
@@ -158,7 +178,6 @@ class OutputSchemas:
         },
         reference_instrument_candidates=[flight_computer_v2, smart_tether, pops],
     )
-
     ALL = OutputSchema(
         campaign=None,
         instruments=list(Instrument.REGISTRY.values()),
@@ -167,5 +186,24 @@ class OutputSchemas:
     )
 
     @classmethod
-    def from_name(cls, name: str):
-        return getattr(cls, name.upper())
+    def from_name(cls, name: str) -> OutputSchema:
+        try:
+            return cls._REGISTRY[name.upper()]
+        except KeyError:
+            raise KeyError(f"Unknown OutputSchema '{name}'")
+
+    @classmethod
+    def _register_builtin(cls):
+        for name, value in vars(cls).items():
+            if isinstance(value, OutputSchema):
+                cls._REGISTRY[name.upper()] = value
+
+    @classmethod
+    def register(cls, name: str, schema: OutputSchema, *, overwrite: bool = False):
+        key = name.upper()
+        if not overwrite and key in cls._REGISTRY:
+            raise ValueError(f"OutputSchema '{name}' is already registered")
+        cls._REGISTRY[key] = schema
+
+
+OutputSchemas._register_builtin()
