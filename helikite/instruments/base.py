@@ -195,6 +195,10 @@ class Instrument(ABC):
         """
         return self._rename_dict
 
+    @property
+    def has_size_distribution(self) -> bool:
+        return False
+
     @abstractmethod
     def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
         """This function is used to set the date in the file to the index
@@ -367,6 +371,44 @@ class Instrument(ABC):
                 return frame.filename, frame.code_context[0]
         return None
 
+    def calculate_derived(self, df: pd.DataFrame, verbose: bool, *args, **kwargs) -> pd.DataFrame:
+        """Calculate derived data from the raw data, i.e. total concentration"""
+        if verbose:
+            logger.warning(f"Derived data calculation not implemented for {self.registry_name}.")
+
+        return df
+
+    def normalize(self, df: pd.DataFrame, verbose: bool, *args, **kwargs) -> pd.DataFrame:
+        """Apply normalization to the data, i.e., normalization to STP conditions"""
+        if verbose:
+            logger.warning(f"Data normalization not implemented for {self.registry_name}.")
+
+        return df
+
+    def plot_raw_and_normalized(self, df: pd.DataFrame, verbose: bool, *args, **kwargs):
+        """Plot together raw and normalized data. If only raw data is available, plot raw data."""
+        if verbose:
+            logger.warning(f"Plotting of raw and normalized data not implemented for {self.registry_name}.")
+
+        return
+
+    def plot_distribution(self, df: pd.DataFrame, verbose: bool,
+                          time_start: datetime | None, time_end: datetime | None, *args, **kwargs):
+        """Plot distribution of data"""
+        if verbose:
+            logger.warning(f"Plotting of distribution not implemented for {self.registry_name}.")
+
+        return
+
+    def plot_vertical_distribution(self, df: pd.DataFrame, verbose: bool, *args, **kwargs):
+        """Plot vertical distribution of data"""
+        if verbose:
+            logger.warning(f"Plotting of vertical distribution not implemented for {self.registry_name}.")
+
+        return
+
+    def column_name(self, df: pd.DataFrame, before_rename: str) -> str:
+        return before_rename if before_rename in df.columns else self.rename_dict[before_rename]
 
 def filter_columns_by_instrument(columns: list[str], instrument: Instrument) -> list[str]:
     instrument_prefix = f"{instrument.name}_"

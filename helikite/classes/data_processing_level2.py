@@ -1,12 +1,14 @@
 import pathlib
+from datetime import datetime
 
+import matplotlib.pyplot as plt
 import pandas as pd
 from pydantic import BaseModel
 from scipy.stats import circmean
 
 from helikite.classes.base import BaseProcessor, get_instruments_from_cleaned_data, function_dependencies
-from helikite.classes.output_schemas import OutputSchema
-from helikite.processing.post.level1 import flight_profiles_2, plot_size_distributions
+from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable
+from helikite.processing.post.level1 import flight_profiles, plot_size_distributions
 
 
 class DataProcessorLevel2(BaseProcessor):
@@ -54,20 +56,23 @@ class DataProcessorLevel2(BaseProcessor):
             self._df.loc[self._df['Filter_position'] <= 1.5, 'Filter_position'] = 0
             self._df.loc[self._df['Filter_position'] > 1.5, 'Filter_position'] = 1
 
-    @function_dependencies(required_operations=["rename_columns"], changes_df=False, use_once=False)
+    @function_dependencies(required_operations=["average"], changes_df=False, use_once=False)
     def plot_flight_profiles(self, flight_basename: str, save_path: str | pathlib.Path,
-                             xlims: dict | None = None, xticks: dict | None = None):
+                             variables: list[FlightProfileVariable] | None = None):
+        plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 2]'
-        fig = flight_profiles_2(self._df, self._metadata, xlims, xticks, fig_title=title)
+        fig = flight_profiles(self._df, self._output_schema, variables, fig_title=title)
 
         # Save the figure after plotting
         print("Saving figure to:", save_path)
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
 
-    @function_dependencies(required_operations=["rename_columns"], changes_df=False, use_once=False)
-    def plot_size_distr(self, flight_basename: str, save_path: str | pathlib.Path):
+    @function_dependencies(required_operations=["average"], changes_df=False, use_once=False)
+    def plot_size_distr(self, flight_basename: str, save_path: str | pathlib.Path,
+                        time_start: datetime | None = None, time_end: datetime | None = None):
+        plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 2]'
-        fig = plot_size_distributions(self._df, title)
+        fig = plot_size_distributions(self._df, self._output_schema, title, time_start, time_end)
 
         # Save the figure after plotting
         print("Saving figure to:", save_path)

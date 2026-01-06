@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from helikite import Cleaner
 from helikite.classes.base import BaseProcessor, function_dependencies, get_instruments_from_cleaned_data, \
     launch_operations_changing_df
-from helikite.classes.output_schemas import OutputSchema
+from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable
 from helikite.constants import constants
 from helikite.instruments import Instrument
 from helikite.instruments.base import filter_columns_by_instrument
@@ -21,7 +21,7 @@ from helikite.metadata.models import Level0
 from helikite.processing import choose_outliers
 from helikite.processing.post.TandRH import T_RH_averaging, plot_T_RH
 from helikite.processing.post.altitude import altitude_calculation_barometric, plot_altitude
-from helikite.processing.post.level1 import flight_profiles_1, plot_size_distributions
+from helikite.processing.post.level1 import plot_size_distributions, flight_profiles
 from helikite.processing.post.outliers import plot_outliers_check, plot_gps_on_map, convert_gps_coordinates
 
 logger = logging.getLogger(__name__)
@@ -238,9 +238,10 @@ class DataProcessorLevel1(BaseProcessor):
 
     @function_dependencies(required_operations=[], changes_df=False, use_once=False)
     def plot_flight_profiles(self, flight_basename: str, save_path: str | pathlib.Path,
-                             xlims: dict | None = None, xticks: dict | None = None):
+                             variables: list[FlightProfileVariable] | None = None):
+        plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1]'
-        fig = flight_profiles_1(self._df, xlims, xticks, fig_title=title)
+        fig = flight_profiles(self._df, self._output_schema, variables, fig_title=title)
 
         # Save the figure after plotting
         print("Saving figure to:", save_path)
@@ -248,7 +249,8 @@ class DataProcessorLevel1(BaseProcessor):
 
     @function_dependencies(required_operations=[], changes_df=False, use_once=False)
     def plot_size_distr(self, flight_basename: str, save_path: str | pathlib.Path,
-                        time_start: datetime | None = None, time_end: datetime | None = None,):
+                        time_start: datetime | None = None, time_end: datetime | None = None):
+        plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1]'
         fig = plot_size_distributions(self._df, self._output_schema, title, time_start, time_end)
 

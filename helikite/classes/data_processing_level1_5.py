@@ -1,20 +1,22 @@
 import pathlib
 import shutil
+from datetime import datetime
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import pandas as pd
 from pydantic import BaseModel
 
 from helikite.classes.base import BaseProcessor, get_instruments_from_cleaned_data, function_dependencies, \
     launch_operations_changing_df
-from helikite.classes.output_schemas import OutputSchema
 from helikite.classes.data_processing_level1 import DataProcessorLevel1
+from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable
 from helikite.instruments import Instrument
 from helikite.metadata.models import Level0
 from helikite.processing import choose_outliers
 from helikite.processing.post.fda import FDAParameters, FDA
 from helikite.processing.post.level1 import fill_msems_takeoff_landing, create_level1_dataframe, rename_columns, \
-    round_flightnbr_campaign, flight_profiles_2, plot_size_distributions
+    round_flightnbr_campaign, flight_profiles, plot_size_distributions
 
 
 class DataProcessorLevel1_5(BaseProcessor):
@@ -47,7 +49,7 @@ class DataProcessorLevel1_5(BaseProcessor):
 
     @function_dependencies(required_operations=["fill_msems_takeoff_landing"], changes_df=True, use_once=False)
     def remove_before_takeoff_and_after_landing(self):
-        self._df = self._df.loc[self._metadata.takeoff_time : self._metadata.landing_time]
+        self._df = self._df.loc[self._metadata.takeoff_time: self._metadata.landing_time]
 
     @function_dependencies(required_operations=[], changes_df=True, use_once=True)
     def filter_columns(self):
@@ -90,7 +92,7 @@ class DataProcessorLevel1_5(BaseProcessor):
     @function_dependencies(required_operations=["rename_columns"], changes_df=True, use_once=False,
                            complete_with_arg="flag_name")
     def choose_flag(self,
-                    flag_name: str = "flag_pollution", # do not remove, it is used to complete the operation name
+                    flag_name: str = "flag_pollution",  # do not remove, it is used to complete the operation name
                     column_name: str = "CPC_total_N",
                     auto_path: str | Path | None = None,
                     corr_path: str | Path = "flag_corr.csv",
@@ -117,18 +119,21 @@ class DataProcessorLevel1_5(BaseProcessor):
 
     @function_dependencies(required_operations=["rename_columns"], changes_df=False, use_once=False)
     def plot_flight_profiles(self, flight_basename: str, save_path: str | pathlib.Path,
-                             xlims: dict | None = None, xticks: dict | None = None):
+                             variables: list[FlightProfileVariable] | None = None):
+        plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1.5]'
-        fig = flight_profiles_2(self._df, self._metadata, xlims, xticks, fig_title=title)
+        fig = flight_profiles(self._df, self._output_schema, variables, fig_title=title)
 
         # Save the figure after plotting
         print("Saving figure to:", save_path)
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
 
     @function_dependencies(required_operations=["rename_columns"], changes_df=False, use_once=False)
-    def plot_size_distr(self, flight_basename: str, save_path: str | pathlib.Path):
+    def plot_size_distr(self, flight_basename: str, save_path: str | pathlib.Path,
+                        time_start: datetime | None = None, time_end: datetime | None = None):
+        plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1.5]'
-        fig = plot_size_distributions(self._df, title)
+        fig = plot_size_distributions(self._df, self._output_schema, title, time_start, time_end)
 
         # Save the figure after plotting
         print("Saving figure to:", save_path)
