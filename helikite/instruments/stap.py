@@ -8,8 +8,10 @@ Variables to keep: Everything
 Time is is seconds since 1904-01-01 (weird starting date for Igor software)
 """
 
-from helikite.instruments.base import Instrument
+import matplotlib.pyplot as plt
 import pandas as pd
+
+from helikite.instruments.base import Instrument
 
 
 class STAP(Instrument):
@@ -60,6 +62,78 @@ class STAP(Instrument):
         )
 
         return df
+
+    def normalize(self, df: pd.DataFrame, verbose: bool, *args, **kwargs) -> pd.DataFrame:
+        """
+        Normalize STAP measurements to STP conditions.
+
+        Parameters:
+        df (pd.DataFrame): DataFrame containing STAP measurements and necessary metadata
+                           like 'flight_computer_pressure' and 'Average_Temperature'.
+
+        Returns:
+        df (pd.DataFrame): Updated DataFrame with new STP-normalized columns added.
+        """
+        # Constants for STP
+        P_STP = 1013.25  # hPa
+        T_STP = 273.15  # Kelvin
+
+        # Measured conditions
+        P_measured = df["flight_computer_pressure"]
+        T_measured = df["Average_Temperature"] + 273.15  # Convert °C to Kelvin
+
+        # Calculate the STP correction factor
+        correction_factor = (P_measured / P_STP) * (T_STP / T_measured)
+
+        # Columns to normalize
+        sigmab_column = 'stap_sigmab_smth'
+        sigmag_column = 'stap_sigmag_smth'
+        sigmar_column = 'stap_sigmar_smth'
+        columns_to_normalize = [sigmab_column, sigmag_column, sigmar_column]
+
+        # Dictionary to hold new columns
+        normalized_columns = {}
+
+        for col in columns_to_normalize:
+            if col in df.columns:
+                normalized_columns[col + '_stp'] = df[col] * correction_factor
+
+        # Insert the new columns
+        df = pd.concat(
+            [df, pd.DataFrame(normalized_columns, index=df.index)],
+            axis=1
+        )
+        return df
+
+    def plot_raw_and_normalized(self, df: pd.DataFrame, verbose: bool, *args, **kwargs):
+        """Plots STAP concentration, raw and normalized to STP conditions, against altitude"""
+        sigmab_column = 'stap_sigmab_smth'
+        sigmag_column = 'stap_sigmag_smth'
+        sigmar_column = 'stap_sigmar_smth'
+
+        columns_to_normalize = [sigmab_column, sigmag_column, sigmar_column]
+
+        # Define colors for each variable
+        colors = {
+            sigmab_column: 'blue',
+            sigmag_column: 'green',
+            sigmar_column: 'red'
+        }
+
+        # Plot example (optional)
+        plt.figure(figsize=(8, 6))
+        for col in columns_to_normalize:
+            plt.plot(df[col], df['Altitude'], label=f'{col} measured', color=colors.get(col, 'black'), alpha=0.5)
+            if col + '_stp' in df.columns:
+                plt.plot(df[col + "_stp"], df['Altitude'], label=f'{col} STP-normalized', linestyle='--',
+                         color=colors.get(col, 'black'))
+
+        plt.xlabel('Signal')
+        plt.ylabel('Altitude [m]')
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
 
 
 class STAPRaw(Instrument):
@@ -223,71 +297,3 @@ stap_raw = STAPRaw(
     ],
     pressure_variable="smp_prs",
 )
-
-def STAP_STP_normalization(df):
-    """
-    Normalize STAP measurements to STP conditions and plot the results.
-
-    Parameters:
-    df (pd.DataFrame): DataFrame containing STAP measurements and necessary metadata
-                       like 'flight_computer_pressure' and 'Average_Temperature'.
-
-    Returns:
-    df (pd.DataFrame): Updated DataFrame with new STP-normalized columns added.
-    """
-    import matplotlib.pyplot as plt
-    plt.close('all')
-
-    # Constants for STP
-    P_STP = 1013.25  # hPa
-    T_STP = 273.15  # Kelvin
-
-    # Measured conditions
-    P_measured = df["flight_computer_pressure"]
-    T_measured = df["Average_Temperature"] + 273.15  # Convert °C to Kelvin
-
-    # Calculate the STP correction factor
-    correction_factor = (P_measured / P_STP) * (T_STP / T_measured)
-
-    # Columns to normalize
-    sigmab_column = 'stap_sigmab_smth'
-    sigmag_column = 'stap_sigmag_smth'
-    sigmar_column = 'stap_sigmar_smth'
-    columns_to_normalize = [sigmab_column, sigmag_column, sigmar_column]
-
-    # Dictionary to hold new columns
-    normalized_columns = {}
-
-    for col in columns_to_normalize:
-        if col in df.columns:
-            normalized_columns[col + '_stp'] = df[col] * correction_factor
-
-    # Insert the new columns
-    df = pd.concat(
-        [df, pd.DataFrame(normalized_columns, index=df.index)],
-        axis=1
-    )
-
-    # Define colors for each variable
-    colors = {
-        sigmab_column: 'blue',
-        sigmag_column: 'green',
-        sigmar_column: 'red'
-    }
-
-    # Plot example (optional)
-    plt.figure(figsize=(8, 6))
-    for col in columns_to_normalize:
-        if col + '_stp' in df.columns:
-            plt.plot(df[col], df['Altitude'], label=f'{col} measured', color=colors.get(col, 'black'), alpha=0.5)
-            plt.plot(df[col + "_stp"], df['Altitude'], label=f'{col} STP-normalized', linestyle='--',
-                     color=colors.get(col, 'black'))
-
-    plt.xlabel('Signal')
-    plt.ylabel('Altitude [m]')
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
-
-    return df

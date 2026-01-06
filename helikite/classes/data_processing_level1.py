@@ -1,5 +1,6 @@
 import logging
 import pathlib
+from datetime import datetime
 from numbers import Number
 from typing import Any
 
@@ -13,16 +14,8 @@ from helikite import Cleaner
 from helikite.classes.base import BaseProcessor, function_dependencies, OutputSchema, get_instruments_from_cleaned_data, \
     launch_operations_changing_df
 from helikite.constants import constants
-from helikite.instruments import Instrument, pops, msems_inverted, mcda, cpc, \
-    stap, co2
+from helikite.instruments import Instrument
 from helikite.instruments.base import filter_columns_by_instrument
-from helikite.instruments.co2 import process_CO2_STP
-from helikite.instruments.cpc3007 import CPC
-from helikite.instruments.mcda_instrument import mcda_concentration_calculations, mCDA_STP_normalization, \
-    plot_mcda_distribution, plot_mcda_vertical_distribution
-from helikite.instruments.msems import mSEMS_total_conc_dN, mSEMS_STP_normalization, plot_msems_distribution
-from helikite.instruments.pops import POPS_total_conc_dNdlogDp, POPS_STP_normalization
-from helikite.instruments.stap import STAP_STP_normalization
 from helikite.metadata.models import Level0
 from helikite.processing import choose_outliers
 from helikite.processing.post.TandRH import T_RH_averaging, plot_T_RH
@@ -204,81 +197,49 @@ class DataProcessorLevel1(BaseProcessor):
             self._df.insert(0, self._df.index.name, self._df.index)
 
     @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
-                           changes_df=True, use_once=False)
-    def process_CO2_STP(self, min_threshold=200, max_threshold=500):
-        if self._check_schema_contains_instrument(co2):
-            self._df = process_CO2_STP(self._df, min_threshold, max_threshold)
+                           changes_df=True, use_once=False,
+                           complete_with_arg="instrument")
+    def calculate_derived(self, instrument: Instrument, verbose: bool = True, *args, **kwargs):
+        if self._check_schema_contains_instrument(instrument):
+            self._df = instrument.calculate_derived(self._df, verbose, *args, **kwargs)
 
     @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
-                           changes_df=True, use_once=False)
-    def STAP_STP_normalization(self):
-        if self._check_schema_contains_instrument(stap):
-            self._df = STAP_STP_normalization(self._df)
+                           changes_df=True, use_once=False,
+                           complete_with_arg="instrument")
+    def normalize(self, instrument: Instrument, verbose: bool = True, *args, **kwargs):
+        if self._check_schema_contains_instrument(instrument):
+            self._df = instrument.normalize(self._df, verbose, *args, **kwargs)
 
     @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
-                           changes_df=True, use_once=False)
-    def POPS_total_conc_dNdlogDp(self):
-        if self._check_schema_contains_instrument(pops):
-            self._df = POPS_total_conc_dNdlogDp(self._df)
+                           changes_df=False, use_once=False,
+                           complete_with_arg="instrument")
+    def plot_raw_and_normalized_data(self, instrument: Instrument, verbose: bool = True, *args, **kwargs):
+        if self._check_schema_contains_instrument(instrument):
+            plt.close("all")
+            instrument.plot_raw_and_normalized(self._df, verbose, *args, **kwargs)
 
-    @function_dependencies(required_operations=["POPS_total_conc_dNdlogDp"], changes_df=True, use_once=False)
-    def POPS_STP_normalization(self):
-        if self._check_schema_contains_instrument(pops):
-            self._df = POPS_STP_normalization(self._df)
+    @function_dependencies(required_operations=["normalize"],
+                           changes_df=False, use_once=False,
+                           complete_with_arg="instrument", complete_req=True)
+    def plot_distribution(self, instrument: Instrument, verbose: bool = True,
+                          time_start: datetime | None = None, time_end: datetime | None = None, *args, **kwargs):
+        if self._check_schema_contains_instrument(instrument):
+            if time_start is None:
+                time_start = self._df.index[0] if not self._df.empty else datetime.min
+            if time_end is None:
+                time_end = self._df.index[-1] if not self._df.empty else datetime.max
+            plt.close("all")
+            instrument.plot_distribution(self._df, verbose, time_start, time_end, *args, **kwargs)
 
-    @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
-                           changes_df=True, use_once=False)
-    def mSEMS_total_conc_dN(self):
-        if self._check_schema_contains_instrument(msems_inverted):
-            self._df = mSEMS_total_conc_dN(self._df)
+    @function_dependencies(required_operations=["normalize"],
+                           changes_df=False, use_once=False,
+                           complete_with_arg="instrument", complete_req=True)
+    def plot_vertical_distribution(self, instrument: Instrument, verbose: bool = True, *args, **kwargs):
+        if self._check_schema_contains_instrument(instrument):
+            plt.close("all")
+            instrument.plot_vertical_distribution(self._df, verbose, *args, **kwargs)
 
-    @function_dependencies(required_operations=["mSEMS_total_conc_dN"], changes_df=True, use_once=False)
-    def mSEMS_STP_normalization(self):
-        if self._check_schema_contains_instrument(msems_inverted):
-            self._df = mSEMS_STP_normalization(self._df)
-
-    @function_dependencies(required_operations=["mSEMS_STP_normalization"], changes_df=False, use_once=False)
-    def plot_msems_distribution(self, time_start=None, time_end=None):
-        if self._check_schema_contains_instrument(msems_inverted):
-            plot_msems_distribution(self._df, time_start, time_end)
-
-    @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
-                           changes_df=True, use_once=False)
-    def mcda_concentration_calculations(self):
-        if self._check_schema_contains_instrument(mcda):
-            self._df = mcda_concentration_calculations(self._df)
-
-    @function_dependencies(required_operations=["mcda_concentration_calculations"], changes_df=True, use_once=False)
-    def mCDA_STP_normalization(self):
-        if self._check_schema_contains_instrument(mcda):
-            self._df = mCDA_STP_normalization(self._df)
-
-    @function_dependencies(required_operations=["mCDA_STP_normalization"], changes_df=False, use_once=False)
-    def plot_mcda_distribution(self, midpoint_diameter_list, time_start=None, time_end=None):
-        if self._check_schema_contains_instrument(mcda):
-            plot_mcda_distribution(self._df, midpoint_diameter_list, time_start, time_end)
-
-    @function_dependencies(required_operations=["mCDA_STP_normalization"], changes_df=False, use_once=False)
-    def plot_mcda_vertical_distribution(self, Midpoint_diameter_list):
-        if self._check_schema_contains_instrument(mcda):
-            plot_mcda_vertical_distribution(self._df, Midpoint_diameter_list)
-
-    @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
-                           changes_df=True, use_once=False)
-    def CPC_STP_normalization(self):
-        if self._check_schema_contains_instrument(cpc):
-            self._df = CPC.CPC_STP_normalization(self._df)
-
-    @function_dependencies(
-        required_operations=[
-            "POPS_STP_normalization",
-            "mSEMS_STP_normalization",
-            "mCDA_STP_normalization",
-            "CPC_STP_normalization",
-        ],
-        changes_df=False,
-        use_once=False
-    )
+    @function_dependencies(required_operations=[], changes_df=False, use_once=False)
     def plot_flight_profiles(self, flight_basename: str, save_path: str | pathlib.Path,
                              xlims: dict | None = None, xticks: dict | None = None):
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1]'
@@ -288,16 +249,7 @@ class DataProcessorLevel1(BaseProcessor):
         print("Saving figure to:", save_path)
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
 
-    @function_dependencies(
-        required_operations=[
-            "POPS_STP_normalization",
-            "mSEMS_STP_normalization",
-            "mCDA_STP_normalization",
-            "CPC_STP_normalization",
-        ],
-        changes_df=False,
-        use_once=False
-    )
+    @function_dependencies(required_operations=[], changes_df=False, use_once=False)
     def plot_size_distr(self, flight_basename: str, save_path: str | pathlib.Path):
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1]'
         fig = plot_size_distributions(self._df, title)
@@ -333,15 +285,6 @@ class DataProcessorLevel1(BaseProcessor):
 
         return df_level1
 
-    @function_dependencies(
-        required_operations=[
-            "POPS_STP_normalization",
-            "mSEMS_STP_normalization",
-            "mCDA_STP_normalization",
-            "CPC_STP_normalization",
-        ],
-        changes_df=False,
-        use_once=False
-    )
+    @function_dependencies(required_operations=[], changes_df=False, use_once=False)
     def export_data(self, filepath: str | pathlib.Path | None = None):
         self._df.to_csv(filepath, index=True)

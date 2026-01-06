@@ -63,8 +63,7 @@ class CPC(Instrument):
 
         return df
 
-    @staticmethod
-    def CPC_STP_normalization(df):
+    def normalize(self, df: pd.DataFrame, verbose: bool, *args, **kwargs) -> pd.DataFrame:
         """
         Normalize CPC3007 concentrations to STP conditions and insert the results
         right after the existing CPC columns.
@@ -75,7 +74,6 @@ class CPC(Instrument):
         Returns:
         df (pd.DataFrame): Updated DataFrame with STP-normalized columns inserted.
         """
-        plt.close('all')
     
         # Constants for STP
         P_STP = 1013.25  # hPa
@@ -106,19 +104,25 @@ class CPC(Instrument):
              df.iloc[:, last_cpc_index:]],
             axis=1
         )
-        
-        # PLOT
+
+        return df
+
+    def plot_raw_and_normalized(self, df: pd.DataFrame, verbose: bool, *args, **kwargs):
         plt.figure(figsize=(8, 6))
+
         plt.plot(df['cpc_totalconc_raw'], df['Altitude'], label='Measured', color='blue', marker='.', linestyle='none')
-        plt.plot(df['cpc_totalconc_stp'], df['Altitude'], label='STP-normalized', color='red', marker='.', linestyle='none')
+        if 'cpc_totalconc_stp' in df.columns:
+            plt.plot(df['cpc_totalconc_stp'], df['Altitude'], label='STP-normalized', color='red', marker='.',
+                     linestyle='none')
         plt.xlabel('CPC3007 total concentration (cm$^{-3}$)', fontsize=12)
         plt.ylabel('Altitude (m)', fontsize=12)
+
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
+
         plt.show()
-    
-        return df
+
 
 cpc = CPC(
     name="cpc",
