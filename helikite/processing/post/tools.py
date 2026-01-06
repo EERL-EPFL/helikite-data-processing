@@ -253,6 +253,8 @@ def choose_outliers(df, y, coupled_columns, outlier_file,
             opacity=1,
             mode="markers",
             marker=marker_dict,
+            selected=dict(marker=dict(opacity=1)),
+            unselected=dict(marker=dict(opacity=1)),
             hoverinfo="text",
             text=[
                 f"Time: {time} X: {x_val} Y: {y_val}"
@@ -283,6 +285,8 @@ def choose_outliers(df, y, coupled_columns, outlier_file,
                 color="red",
                 size=marker_size,
             ),
+            selected=dict(marker=dict(opacity=1)),
+            unselected=dict(marker=dict(opacity=1)),
             showlegend=True,
         )
     )
