@@ -1,4 +1,4 @@
-# helikite-data-processing
+# EASE (hElikite dAta proceSsing codE)
 
 This library supports Helikite campaigns by unifying field-collected data, generating quicklooks, and performing quality control on instrument recordings. It is now available on PyPI, can be used via a command‐line interface (CLI), and also runs in Docker containers if needed.
 
