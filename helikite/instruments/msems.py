@@ -125,6 +125,11 @@ class MSEMSInverted(Instrument):
         # Reference msems_inverted dataframe before filling 3 minutes intervals
         self.msems_inverted_ref = df.copy()
 
+        # Set scan direction from MSEMS scan dataframe
+        msems_scan_df = getattr(msems_scan, "df", None)
+        if msems_scan_df is not None:
+            df['scan_direction'] = msems_scan_df['scan_direction']  # To have 0 / 1 values when changing scans
+
         df = df.resample("1s").ffill()
 
         # Repeat last timestamp for addditional 3 minutes in 1-second intervals
@@ -142,11 +147,6 @@ class MSEMSInverted(Instrument):
                 columns=df.columns,
             )
             df = pd.concat([df, extension])
-
-        # Set scan direction from MSEMS scan dataframe
-        msems_scan_df = getattr(msems_scan, "df", None)
-        if msems_scan_df is not None:
-            df['scan_direction'] = msems_scan_df['scan_direction']  # To have 0 / 1 values when changing scans
 
         return df
 
