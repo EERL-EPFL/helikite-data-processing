@@ -54,6 +54,7 @@ class FDAParameters:
     use_neighbor_filter: bool = False
     use_median_filter: bool = False
     use_sparse_filter: bool = False
+    use_duration_filter: bool = False
     pl_a: float = np.inf
     pl_m: float = 0
     iqr_window: str | None = None
@@ -62,8 +63,9 @@ class FDAParameters:
     upper_thr: float = np.inf
     median_window: str | None = None
     median_factor: float | None = None
-    sparse_window: int | None = None
+    sparse_window: str | None = None
     sparse_thr: float | None = None
+    min_duration: str | None = None
 
 
 class FDA:
@@ -220,6 +222,9 @@ class FDA:
         if self._params.use_sparse_filter:
             self._filters.append(FDA.sparse_filter)
 
+        if self._params.use_duration_filter:
+            self._filters.append(FDA.duration_filter)
+
         self._intermediate_flags = []
         conc, grad = self._df[CONC_COLUMN_NAME], self._df[GRAD_COLUMN_NAME]
 
@@ -239,7 +244,7 @@ class FDA:
 
         return final_flag[FLAG_COLUMN_NAME]
 
-    def plot_detection(self, use_time_index: bool = True, figsize=None, fontsize=14, markersize=3,
+    def plot_detection(self, use_time_index: bool = True, figsize=None, fontsize=14, markersize=3, yscale="log",
                        save_path: str | pathlib.Path | None = None, start_time: datetime.datetime | None = None,
                        end_time: datetime.datetime | None = None):
         sns.set_context(context="paper",
@@ -251,7 +256,9 @@ class FDA:
                             "ytick.labelsize": 14,
                             "legend.fontsize": 13})
         n = len(self._intermediate_flags)
-        figsize = figsize if figsize is not None else (20, n * 4)
+        if FLAG_COLUMN_NAME in self._df.columns:
+            n += 1
+        figsize = (figsize[0], n * figsize[1]) if figsize is not None else (20, n * 4)
         fig, axes = plt.subplots(nrows=n, ncols=1, figsize=figsize, sharex=True)
         if n == 1: axes = [axes]
 
@@ -264,23 +271,44 @@ class FDA:
         data = self._df[start_time:end_time]
         data = data[~data[CONC_COLUMN_NAME].isna()]
         conc = data[CONC_COLUMN_NAME]
+        grad = data[GRAD_COLUMN_NAME]
         x = data.index if use_time_index else np.arange(len(data))
 
-        for i, (flag, ax) in enumerate(zip(self._intermediate_flags, axes)):
+        flags = self._intermediate_flags
+        raw_data_label = 'raw data'
+        labels = [f.__name__.replace("_", " ") for f in self._filters]
+        grad_suffix = ' (grad)'
+        if FLAG_COLUMN_NAME in self._df.columns:
+            labels = ["manually flagged"] + labels
+            flags = [self._df[FLAG_COLUMN_NAME]] + flags
+
+        for i, (flag, ax) in enumerate(zip(flags, axes)):
+            ax2 = ax.twinx()
             flag = flag[start_time:end_time]
             conc_flagged = conc.where(~flag, pd.NA)
+            grad_flagged = grad.where(~flag, pd.NA)
 
-            filter_label = self._filters[i].__name__.replace("_", " ")
-            ax.plot(x, conc, '.', label='raw data', color=COLOR_RED, markersize=markersize)
-            ax.plot(x, conc_flagged, '.', label=filter_label, color='#4575b4', markersize=markersize)
+            ax.plot(x, conc, '.', label=raw_data_label, color=COLOR_RED, markersize=markersize, zorder=2)
+            ax.plot(x, conc_flagged, '.', label=labels[i], color='#4575b4', markersize=markersize, zorder=3)
+            ax2.plot(x, grad, '.', label=raw_data_label + grad_suffix,
+                     color='#1b9e77', markersize=markersize, alpha=0.4, zorder=0)
+            ax2.plot(x, grad_flagged, '.', label=labels[i] + grad_suffix,
+                     color='#fee090', markersize=markersize, alpha=0.4, zorder=1)
+
+            ax.grid(True, linestyle="--", alpha=0.6)
 
             ax.set_ylabel('Concentration', fontsize=fontsize)
             ax.set_xlabel('Time', fontsize=fontsize)
-            ax.legend(loc=2)
+            ax.legend(loc='upper left')
+            ax2.legend(loc='upper right')
             ax.tick_params(axis='y', labelsize=fontsize / 2)
             ax.tick_params(axis='x', labelsize=fontsize / 2)
 
-            ax.set_yscale("log")
+            ax.set_yscale(yscale)
+            ax2.set_yscale("log")
+
+            ymin, ymax = ax2.get_ylim()
+            ax2.set_ylim(ymin / 10, ymax)
 
         fig.autofmt_xdate()
         fig.suptitle(self._title, fontsize=1.1 * fontsize)
@@ -342,14 +370,53 @@ class FDA:
 
     @staticmethod
     def sparse_filter(conc: pd.Series, grad: pd.Series, flag_old: pd.Series, params: FDAParameters):
+        flag_old_int = flag_old.fillna(False).astype("Int64")
         sparse_window, sparse_thr = params.sparse_window, params.sparse_thr
 
-        bad_window = flag_old.astype("Int64").rolling(sparse_window, center=True,
-                                                      min_periods=sparse_window).sum() >= sparse_thr
-        # Propagate window violation to all points in the window
-        bad_window = bad_window.rolling(sparse_window, center=True, min_periods=1).max().astype(bool).fillna(False)
+        bad_any = pd.Series(False, index=flag_old.index)
 
-        flag_new = flag_old | bad_window
+        window = pd.Timedelta(sparse_window)
+        while window >= pd.Timedelta(seconds=1):
+            roll = flag_old_int.rolling(window, center=True, min_periods=1)
+
+            bad_window = roll.mean() >= sparse_thr
+
+            # Require both window borders to be outliers
+            w = int(window / (flag_old.index[1] - flag_old.index[0]))
+            half = w // 2
+
+            left_outlier = flag_old_int.shift(half)
+            right_outlier = flag_old_int.shift(-half)
+            bad_window &= left_outlier & right_outlier
+
+            # Propagate window violation to all points in the window
+            bad_window = bad_window.rolling(window, center=True, min_periods=1).max().astype(bool).fillna(False)
+            bad_any |= bad_window
+
+            window /= 2
+
+        flag_new = (flag_old | bad_any).where(~flag_old.isna(), pd.NA)
+        return flag_new
+
+    @staticmethod
+    def duration_filter(conc: pd.Series, grad: pd.Series, flag_old: pd.Series, params: FDAParameters):
+        min_duration = pd.Timedelta(params.min_duration)
+
+        flag_new = flag_old.copy()
+
+        # Identify consecutive flag blocks
+        block_id = (flag_old != flag_old.shift()).cumsum()
+        blocks = flag_old.groupby(block_id)
+
+        for _, block in blocks:
+            if not block.iloc[0]:
+                continue
+
+            duration = block.index[-1] - block.index[0]
+            if duration < min_duration:
+                flag_new.loc[block.index] = False
+
+        flag_new = flag_new.where(~flag_old.isna(), pd.NA)
 
         return flag_new
 

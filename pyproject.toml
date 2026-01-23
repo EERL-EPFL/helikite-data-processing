@@ -31,6 +31,7 @@ sphinx-rtd-theme = "^3.0.2"
 sphinx-autoapi = "^3.6.0"
 autodoc-pydantic = "^2.2.0"
 seaborn = "^0.13.2"
+tqdm = "^4.67.1"
 
 [tool.poetry.group.dev.dependencies]
 jupyter = "^1.0.0"
