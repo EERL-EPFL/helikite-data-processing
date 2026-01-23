@@ -24,7 +24,9 @@ def plot_outliers_check(df, flight_computer: FlightComputer):
     """
     plt.close('all')
 
-    fig, axs = plt.subplots(2, 3, figsize=(12, 8), sharey=True, constrained_layout=True)
+    gps_available = flight_computer.lat_column is not None and flight_computer.long_column is not None
+    ncols = 4 if gps_available else 3
+    fig, axs = plt.subplots(2, ncols, figsize=(ncols * 4, 8), sharey=True, constrained_layout=True, squeeze=False)
 
     # Plot Wind Speed vs Pressure
     axs[0, 0].scatter(df['smart_tether_Wind (m/s)'], df['flight_computer_pressure'],
@@ -32,8 +34,6 @@ def plot_outliers_check(df, flight_computer: FlightComputer):
     axs[0, 0].set_xlabel('Wind Speed (m/s)', fontsize=10)
     axs[0, 0].set_ylabel('Pressure (hPa)', fontsize=10)
     axs[0, 0].set_title('WS', fontsize=10, fontweight='bold')
-    axs[0, 0].grid(True)
-    axs[0, 0].invert_yaxis()
 
     # Plot Wind Direction vs Pressure
     axs[1, 0].scatter(df['smart_tether_Wind (degrees)'], df['flight_computer_pressure'],
@@ -42,45 +42,54 @@ def plot_outliers_check(df, flight_computer: FlightComputer):
     axs[1, 0].set_ylabel('Pressure (hPa)', fontsize=10)
     axs[1, 0].set_xticks([0, 90, 180, 270, 360])
     axs[1, 0].set_title('WD', fontsize=10, fontweight='bold')
-    axs[1, 0].grid(True)
-    axs[1, 0].invert_yaxis()
 
     t1_column = f"{flight_computer.name}_{flight_computer.T1_column}"
     t2_column = f"{flight_computer.name}_{flight_computer.T2_column}"
     h1_column = f"{flight_computer.name}_{flight_computer.H1_column}"
     h2_column = f"{flight_computer.name}_{flight_computer.H2_column}"
+    lat_column = f"{flight_computer.name}_{flight_computer.lat_column}"
+    long_column = f"{flight_computer.name}_{flight_computer.long_column}"
 
     # Plot Out1_T vs Pressure
     axs[0, 1].scatter(df[t1_column], df['flight_computer_pressure'],
                       color='brown', alpha=0.7, s=10)
     axs[0, 1].set_xlabel('Temperature (°C)', fontsize=10)
     axs[0, 1].set_title('Out1_T', fontsize=10, fontweight='bold')
-    axs[0, 1].grid(True)
-    axs[0, 1].invert_yaxis()
 
     # Plot Out1_H vs Pressure
     axs[1, 1].scatter(df[h1_column], df['flight_computer_pressure'],
                       color='orange', alpha=0.7, s=10)
     axs[1, 1].set_xlabel('RH (%)', fontsize=10)
     axs[1, 1].set_title('Out1_H', fontsize=10, fontweight='bold')
-    axs[1, 1].grid(True)
-    axs[1, 1].invert_yaxis()
 
     # Plot Out2_T vs Pressure
     axs[0, 2].scatter(df[t2_column], df['flight_computer_pressure'],
                       color='sienna', alpha=0.7, s=10)
     axs[0, 2].set_xlabel('Temperature (°C)', fontsize=10)
     axs[0, 2].set_title('Out2_T', fontsize=10, fontweight='bold')
-    axs[0, 2].grid(True)
-    axs[0, 2].invert_yaxis()
 
     # Plot Out2_H vs Pressure
     axs[1, 2].scatter(df[h2_column], df['flight_computer_pressure'],
                       color='darkorange', alpha=0.7, s=10)
     axs[1, 2].set_xlabel('RH (%)', fontsize=10)
     axs[1, 2].set_title('Out2_H', fontsize=10, fontweight='bold')
-    axs[1, 2].grid(True)
-    axs[1, 2].invert_yaxis()
+
+    if gps_available:
+        # Plot Latitude vs Pressure
+        axs[0, 3].scatter(df[lat_column], df['flight_computer_pressure'],
+                          color='teal', alpha=0.7, s=10)
+        axs[0, 3].set_xlabel('Latitude', fontsize=10)
+        axs[0, 3].set_title(flight_computer.lat_column, fontsize=10, fontweight='bold')
+
+        # Plot Longitude vs Pressure
+        axs[1, 3].scatter(df[long_column], df['flight_computer_pressure'],
+                          color='salmon', alpha=0.7, s=10)
+        axs[1, 3].set_xlabel('Longitude', fontsize=10)
+        axs[1, 3].set_title(flight_computer.lat_column, fontsize=10, fontweight='bold')
+
+    for ax in axs.flat:
+        ax.grid(True)
+        ax.invert_yaxis()
 
     plt.show()
 

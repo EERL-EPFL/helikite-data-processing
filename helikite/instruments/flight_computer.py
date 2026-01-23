@@ -37,6 +37,16 @@ class FlightComputer(Instrument):
     def H2_column(self) -> str:
         pass
 
+    @property
+    @abstractmethod
+    def lat_column(self) -> str | None:
+        pass
+
+    @property
+    @abstractmethod
+    def long_column(self) -> str | None:
+        pass
+
 
 class FlightComputerV1(FlightComputer):
     """
@@ -62,6 +72,14 @@ class FlightComputerV1(FlightComputer):
     @property
     def H2_column(self) -> str:
         return "RH2"
+
+    @property
+    def lat_column(self) -> str | None:
+        return None
+
+    @property
+    def long_column(self) -> str | None:
+        return None
 
     def data_corrections(
         self,
@@ -195,6 +213,14 @@ class FlightComputerV2(FlightComputer):
     This flight computer relates to the second version used in campaigns
     in 2024. This version uses a new set of metadata and a modified CSV format.
     """
+
+    @property
+    def lat_column(self) -> str | None:
+        return "Lat"
+
+    @property
+    def long_column(self) -> str | None:
+        return "Long"
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
