@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from helikite import Cleaner
 from helikite.classes.base import BaseProcessor, function_dependencies, get_instruments_from_cleaned_data, \
     launch_operations_changing_df
-from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable
+from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, Level
 from helikite.constants import constants
 from helikite.instruments import Instrument
 from helikite.instruments.base import filter_columns_by_instrument
@@ -29,8 +29,14 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 
 class DataProcessorLevel1(BaseProcessor):
-    def __init__(self, output_schema: OutputSchema, df: pd.DataFrame, metadata: BaseModel) -> None:
-        instruments, reference_instrument = get_instruments_from_cleaned_data(df, metadata)
+    @property
+    def level(self) -> Level:
+        return Level.LEVEL1
+
+
+    def __init__(self, output_schema: OutputSchema, df: pd.DataFrame, metadata: BaseModel,
+                 flight_computer_version: str | None = None) -> None:
+        instruments, reference_instrument = get_instruments_from_cleaned_data(df, metadata, flight_computer_version)
         super().__init__(output_schema, instruments, reference_instrument)
         self._df = df.copy()
         self._metadata = metadata
@@ -241,7 +247,7 @@ class DataProcessorLevel1(BaseProcessor):
                              variables: list[FlightProfileVariable] | None = None):
         plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1]'
-        fig = flight_profiles(self._df, self._output_schema, variables, fig_title=title)
+        fig = flight_profiles(self._df, self.level, self._output_schema, variables, fig_title=title)
 
         # Save the figure after plotting
         print("Saving figure to:", save_path)
@@ -252,7 +258,7 @@ class DataProcessorLevel1(BaseProcessor):
                         time_start: datetime | None = None, time_end: datetime | None = None):
         plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1]'
-        fig = plot_size_distributions(self._df, self._output_schema, title, time_start, time_end)
+        fig = plot_size_distributions(self._df, self.level, self._output_schema, title, time_start, time_end)
 
         # Save the figure after plotting
         print("Saving figure to:", save_path)

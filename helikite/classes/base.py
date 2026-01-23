@@ -10,7 +10,7 @@ from typing import Any
 import pandas as pd
 from pydantic import BaseModel
 
-from helikite.classes.output_schemas import OutputSchema
+from helikite.classes.output_schemas import OutputSchema, Level
 from helikite.constants import constants
 from helikite.instruments import Instrument, flight_computer_v2, flight_computer_v1
 from helikite.instruments.flight_computer import FlightComputer
@@ -101,6 +101,12 @@ class BaseProcessor(ABC):
         self._instruments: list[Instrument] = instruments
         self._reference_instrument: Instrument = reference_instrument
         self._completed_operations: list[str] = []
+
+    @property
+    @abstractmethod
+    def level(self) -> Level:
+        ...
+
     @property
     def output_schema(self):
         return self._output_schema
@@ -231,9 +237,12 @@ class BaseProcessor(ABC):
         ...
 
 
-def get_instruments_from_cleaned_data(df: pd.DataFrame, metadata: BaseModel) -> tuple[list[Instrument], Instrument]:
-    flight_computer_version = None
-    flight_computer_outdated_name = "flight_computer"
+def get_instruments_from_cleaned_data(
+    df: pd.DataFrame,
+    metadata: BaseModel,
+    flight_computer_version: str | None,
+) -> tuple[list[Instrument], Instrument]:
+    flight_computer_name = "flight_computer"
 
     instruments = []
     reference_instrument = None
@@ -241,11 +250,11 @@ def get_instruments_from_cleaned_data(df: pd.DataFrame, metadata: BaseModel) -> 
     for name in metadata.instruments:
         is_reference = name == metadata.reference_instrument
 
-        if name == flight_computer_outdated_name:
+        if name == flight_computer_name:
             if flight_computer_version is None:
-                if f"{flight_computer_outdated_name}_{flight_computer_v1.pressure_variable}" in df.columns:
+                if f"{flight_computer_name}_{flight_computer_v1.pressure_variable}" in df.columns:
                     flight_computer_version = "v1"
-                elif f"{flight_computer_outdated_name}_{flight_computer_v2.pressure_variable}" in df.columns:
+                elif f"{flight_computer_name}_{flight_computer_v2.pressure_variable}" in df.columns:
                     flight_computer_version = "v2"
                 else:
                     raise ValueError("Could not determine flight computer version. "

@@ -7,13 +7,19 @@ from pydantic import BaseModel
 from scipy.stats import circmean
 
 from helikite.classes.base import BaseProcessor, get_instruments_from_cleaned_data, function_dependencies
-from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable
+from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, Level
 from helikite.processing.post.level1 import flight_profiles, plot_size_distributions
 
 
 class DataProcessorLevel2(BaseProcessor):
-    def __init__(self, output_schema: OutputSchema, df: pd.DataFrame, metadata: BaseModel) -> None:
-        instruments, reference_instrument = get_instruments_from_cleaned_data(df, metadata)
+    @property
+    def level(self) -> Level:
+        return Level.LEVEL2
+
+
+    def __init__(self, output_schema: OutputSchema, df: pd.DataFrame, metadata: BaseModel,
+                 flight_computer_version: str | None = "v2") -> None:
+        instruments, reference_instrument = get_instruments_from_cleaned_data(df, metadata, flight_computer_version)
         super().__init__(output_schema, instruments, reference_instrument)
         self._df = df.copy()
         self._metadata = metadata
@@ -41,7 +47,7 @@ class DataProcessorLevel2(BaseProcessor):
         self._df = self._df.resample(rule).agg(agg_dict)
 
         # Convert flags to binary
-        flag_cols = self._output_schema.flag_columns
+        flag_cols = list(self._output_schema.flags)
         self._df[flag_cols] = (self._df[flag_cols] >= 0.5).astype(int)
 
         # Round
@@ -61,7 +67,7 @@ class DataProcessorLevel2(BaseProcessor):
                              variables: list[FlightProfileVariable] | None = None):
         plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 2]'
-        fig = flight_profiles(self._df, self._output_schema, variables, fig_title=title)
+        fig = flight_profiles(self._df, self.level, self._output_schema, variables, fig_title=title)
 
         # Save the figure after plotting
         print("Saving figure to:", save_path)
@@ -72,7 +78,7 @@ class DataProcessorLevel2(BaseProcessor):
                         time_start: datetime | None = None, time_end: datetime | None = None):
         plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 2]'
-        fig = plot_size_distributions(self._df, self._output_schema, title, time_start, time_end)
+        fig = plot_size_distributions(self._df, self.level, self._output_schema, title, time_start, time_end)
 
         # Save the figure after plotting
         print("Saving figure to:", save_path)

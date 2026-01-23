@@ -1,9 +1,12 @@
 import dataclasses
 from collections import defaultdict
 from dataclasses import dataclass
+from enum import Enum
 from itertools import cycle
 from numbers import Number
+from typing import Callable
 
+import pandas as pd
 from matplotlib import pyplot as plt
 
 from helikite.instruments import Instrument, flight_computer_v2, smart_tether, msems_readings, msems_inverted, \
@@ -18,7 +21,14 @@ def _build_colors_defaultdict():
     return color_dict
 
 
-@dataclass
+class Level(Enum):
+    LEVEL0 = 0
+    LEVEL1 = 1
+    LEVEL1_5 = 1.5
+    LEVEL2 = 2
+
+
+@dataclass(frozen=True)
 class FlightProfileVariable:
     column_name: str
     shade_flags: list[str] = dataclasses.field(default_factory=list)
@@ -30,16 +40,65 @@ class FlightProfileVariable:
 
 
 @dataclass(frozen=True)
+class FlightProfileVariableShade:
+    column_name: str
+    condition: Callable[[Level, pd.Series], pd.Series]
+    """
+    Predicate function that receives a column value and returns True if the corresponding row should be shaded,
+    False otherwise.
+    """
+    label: str
+    span_kwargs: dict
+
+
+flag_pollution = FlightProfileVariableShade(
+    column_name="flag_pollution",
+    condition=lambda l, v: v,
+    label="Pollution",
+    span_kwargs=dict(color="lightcoral", alpha=0.8),
+)
+flag_hovering = FlightProfileVariableShade(
+    column_name="flag_hovering",
+    condition=lambda l, v: v,
+    label="Hovering",
+    span_kwargs=dict(color="beige", alpha=0.8),
+)
+flag_cloud = FlightProfileVariableShade(
+    column_name="flag_cloud",
+    condition=lambda l, v: v,
+    label="Cloud",
+    span_kwargs=dict(color="lightblue", alpha=0.5),
+)
+
+
+def filter_shade_condition(level: Level, values: pd.Series) -> pd.Series:
+    match level:
+        case Level.LEVEL2:
+            return values != 1.0
+        case _:
+            return values != 0.0
+
+
+flag_filter = FlightProfileVariableShade(
+    column_name="Filter_position",
+    condition=filter_shade_condition,
+    label="Filter",
+    span_kwargs=dict(facecolor='none', edgecolor='gray', hatch='////', alpha=0.5),
+)
+
+
+@dataclass(frozen=True)
 class OutputSchema:
     campaign: str | None
     """Campaign name"""
     instruments: list[Instrument]
     """List of instruments whose columns should be present in the output dataframe."""
-    colors: dict[Instrument, str]
-    """Instrument-to-color dictionary for the consistent across a campaign plotting"""
+    colors: dict[Instrument | str, str]
+    """[Instrument|column]-to-color dictionary for the consistent across a campaign plotting."""
     reference_instrument_candidates: list[Instrument]
     """Reference instrument candidates for the automatic instruments detection"""
     flight_profile_variables: list[FlightProfileVariable] = dataclasses.field(default_factory=list)
+    flight_profile_shades: list[FlightProfileVariableShade] = (flag_pollution, flag_hovering, flag_cloud, flag_filter)
     flags: tuple[str] = ("flag_pollution", "flag_hovering", "flag_cloud")
     """List of flags which should be present in the output dataframe."""
 
@@ -61,7 +120,7 @@ class OutputSchemas:
             tapir,
             cpc,
         ],
-        colors={
+        colors=_build_colors_defaultdict() | {
             flight_computer_v2: "C0",
             smart_tether: "C1",
             pops: "C2",
@@ -89,14 +148,6 @@ class OutputSchemas:
                 x_label="RH (%)",
             ),
             FlightProfileVariable(
-                column_name="msems_inverted_dN_totalconc_stp",
-                plot_kwargs=dict(color="indigo", marker="."),
-                alpha_descent=0.3,
-                x_bounds=(0, 1200),
-                x_divider=200,
-                x_label="mSEMS conc. (cm$^{-3}$) [8-250 nm]",
-            ),
-            FlightProfileVariable(
                 column_name="cpc_totalconc_stp",
                 plot_kwargs=dict(color="orchid", linewidth=3.0),
                 x_bounds=(0, 1200),
@@ -104,7 +155,17 @@ class OutputSchemas:
                 x_label="CPC conc. (cm$^{-3}$) [7–2000 nm]",
             ),
             FlightProfileVariable(
+                column_name="msems_inverted_dN_totalconc_stp",
+                shade_flags=["flag_pollution", "flag_cloud"],
+                plot_kwargs=dict(color="indigo", marker="."),
+                alpha_descent=0.3,
+                x_bounds=(0, 1200),
+                x_divider=200,
+                x_label="mSEMS conc. (cm$^{-3}$) [8-250 nm]",
+            ),
+            FlightProfileVariable(
                 column_name="pops_total_conc_stp",
+                shade_flags=["flag_cloud"],
                 plot_kwargs=dict(color="teal", linewidth=3.0),
                 x_bounds=(0, 60),
                 x_divider=10,
@@ -119,14 +180,14 @@ class OutputSchemas:
             ),
             FlightProfileVariable(
                 column_name="smart_tether_Wind (m/s)",
-                plot_kwargs=dict(color="palevioletred", marker=".", linestyle="none"),
+                plot_kwargs=dict(color="palevioletred", marker="."),
                 alpha_descent=0.2,
                 x_divider=2,  # divider hint, bounds calculated
                 x_label="WS (m/s)",
             ),
             FlightProfileVariable(
                 column_name="smart_tether_Wind (degrees)",
-                plot_kwargs=dict(color="olivedrab", marker=".", linestyle="none"),
+                plot_kwargs=dict(color="olivedrab", marker="."),
                 alpha_descent=0.3,
                 x_bounds=(0, 360),
                 x_divider=90,
@@ -164,7 +225,7 @@ class OutputSchemas:
             co2,
             filter,
         ],
-        colors={
+        colors=_build_colors_defaultdict() | {
             flight_computer_v1: "C0",
             smart_tether: "C1",
             pops: "C2",

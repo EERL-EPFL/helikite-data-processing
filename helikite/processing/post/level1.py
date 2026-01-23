@@ -10,7 +10,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 from pydantic import BaseModel
 
-from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable
+from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, FlightProfileVariableShade, Level
 from helikite.instruments.base import filter_columns_by_instrument
 
 
@@ -165,7 +165,7 @@ def fill_msems_takeoff_landing(df, metadata, time_window_seconds):
             print(f"{label} ({event_time}) not in index.")
 
 
-def flight_profiles(df: pd.DataFrame, output_schema: OutputSchema,
+def flight_profiles(df: pd.DataFrame, level: Level, output_schema: OutputSchema,
                     variables: list[FlightProfileVariable] | None, fig_title=None):
     # Columns in df might have been already renamed
     rename_dict = _build_rename_dict(output_schema)
@@ -202,78 +202,27 @@ def flight_profiles(df: pd.DataFrame, output_schema: OutputSchema,
             ax.xaxis.set_label_position('bottom')
             ax.spines['bottom'].set_position(('outward', 40))
 
-    # Shade clouds separately for ascent and descent
-    if 'flag_cloud' in df.columns:
-        cloud_points = df[df['flag_cloud'] == 1]
-        axes_doubled_to_shade = [ax for ax, variable in zip(axes_doubled, variables) if 'flag_cloud' in variable.shade_flags]
-        if not cloud_points.empty and len(axes_doubled_to_shade) > 0:
-            label_added = False
-            delta_alt = 5  # meters to extend single-point shading
+    legend_lines = [
+        Line2D([0], [0], color='darkgrey', lw=4, label='Ascent'),
+        Line2D([0], [0], color='lightgrey', lw=4, label='Descent'),
+    ]
 
-            # Find the position of max altitude
-            max_alt_pos = df.index.get_loc(df['Altitude'].idxmax())
+    for shade_config in output_schema.flight_profile_shades:
+        if shade_config.column_name in df.columns:
+            axes_doubled_to_shade = [ax for ax, variable in zip(axes_doubled, variables)
+                                     if shade_config.column_name in variable.shade_flags]
+            if len(axes_doubled_to_shade) == 0:
+                continue
 
-            # Split ascent and descent using iloc (integer positions)
-            df_up = df.iloc[:max_alt_pos + 1]
-            df_down = df.iloc[max_alt_pos + 1:]
+            for i, df_partial in enumerate([df_up, df_down]):
+                shade_flagged(
+                    shade_config, axes_doubled_to_shade, df_partial, level,
+                    shade_coord="x",
+                    other_coord_name="Altitude",
+                )
 
-            def shade_cloud_segment(df_segment, ax_list):
-                cloud_times_seg = df_segment[df_segment['flag_cloud'] == 1].index
-                if not cloud_times_seg.empty:
-                    start_idx = cloud_times_seg[0]
-                    label_added = False  # define inside the function
-                    for i in range(1, len(cloud_times_seg)):
-                        if (cloud_times_seg[i] - cloud_times_seg[i-1]) > pd.Timedelta(seconds=20):
-                            ymin = df_segment.loc[start_idx, 'Altitude']
-                            ymax = df_segment.loc[cloud_times_seg[i-1], 'Altitude']
-                            delta_alt = 5  # for single-point shading
-                            if ymin == ymax:
-                                ymin -= delta_alt
-                                ymax += delta_alt
-                            for ax in ax_list:
-                                ax.axhspan(ymin, ymax, color='lightblue', alpha=0.3,
-                                           label='Cloud' if not label_added else None)
-                            label_added = True
-                            start_idx = cloud_times_seg[i]
-
-                    # Final segment
-                    ymin = df_segment.loc[start_idx, 'Altitude']
-                    ymax = df_segment.loc[cloud_times_seg[-1], 'Altitude']
-                    delta_alt = 5
-                    if ymin == ymax:
-                        ymin -= delta_alt
-                        ymax += delta_alt
-                    for ax in ax_list:
-                        ax.axhspan(ymin, ymax, color='lightblue', alpha=0.3,
-                                   label='Cloud' if not label_added else None)
-
-            # Apply separately for ascent and descent
-            for i, variable in enumerate(variables):
-                if 'flag_cloud' in variable.shade_flags:
-                    shade_cloud_segment(df_up, [axes_doubled[i]])
-                    shade_cloud_segment(df_down, [axes_doubled[i]])
-
-    # Shade areas for pollution on ax3 (altitude-based)
-    if 'flag_pollution' in df.columns:
-        pollution_times = df[df['flag_pollution'] == 1].index
-        axes_doubled_to_shade = [ax for ax, variable in zip(axes_doubled, variables) if 'flag_pollution' in variable.shade_flags]
-        if not pollution_times.empty and len(axes_doubled_to_shade) > 0:
-            start_idx = pollution_times[0]
-            label_added = False
-            for i in range(1, len(pollution_times)):
-                if (pollution_times[i] - pollution_times[i-1]) > pd.Timedelta(seconds=1):
-                    ymin = df.loc[start_idx, 'Altitude']
-                    ymax = df.loc[pollution_times[i-1], 'Altitude']
-                    for ax in axes_doubled_to_shade:
-                        ax.axhspan(ymin, ymax, color='lightcoral', alpha=0.3,
-                                    label='Pollution' if not label_added else None)
-                    label_added = True
-                    start_idx = pollution_times[i]
-            ymin = df.loc[start_idx, 'Altitude']
-            ymax = df.loc[pollution_times[-1], 'Altitude']
-            for ax in axes_doubled_to_shade:
-                ax.axhspan(ymin, ymax, color='lightcoral', alpha=0.3,
-                            label='Pollution' if not label_added else None)
+                if i == 0:
+                    legend_lines.append(Patch(label=shade_config.label, **shade_config.span_kwargs))
 
     # Plot ascent data
     for ax, variable in zip(axes_doubled, variables):
@@ -309,20 +258,10 @@ def flight_profiles(df: pd.DataFrame, output_schema: OutputSchema,
         if variable.x_label is not None:
             color = variable.plot_kwargs.get("color", "gray")
             ax.set_xlabel(variable.x_label, color=color, fontweight='bold')
-            ax.tick_params(axis='x', labelcolor=color)
+            ax.tick_params(axis='x', labelcolor=color, labelsize=11)
 
     # Hide last subplot axis and add legend
     axes[-1].axis('off')
-    legend_lines = [
-        Line2D([0], [0], color='darkgrey', lw=4, label='Ascent'),
-        Line2D([0], [0], color='lightgrey', lw=4, label='Descent'),
-    ]
-
-    if "flag_cloud" in df.columns:
-        legend_lines.append(Patch(facecolor='lightblue', alpha=0.3, label='Cloud'))
-    if "flag_pollution" in df.columns:
-        legend_lines.append(Patch(facecolor='lightcoral', alpha=0.3, label='Pollution'))
-
     axes[-1].legend(
         handles=legend_lines,
         loc='upper right',
@@ -365,7 +304,7 @@ def _get_series_bounds(x: pd.Series, default_divider: int) -> tuple[tuple[int, i
     return (min_bound, max_bound), divider
 
 
-def plot_size_distributions(df: pd.DataFrame, output_schema: OutputSchema, fig_title: str,
+def plot_size_distributions(df: pd.DataFrame, level: Level, output_schema: OutputSchema, fig_title: str,
                             time_start: datetime.datetime | None, time_end: datetime.datetime | None,
                             freq: str = "1s", min_loc_interval: int = 10):
     # TEMPORAL PLOT OF FLIGHT with POPS and mSEMS HEAT MAPS
@@ -396,53 +335,25 @@ def plot_size_distributions(df: pd.DataFrame, output_schema: OutputSchema, fig_t
         freq_detected = freq
     timedelta = pd.to_timedelta(pd.tseries.frequencies.to_offset(freq_detected))
 
-    # Shade areas for flag_pollution == 1
-    if "flag_pollution" in df.columns:
-        pollution_times = df[df['flag_pollution'] == 1].index
-        if not pollution_times.empty:
-            start = pollution_times[0]
-            for i in range(1, len(pollution_times)):
-                if (pollution_times[i] - pollution_times[i - 1]) > timedelta:
-                    ax1.axvspan(start, pollution_times[i - 1], color='lightcoral', alpha=0.8, label='Pollution')
-                    start = pollution_times[i]
-            ax1.axvspan(start, pollution_times[-1], color='lightcoral', alpha=0.8, label='Pollution')
+    for shade_config in output_schema.flight_profile_shades:
+        if shade_config.column_name in df.columns:
+            shade_flagged(shade_config, [ax1], df, level)
 
-    # Shade areas for flag_hovering == 1
-    if "flag_hovering" in df.columns:
-        hovering_times = df[df['flag_hovering'] == 1].index
-        if not hovering_times.empty:
-            start = hovering_times[0]
-            for i in range(1, len(hovering_times)):
-                if (hovering_times[i] - hovering_times[i - 1]) > timedelta:
-                    ax1.axvspan(start, hovering_times[i - 1], color='beige', alpha=1, label='Hovering')
-                    start = hovering_times[i]
-            ax1.axvspan(start, hovering_times[-1], color='beige', alpha=1, label='Hovering')
-
-    # Shade areas for flag_cloud == 1
-    if "flag_cloud" in df.columns:
-        cloud_times = df[df['flag_cloud'] == 1].index
-        if not cloud_times.empty:
-            start = cloud_times[0]
-            for i in range(1, len(cloud_times)):
-                if (cloud_times[i] - cloud_times[i - 1]) > timedelta:
-                    ax1.axvspan(start, cloud_times[i - 1], color='lightblue', alpha=0.5, label='Cloud')
-                    start = cloud_times[i]
-            ax1.axvspan(start, cloud_times[-1], color='lightblue', alpha=0.5, label='Cloud')
-
-    # Shade areas for Filter_position !== 1.0
-    if "Filter_position" in df.columns:
-        filter_mask = df['Filter_position'] != 1.0
-        filter_times = df[filter_mask].index
-
-        if not filter_times.empty:
-            start = filter_times[0]
-            for i in range(1, len(filter_times)):
-                if (filter_times[i] - filter_times[i - 1]) > timedelta:
-                    ax1.axvspan(start, filter_times[i - 1], facecolor='none', edgecolor='gray', hatch='////', alpha=0.8,
-                                label='Filter')
-                    start = filter_times[i]
-            ax1.axvspan(start, filter_times[-1], facecolor='none', edgecolor='gray', hatch='////', alpha=0.8,
-                        label='Filter')
+    # TODO: timedelta
+    # # Shade areas for Filter_position !== 1.0
+    # if "Filter_position" in df.columns:
+    #     filter_mask = df['Filter_position'] != 1.0
+    #     filter_times = df[filter_mask].index
+    #
+    #     if not filter_times.empty:
+    #         start = filter_times[0]
+    #         for i in range(1, len(filter_times)):
+    #             if (filter_times[i] - filter_times[i - 1]) > timedelta:
+    #                 ax1.axvspan(start, filter_times[i - 1], facecolor='none', edgecolor='gray', hatch='////', alpha=0.5,
+    #                             label='Filter')
+    #                 start = filter_times[i]
+    #         ax1.axvspan(start, filter_times[-1], facecolor='none', edgecolor='gray', hatch='////', alpha=0.5,
+    #                     label='Filter')
 
     # Optional: Clean legend (avoid duplicates)
     handles, labels = ax1.get_legend_handles_labels()
@@ -473,6 +384,33 @@ def plot_size_distributions(df: pd.DataFrame, output_schema: OutputSchema, fig_t
 
     plt.show()
     return fig
+
+
+def shade_flagged(shade_config: FlightProfileVariableShade, axes: list[plt.Axes], df: pd.DataFrame, level: Level,
+                  shade_coord: str = "y", other_coord_name: str | None = None):
+    name = shade_config.column_name
+    mask = df[[name]].copy()
+    mask[name] = shade_config.condition(level, mask[name])
+    mask.dropna(inplace=True)
+
+    if mask.empty:
+        return
+
+    starts = mask[(mask[name] != mask.shift(1)[name]).fillna(True)].index
+    ends = mask[(mask[name] != mask.shift(-1)[name]).fillna(True)].index
+
+    for start, end in zip(starts, ends):
+        if df.loc[start, name] == 1:
+            v_min = start if other_coord_name is None else df.loc[start:end, other_coord_name].min()
+            v_max = end if other_coord_name is None else df.loc[end, other_coord_name].max()
+
+            for ax in axes:
+                if shade_coord == "y":
+                    ax.axvspan(v_min, v_max, label=shade_config.label, **shade_config.span_kwargs)
+                elif shade_coord == "x":
+                    ax.axhspan(v_min, v_max, label=shade_config.label, **shade_config.span_kwargs)
+                else:
+                    raise ValueError(f"Invalid `flag_coord`: {shade_coord}")
 
 
 def filter_data(df):

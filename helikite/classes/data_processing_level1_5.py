@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from helikite.classes.base import BaseProcessor, get_instruments_from_cleaned_data, function_dependencies, \
     launch_operations_changing_df
 from helikite.classes.data_processing_level1 import DataProcessorLevel1
-from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable
+from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, Level
 from helikite.instruments import Instrument
 from helikite.metadata.models import Level0
 from helikite.processing import choose_outliers
@@ -20,8 +20,14 @@ from helikite.processing.post.level1 import fill_msems_takeoff_landing, create_l
 
 
 class DataProcessorLevel1_5(BaseProcessor):
-    def __init__(self, output_schema: OutputSchema, df: pd.DataFrame, metadata: BaseModel) -> None:
-        instruments, reference_instrument = get_instruments_from_cleaned_data(df, metadata)
+    @property
+    def level(self) -> Level:
+        return Level.LEVEL1_5
+
+
+    def __init__(self, output_schema: OutputSchema, df: pd.DataFrame, metadata: BaseModel,
+                 flight_computer_version: str | None = None) -> None:
+        instruments, reference_instrument = get_instruments_from_cleaned_data(df, metadata, flight_computer_version)
         super().__init__(output_schema, instruments, reference_instrument)
         self._df = df.copy()
         self._metadata = metadata
@@ -70,14 +76,15 @@ class DataProcessorLevel1_5(BaseProcessor):
                     column_name: str = "CPC_total_N",
                     params: FDAParameters | None = None,
                     auto_path: str | Path = "flag_auto.csv",
-                    plot_detection: bool = True):
+                    plot_detection: bool = True,
+                    yscale: str = "log"):
         if params is None:
             params = FDAParameters(inverse=False)
 
         fda = FDA(self._df, column_name, flag_column_name=None, params=params)
         flag = fda.detect()
         if plot_detection:
-            fda.plot_detection()
+            fda.plot_detection(yscale=yscale)
         self._df[flag_name] = flag
 
         if isinstance(auto_path, str):
@@ -112,17 +119,23 @@ class DataProcessorLevel1_5(BaseProcessor):
     def set_flag(self,
                  flag_name: str = "flag_pollution",
                  column_name: str = "CPC_total_N",
-                 corr_path: str | Path = "flag_corr.csv"):
+                 corr_path: str | Path = "flag_corr.csv",
+                 mask: pd.Series | None = None):
         flag = pd.read_csv(corr_path, index_col=0)["datetime"]
 
-        self._df.loc[flag[flag].index, flag_name] = True
+        self._df.loc[flag[flag].index, flag_name] = 1
+
+        if mask is not None:
+            full_flag = self._df[flag_name].where(mask, 0)
+            full_flag = full_flag.where(~self._df[flag_name].isna(), pd.NA)
+            self._df[flag_name] = full_flag
 
     @function_dependencies(required_operations=["rename_columns"], changes_df=False, use_once=False)
     def plot_flight_profiles(self, flight_basename: str, save_path: str | pathlib.Path,
                              variables: list[FlightProfileVariable] | None = None):
         plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1.5]'
-        fig = flight_profiles(self._df, self._output_schema, variables, fig_title=title)
+        fig = flight_profiles(self._df, self.level, self._output_schema, variables, fig_title=title)
 
         # Save the figure after plotting
         print("Saving figure to:", save_path)
@@ -133,7 +146,7 @@ class DataProcessorLevel1_5(BaseProcessor):
                         time_start: datetime | None = None, time_end: datetime | None = None):
         plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1.5]'
-        fig = plot_size_distributions(self._df, self._output_schema, title, time_start, time_end)
+        fig = plot_size_distributions(self._df, self.level, self._output_schema, title, time_start, time_end)
 
         # Save the figure after plotting
         print("Saving figure to:", save_path)

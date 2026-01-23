@@ -17,7 +17,7 @@ import pyarrow.parquet as pq
 from ipywidgets import Output, VBox
 
 from helikite.classes.base import BaseProcessor, function_dependencies
-from helikite.classes.output_schemas import OutputSchema
+from helikite.classes.output_schemas import OutputSchema, Level
 from helikite.constants import constants
 from helikite.instruments import msems_inverted, msems_scan
 from helikite.instruments.base import Instrument, filter_columns_by_instrument
@@ -31,6 +31,10 @@ logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 class Cleaner(BaseProcessor):
+    @property
+    def level(self) -> Level:
+        return Level.LEVEL0
+
     def __init__(
         self,
         output_schema: OutputSchema,
