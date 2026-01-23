@@ -134,7 +134,13 @@ class Instrument(ABC):
         """Default file identifier callback
         """
 
-        return first_lines_of_csv[self.header] == self.expected_header_value
+        if first_lines_of_csv[self.header] == self.expected_header_value:
+            return True
+
+        header_partial_set = set(map(lambda s: s.strip(), self.expected_header_value.split(",")))
+        first_line_set = set(map(lambda s: s.strip(), first_lines_of_csv[self.header].split(",")))
+
+        return header_partial_set.issubset(first_line_set)
 
     def date_extractor(self, first_lines_of_csv: list[str]):
         """Returns the date of the data sample from a CSV header
