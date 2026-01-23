@@ -151,7 +151,7 @@ class MSEMSInverted(Instrument):
         return df
 
     def header_lines(self, file_path: str | pathlib.Path) -> list[str]:
-        with open(file_path) as in_file:
+        with open(file_path, encoding="utf-8", errors="replace") as in_file:
             # the header line of MSEMS Inverted is either the 0th or 55th line
             line = next(in_file)
             if self.expected_header_value in line:

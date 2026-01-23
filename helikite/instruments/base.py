@@ -117,7 +117,7 @@ class Instrument(ABC):
     def header_lines(self, file_path: str | pathlib.Path) -> list[str]:
         lines_to_read = self.header + 1
 
-        with open(file_path) as in_file:
+        with open(file_path, encoding="utf-8", errors="replace") as in_file:
             try:
                 header_lines = [
                     next(in_file) for _ in range(lines_to_read)
@@ -319,6 +319,9 @@ class Instrument(ABC):
             except StopIteration as e:
                 logger.warning(e)
                 continue
+            except UnicodeDecodeError as e:
+                logger.warning(f"Could not read {filename}: {e}")
+                raise e
 
             if self.file_identifier(header_lines):
                 if not quiet:

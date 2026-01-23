@@ -21,14 +21,15 @@ class CPC(Instrument):
 
     def data_corrections(self, df, *args, **kwargs) -> pd.DataFrame:
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-        df = df.rename(columns={'Concentration (#/cm3)': 'totalconc_raw'})
+        df = df.rename(columns={'Concentration (#/cm3)': 'totalconc_raw',
+                                'Concentration (#/cm�)': 'totalconc_raw'})
 
         df = df.resample("1s").asfreq()
 
         return df
 
     def file_identifier(self, first_lines_of_csv: list[str]) -> bool:
-        if self.expected_header_value in first_lines_of_csv[self.header]:
+        if self.expected_header_value[:-4] in first_lines_of_csv[self.header]:
             return True
 
         return False
@@ -39,8 +40,9 @@ class CPC(Instrument):
                 "No flight date provided. Necessary for CPC"
             )
 
-        df["DateTime"] = df["Time"].apply(lambda t: pd.to_datetime(f"{self.date} {t}"))
+        df["DateTime"] = df["Time"].apply(lambda t: pd.to_datetime(f"{self.date} {t}", errors="coerce"))
         df.drop(columns=["Time"], inplace=True)
+        df.dropna(subset=["DateTime"], inplace=True)
         df.set_index("DateTime", inplace=True)
         df.index = df.index.astype("datetime64[s]")
 
@@ -59,6 +61,7 @@ class CPC(Instrument):
             comment=self.comment,
             names=self.names,
             index_col=self.index_col,
+            encoding_errors="replace",
         )
 
         return df
