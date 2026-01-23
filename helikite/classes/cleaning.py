@@ -401,10 +401,10 @@ class Cleaner(BaseProcessor):
                 else:
                     print(f"No 'measurement_nbr' column found in {self.mcda.name}.")
 
-                success.append("cleaner")
+                success.append(instrument.name)
 
             except Exception as e:
-                errors.append(("cleaner", e))
+                errors.append((instrument.name, e))
 
         self._print_success_errors("duplicate removal", success, errors)
 
