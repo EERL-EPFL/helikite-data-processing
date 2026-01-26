@@ -280,7 +280,7 @@ def launch_operations_changing_df(data_processor: BaseProcessor):
             match arg:
                 case "flag_name":
                     for flag in data_processor.output_schema.flags:
-                        operations_kwargs[attr_name].append({"flag_name": flag})
+                        operations_kwargs[attr_name].append({"flag_name": flag.flag_name})
                 case _:
                     continue
 

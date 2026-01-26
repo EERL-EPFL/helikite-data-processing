@@ -11,6 +11,7 @@ from matplotlib import pyplot as plt
 
 from helikite.instruments import Instrument, flight_computer_v2, smart_tether, msems_readings, msems_inverted, \
     msems_scan, pops, mcda, filter, tapir, cpc, flight_computer_v1, stap, co2, stap_raw
+from helikite.processing.post.fda import FDAParameters, FDA_PARAMS_POLLUTION, FDA_PARAMS_HOVERING, FDA_PARAMS_CLOUD
 
 
 def _build_colors_defaultdict():
@@ -27,6 +28,12 @@ class Level(Enum):
     LEVEL1_5 = 1.5
     LEVEL2 = 2
 
+
+@dataclass(frozen=True)
+class Flag:
+    flag_name: str
+    column_name: str
+    params: FDAParameters
 
 @dataclass(frozen=True)
 class FlightProfileVariable:
@@ -51,20 +58,24 @@ class FlightProfileVariableShade:
     span_kwargs: dict
 
 
-flag_pollution = FlightProfileVariableShade(
-    column_name="flag_pollution",
+flag_pollution = Flag(flag_name="flag_pollution", column_name="CPC_total_N", params=FDA_PARAMS_POLLUTION)
+flag_hovering = Flag(flag_name="flag_hovering", column_name="Altitude", params=FDA_PARAMS_HOVERING)
+flag_cloud = Flag(flag_name="flag_cloud", column_name="mCDA_total_N", params=FDA_PARAMS_CLOUD)
+
+shade_pollution = FlightProfileVariableShade(
+    column_name=flag_pollution.column_name,
     condition=lambda l, v: v,
     label="Pollution",
     span_kwargs=dict(color="lightcoral", alpha=0.8),
 )
-flag_hovering = FlightProfileVariableShade(
-    column_name="flag_hovering",
+shade_hovering = FlightProfileVariableShade(
+    column_name=flag_hovering.column_name,
     condition=lambda l, v: v,
     label="Hovering",
     span_kwargs=dict(color="beige", alpha=0.8),
 )
-flag_cloud = FlightProfileVariableShade(
-    column_name="flag_cloud",
+shade_cloud = FlightProfileVariableShade(
+    column_name=flag_cloud.column_name,
     condition=lambda l, v: v,
     label="Cloud",
     span_kwargs=dict(color="lightblue", alpha=0.5),
@@ -79,7 +90,7 @@ def filter_shade_condition(level: Level, values: pd.Series) -> pd.Series:
             return values != 0.0
 
 
-flag_filter = FlightProfileVariableShade(
+shade_filter = FlightProfileVariableShade(
     column_name="Filter_position",
     condition=filter_shade_condition,
     label="Filter",
@@ -98,8 +109,8 @@ class OutputSchema:
     reference_instrument_candidates: list[Instrument]
     """Reference instrument candidates for the automatic instruments detection"""
     flight_profile_variables: list[FlightProfileVariable] = dataclasses.field(default_factory=list)
-    flight_profile_shades: list[FlightProfileVariableShade] = (flag_pollution, flag_hovering, flag_cloud, flag_filter)
-    flags: tuple[str] = ("flag_pollution", "flag_hovering", "flag_cloud")
+    flight_profile_shades: list[FlightProfileVariableShade] = (shade_pollution, shade_hovering, shade_cloud, shade_filter)
+    flags: tuple[Flag] = (flag_pollution, flag_hovering, flag_cloud)
     """List of flags which should be present in the output dataframe."""
 
 

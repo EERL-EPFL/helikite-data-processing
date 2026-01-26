@@ -445,3 +445,67 @@ class FDA:
             print(f"F1 = {f1}")
 
         return f1
+
+
+FDA_PARAMS_POLLUTION: FDAParameters = FDAParameters(
+    inverse=False,
+    avg_time='5s',
+    main_filter='power_law',
+    use_neighbor_filter=False,
+    use_median_filter=True,
+    use_sparse_filter=True,
+    use_duration_filter=True,
+    pl_a=20,
+    pl_m=0,
+    iqr_window=None,
+    iqr_factor=None,
+    lower_thr=-np.inf,
+    upper_thr=1000,
+    median_window='1min',
+    median_factor=4.0,
+    sparse_window='4min',
+    sparse_thr=0.8,
+    min_duration='1min',
+)
+
+FDA_PARAMS_HOVERING = FDAParameters(
+    inverse=True,
+    avg_time='10s',
+    main_filter='power_law',
+    use_neighbor_filter=True,
+    use_median_filter=True,
+    use_sparse_filter=True,
+    use_duration_filter=True,
+    pl_a=1.0,
+    pl_m=0,
+    iqr_window=None,
+    iqr_factor=None,
+    lower_thr=-np.inf,
+    upper_thr=np.inf,
+    median_window='1min',
+    median_factor=4.0,
+    sparse_window='4min',
+    sparse_thr=0.8,
+    min_duration='2min',
+)
+
+FDA_PARAMS_CLOUD = FDAParameters(
+    inverse=False,
+    avg_time='1s',
+    main_filter='power_law',
+    use_neighbor_filter=True,
+    use_median_filter=False,
+    use_sparse_filter=True,
+    use_duration_filter=True,
+    pl_a=1.4,
+    pl_m=0,
+    iqr_window=None,
+    iqr_factor=None,
+    lower_thr=-np.inf,
+    upper_thr=1.2,
+    median_window='1min',
+    median_factor=np.inf,
+    sparse_window='4min',
+    sparse_thr=0.8,
+    min_duration='30s',
+)
