@@ -1,4 +1,5 @@
 import pathlib
+from numbers import Number
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -51,26 +52,7 @@ def choose_outliers(df, y, coupled_columns, outlier_file,
     variable_options = [var for var in df.columns if var != y]
     x = variable_options[1]  # Set first non-index var to the first in the list
 
-    # Load or create the outliers DataFrame
-    try:
-        pd.set_option("future.no_silent_downcasting", False)
-        outliers = pd.read_csv(
-            outlier_file, index_col=0, parse_dates=True
-        ).fillna(False)
-
-        # Old version of outliers file doesn't have index saved as a separate column
-        if index_column_name not in outliers.columns:
-            outliers.insert(loc=0, column=index_column_name, value=False)
-
-    except FileNotFoundError:
-        print(f"Outlier file not found. Creating new one at {outlier_file}")
-        outliers = pd.DataFrame(columns=df.columns).fillna(False)
-
-        dirpath = pathlib.Path(outlier_file).parent
-        dirpath.mkdir(parents=True, exist_ok=True)
-
-        # Store outliers file even if no outliers were selected
-        outliers.to_csv(outlier_file, date_format="%Y-%m-%d %H:%M:%S")
+    outliers = _load_or_create_outliers(outlier_file, df)
 
     # Ensure the indices are aligned and of the same type
     outliers.index = pd.to_datetime(outliers.index)
@@ -309,6 +291,69 @@ def choose_outliers(df, y, coupled_columns, outlier_file,
     # Show plot with interactive selection functionality
     return VBox([variable_dropdown, add_remove_toggle, fig, out])
 
+
+def detect_outliers(outliers_file: str | pathlib.Path, df: pd.DataFrame,
+                    columns: list[str], acceptable_ranges: dict[str, tuple],
+                    iqr_factor: Number):
+    outliers = _load_or_create_outliers(outliers_file, df)
+
+    def _set_column_outliers(column: str, mask: pd.Series, outliers: pd.DataFrame):
+        idx = df.index[mask]
+
+        outliers = outliers.reindex(outliers.index.union(idx), fill_value=False)
+        outliers.loc[idx, column] = True
+
+        return outliers
+
+    for column in columns:
+        if column is None:
+            continue
+        q1 = df[column].quantile(0.25)
+        q3 = df[column].quantile(0.75)
+        iqr = q3 - q1
+
+        lower_bound = q1 - iqr_factor * iqr
+        upper_bound = q3 + iqr_factor * iqr
+
+        mask = (df[column] < lower_bound) | (df[column] > upper_bound)
+        outliers = _set_column_outliers(column, mask, outliers)
+
+    for column, acceptable_range in acceptable_ranges.items():
+        if column in columns and column in df.columns:
+            mask = (df[column] <= acceptable_range[0]) | (df[column] >= acceptable_range[1])
+            outliers = _set_column_outliers(column, mask, outliers)
+
+    outliers.to_csv(outliers_file, date_format="%Y-%m-%d %H:%M:%S")
+
+
+def _get_index_column_name(df: pd.DataFrame) -> str:
+    """Returns the name of the index column in the dataframe."""
+    return f"Index<{df.index.name}>" if df.index.name else "Index<>"
+
+
+def _load_or_create_outliers(outliers_file: str | pathlib.Path, df: pd.DataFrame) -> pd.DataFrame:
+    """Loads a file or creates a new one if it does not exist."""
+    index_column_name = _get_index_column_name(df)
+
+    try:
+        pd.set_option("future.no_silent_downcasting", False)
+        outliers = pd.read_csv(outliers_file, index_col=0, parse_dates=True).fillna(False)
+
+        # Old version of outliers file doesn't have index saved as a separate column
+        if index_column_name not in outliers.columns:
+            outliers.insert(loc=0, column=index_column_name, value=False)
+
+    except FileNotFoundError:
+        print(f"Outliers file not found. Creating new one at {outliers_file}")
+        outliers = pd.DataFrame(columns=df.columns).fillna(False)
+
+        dirpath = pathlib.Path(outliers_file).parent
+        dirpath.mkdir(parents=True, exist_ok=True)
+
+        # Store outliers file even if no outliers were selected
+        outliers.to_csv(outliers_file, date_format="%Y-%m-%d %H:%M:%S")
+
+    return outliers
 
 def choose_flags(df, y, flag_file="flags.csv", key="flag", value="selected"):
     """Creates a plot to interactively select and assign flags to data points.

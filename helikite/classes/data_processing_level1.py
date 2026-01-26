@@ -6,6 +6,7 @@ from typing import Any
 
 import folium
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 from ipywidgets import VBox
 from pydantic import BaseModel
@@ -23,6 +24,7 @@ from helikite.processing.post.TandRH import T_RH_averaging, plot_T_RH
 from helikite.processing.post.altitude import altitude_calculation_barometric, plot_altitude
 from helikite.processing.post.level1 import plot_size_distributions, flight_profiles
 from helikite.processing.post.outliers import plot_outliers_check, plot_gps_on_map, convert_gps_coordinates
+from helikite.processing.post.tools import detect_outliers
 
 logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
@@ -64,6 +66,31 @@ class DataProcessorLevel1(BaseProcessor):
             state_info += self._outliers_file_state_info(outliers_file)
 
         return state_info
+
+    @function_dependencies(required_operations=[], changes_df=False, use_once=False)
+    def detect_outliers(self, outliers_file: str = "outliers.csv",
+                        columns: list[str] | None = None, acceptable_ranges: dict[str, tuple] | None = None,
+                        iqr_factor: Number = 5):
+        fc = self._flight_computer
+        wind_ms_column = "smart_tether_Wind (m/s)"
+        wind_deg_column = "smart_tether_Wind (degrees)"
+        if columns is None:
+            columns = [
+                f"{fc.name}_{fc.T1_column}",
+                f"{fc.name}_{fc.T2_column}",
+                f"{fc.name}_{fc.H1_column}",
+                f"{fc.name}_{fc.H2_column}",
+                f"{fc.name}_{fc.lat_column}",
+                f"{fc.name}_{fc.long_column}",
+                wind_ms_column,
+                wind_deg_column,
+            ]
+        if acceptable_ranges is None:
+            acceptable_ranges = {wind_ms_column: (0, np.inf)}
+
+        detect_outliers(outliers_file, self._df, columns, acceptable_ranges, iqr_factor)
+
+        self._outliers_files.add(outliers_file)
 
     @function_dependencies(required_operations=[], changes_df=False, use_once=False)
     def choose_outliers(
