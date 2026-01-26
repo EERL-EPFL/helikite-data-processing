@@ -417,14 +417,14 @@ def filter_data(df):
     fig, ax1 = plt.subplots(figsize=(12, 6))
 
     # Plot Filter_position
-    ax1.plot(df.index, df['flight_computer_F_cur_pos'], color='tab:blue', label='Filter Position')
+    ax1.plot(df.index, df['filter_cur_pos'], color='tab:blue', label='Filter Position')
     ax1.set_xlabel('Time')
     ax1.set_ylabel('Filter Position', color='tab:blue')
     ax1.tick_params(axis='y', labelcolor='tab:blue')
 
     # Create a second y-axis for Filter_flow
     ax2 = ax1.twinx()
-    ax2.plot(df.index, df['flight_computer_F_pump_pw'], color='tab:red', label='Pump Power')
+    ax2.plot(df.index, df['filter_pump_pw'], color='tab:red', label='Pump Power')
     ax2.set_ylabel('Pump Power', color='tab:red')
     ax2.tick_params(axis='y', labelcolor='tab:red')
 

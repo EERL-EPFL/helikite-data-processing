@@ -706,7 +706,7 @@ flight_computer_v2 = FlightComputerV2(
         "HeadAcc",
         "GNSSqty",
     ],
-    cols_final=["F_cur_pos", "F_smp_flw", "pressure"],
+    cols_final=["pressure"],
     export_order=100,
     pressure_variable="BME_P",
     coupled_columns=[
@@ -714,8 +714,4 @@ flight_computer_v2 = FlightComputerV2(
         ('flight_computer_Out2_T', 'flight_computer_Out2_H'),
         ('flight_computer_Lat', 'flight_computer_Long'),
     ],
-    rename_dict={
-        'flight_computer_F_cur_pos': 'Filter_position',
-        'flight_computer_F_smp_flw': 'Filter_flow'
-    },
 )
