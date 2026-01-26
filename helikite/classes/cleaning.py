@@ -17,9 +17,10 @@ import pyarrow.parquet as pq
 from ipywidgets import Output, VBox
 
 from helikite.classes.base import BaseProcessor, function_dependencies
-from helikite.classes.output_schemas import OutputSchema, Level
+from helikite.classes.output_schemas import OutputSchema, Level, OutputSchemas
+from helikite.config import Config
 from helikite.constants import constants
-from helikite.instruments import msems_inverted, msems_scan
+from helikite.instruments import msems_inverted, msems_scan, flight_computer_v2
 from helikite.instruments.base import Instrument, filter_columns_by_instrument
 from helikite.metadata.models import Level0
 from helikite.processing.helpers import temporary_attr
@@ -47,6 +48,7 @@ class Cleaner(BaseProcessor):
         time_takeoff: datetime.datetime | None = None,
         time_landing: datetime.datetime | None = None,
         time_offset: datetime.time = datetime.time(0, 0),
+        interactive: bool = True,
     ) -> None:
         if instruments is None:
             instruments = Cleaner.detect_instruments(output_schema, input_folder)
@@ -71,7 +73,7 @@ class Cleaner(BaseProcessor):
         # Create an attribute from each instrument.name
         for instrument in instruments:
             instrument.df_raw = instrument.read_from_folder(
-                self.input_folder, quiet=True
+                self.input_folder, quiet=True, interactive=interactive,
             )
             instrument.df = instrument.df_raw.copy(deep=True)
             instrument.df_before_timeshift = pd.DataFrame()
@@ -1243,18 +1245,19 @@ class Cleaner(BaseProcessor):
         """
         Automatically detect instruments from the files available in the input folder.
         """
-        matched_files = set()
+        all_matched_files = set()
         flight_instruments = []
 
         for instrument in output_schema.instruments:
-            matched_file = instrument.detect_from_folder(input_folder, quiet=False)
+            matched_files = instrument.detect_from_folder(input_folder, quiet=False, interactive=False)
 
-            if matched_file:
+            if matched_files:
                 flight_instruments.append(instrument)
-                matched_files.add(os.path.basename(matched_file))
+                for matched_file in matched_files:
+                    all_matched_files.add(os.path.basename(matched_file))
 
         for file in os.listdir(input_folder):
-            if file not in matched_files:
+            if file not in all_matched_files:
                 logger.warning(f"{file} was not matched")
 
         return flight_instruments
@@ -1293,3 +1296,42 @@ class Cleaner(BaseProcessor):
             return list(expected_columns.keys())
 
         return expected_columns
+
+def execute_level0(config: Config):
+    input_dir = config.campaign_data_dirpath / config.flight_basename
+    output_level0_dir = constants.OUTPUTS_FOLDER / "Processing" / "Level0"
+    output_level0_dir.mkdir(parents=True, exist_ok=True)
+
+    cleaner = Cleaner(
+        output_schema=OutputSchemas.from_name(config.output_schema),
+        input_folder=input_dir,
+        flight_date=config.flight_date,
+        flight=config.flight,
+        interactive=False,
+    )
+    reference_instrument = cleaner.reference_instrument
+
+    if flight_computer_v2 not in cleaner.instruments:
+        return
+
+    cleaner.set_time_as_index()
+    cleaner.fill_missing_timestamps(reference_instrument, freq="1s", fill_method="ffill")
+    cleaner.data_corrections()
+    cleaner.set_pressure_column()
+
+    cleaner.pressure_based_time_synchronization()
+
+    cleaner.define_flight_times()
+    if cleaner.time_takeoff is None:
+        cleaner.time_takeoff = reference_instrument.df.index[0].to_pydatetime() + datetime.timedelta(seconds=120)
+    if cleaner.time_landing is None:
+        cleaner.time_landing = reference_instrument.df.index[-1].to_pydatetime() - datetime.timedelta(seconds=120)
+
+    cleaner.remove_duplicates()
+    cleaner.merge_instruments()
+
+    save_path = output_level0_dir / f"Level0_{config.flight_basename}_Flight_{config.flight}_TimeSync.png"
+    cleaner.plot_time_sync(save_path, skip=[msems_scan])
+    cleaner.shift_msems_columns_by_90s()
+
+    cleaner.export_data(filepath=output_level0_dir / f"level0_{config.flight_basename}")

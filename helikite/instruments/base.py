@@ -305,7 +305,7 @@ class Instrument(ABC):
 
         return df
 
-    def detect_from_folder(self, input_folder: str, quiet=False) -> str:
+    def detect_from_folder(self, input_folder: str, quiet: bool = False, interactive: bool = False) -> list[str]:
         """Scans an input folder for the instrument file
 
         If there are two files that match the instrument, the function will
@@ -336,28 +336,31 @@ class Instrument(ABC):
                     )
                 successful_matches.append(filename)
                 if len(successful_matches) > 1:
-                    message = (f"Multiple instruments detected: {successful_matches}.\n"
-                               f"Please enter an index of the instrument to use: ")
-                    index = int(input(message))
-                    successful_matches = [successful_matches[index]]
+                    if interactive:
+                        message = (f"Instrument detect in multiple files: {successful_matches}.\n"
+                                   f"Please enter an index of the instrument to use: ")
+                        index = int(input(message))
+                        successful_matches = [successful_matches[index]]
 
         if not successful_matches:
             logger.warning(f"No instrument detected for {self.registry_name}")
-            return None
+            return []
 
-        return os.path.join(input_folder, successful_matches[0])
+        return [os.path.join(input_folder, match) for match in successful_matches]
 
     def read_from_folder(
         self,
         input_folder: str,
-        quiet=False,
+        quiet: bool = False,
+        interactive: bool = True,
     ) -> pd.DataFrame:
         """Reads the data from the detected file in the input folder"""
 
-        self.filename = self.detect_from_folder(input_folder, quiet=quiet)
-        if self.filename is None:
+        matched_files = self.detect_from_folder(input_folder, quiet, interactive)
+        if not matched_files:
             return None
 
+        self.filename = matched_files[0]
         df = self.read_data()
 
         return df
