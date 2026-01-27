@@ -385,8 +385,8 @@ class FDA:
             w = int(window / (flag_old.index[1] - flag_old.index[0]))
             half = w // 2
 
-            left_outlier = flag_old_int.shift(half)
-            right_outlier = flag_old_int.shift(-half)
+            left_outlier = flag_old_int.shift(half).fillna(0)
+            right_outlier = flag_old_int.shift(-half).fillna(0)
             bad_window &= left_outlier & right_outlier
 
             # Propagate window violation to all points in the window
