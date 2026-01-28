@@ -343,7 +343,7 @@ class Cleaner(BaseProcessor):
 
         ax.set_xlabel("Time", fontsize=10, labelpad=15, fontweight='bold')
         ax.set_ylabel("Pressure (hPa)", fontsize=10, labelpad=15, fontweight='bold')
-        ax.set_title(f'Flight {self.flight} ({self.flight_date}_B) [Level 0]', fontsize=12, fontweight='bold',
+        ax.set_title(f'Flight {self.flight} ({self.flight_date}_B) [Level {self.level.value}]', fontsize=12, fontweight='bold',
                      pad=15)
         ax.grid(ls='--')
         ax.legend(ncols=2)

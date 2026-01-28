@@ -137,7 +137,7 @@ class DataProcessorLevel1_5(BaseProcessor):
     def plot_flight_profiles(self, flight_basename: str, save_path: str | pathlib.Path,
                              variables: list[FlightProfileVariable] | None = None):
         plt.close("all")
-        title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1.5]'
+        title = f'Flight {self._metadata.flight} ({flight_basename}) [Level {self.level.value}]'
         fig = flight_profiles(self._df, self.level, self._output_schema, variables, fig_title=title)
 
         # Save the figure after plotting
@@ -148,7 +148,7 @@ class DataProcessorLevel1_5(BaseProcessor):
     def plot_size_distr(self, flight_basename: str, save_path: str | pathlib.Path,
                         time_start: datetime | None = None, time_end: datetime | None = None):
         plt.close("all")
-        title = f'Flight {self._metadata.flight} ({flight_basename}) [Level 1.5]'
+        title = f'Flight {self._metadata.flight} ({flight_basename}) [Level {self.level.value}]'
         fig = plot_size_distributions(self._df, self.level, self._output_schema, title, time_start, time_end)
 
         # Save the figure after plotting
