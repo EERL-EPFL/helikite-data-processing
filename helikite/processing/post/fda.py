@@ -80,22 +80,22 @@ class FDA:
     ----------
     df (pandas.DataFrame): Input dataframe containing concentration and optional flag data
     conc_column_name (str): Name of the column with the values to analyze
-    flag_column_name (str | None): Name of the column with ground truth flags
+    gt_flag_column_name (str | None): Name of the column with ground truth flags
     params (FDAParameters): Configuration object for the detection logic
     """
 
-    def __init__(self, df: pd.DataFrame, conc_column_name: str, flag_column_name: str | None, params: FDAParameters):
+    def __init__(self, df: pd.DataFrame, conc_column_name: str, gt_flag_column_name: str | None, params: FDAParameters):
         self._title = conc_column_name
         self._params = params
         self._df_orig = df.copy()
         self._conc_orig = conc_column_name
 
         columns = [conc_column_name]
-        if flag_column_name is not None:
-            columns.append(flag_column_name)
+        if gt_flag_column_name is not None:
+            columns.append(gt_flag_column_name)
 
         self._df = df[columns].copy()
-        self._df.rename(columns={conc_column_name: CONC_COLUMN_NAME, flag_column_name: FLAG_COLUMN_NAME}, inplace=True)
+        self._df.rename(columns={conc_column_name: CONC_COLUMN_NAME, gt_flag_column_name: FLAG_COLUMN_NAME}, inplace=True)
 
         if self._params.avg_time is not None:
             freq = pd.infer_freq(self._df.index)

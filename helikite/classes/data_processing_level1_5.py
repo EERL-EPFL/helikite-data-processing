@@ -79,7 +79,7 @@ class DataProcessorLevel1_5(BaseProcessor):
                     plot_detection: bool = True):
         params = FDAParameters(inverse=False) if flag.params is None else flag.params
 
-        fda = FDA(self._df, flag.column_name, flag_column_name=None, params=params)
+        fda = FDA(self._df, flag.column_name, gt_flag_column_name=None, params=params)
         flag_values = fda.detect()
         if plot_detection:
             fda.plot_detection(yscale=flag.y_scale)
