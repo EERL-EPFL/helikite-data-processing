@@ -1,5 +1,6 @@
 import pathlib
 from datetime import datetime
+from typing import Any
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -33,7 +34,7 @@ class DataProcessorLevel2(BaseProcessor):
 
     @function_dependencies(required_operations=[], changes_df=True, use_once=True)
     def average(self, rule="10s"):
-        agg_dict = {
+        agg_dict: dict[str, Any] = {
             **{
                 col: "mean"
                 for col in self._df.columns
@@ -41,10 +42,20 @@ class DataProcessorLevel2(BaseProcessor):
             },
             "campaign": "first",
         }
+
+        def safe_circmean(x):
+            x = x.dropna()
+            if len(x) < 2:
+                return pd.NA
+            return circmean(x, high=360, low=0)
+
         if "WindDir" in self._df.columns:
-            agg_dict["WindDir"] = lambda x: circmean(x.dropna(), high=360, low=0)
+            agg_dict["WindDir"] = safe_circmean
 
         self._df = self._df.resample(rule).agg(agg_dict)
+
+        if "WindDir" in self._df.columns:
+            self._df["WindDir"] = self._df["WindDir"].astype("Float64")
 
         # Convert flags to binary
         flag_cols = [flag.flag_name for flag in self._output_schema.flags]
@@ -53,7 +64,7 @@ class DataProcessorLevel2(BaseProcessor):
         # Round
         self._df['Lat'] = self._df['Lat'].round(4)
         self._df['Long'] = self._df['Long'].round(4)
-        self._df['flight_nr'] = self._df['flight_nr'].round(0).astype(int)
+        self._df['flight_nr'] = self._df['flight_nr'].round(0).astype("Int64")
         cols_to_round_2 = self._df.select_dtypes(include='number').columns.difference(['Lat', 'Long', 'flight_nr'])
         self._df[cols_to_round_2] = self._df[cols_to_round_2].round(2)
 

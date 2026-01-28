@@ -1,5 +1,6 @@
 import dataclasses
 import datetime
+from numbers import Number
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -170,6 +171,7 @@ def flight_profiles(df: pd.DataFrame, level: Level, output_schema: OutputSchema,
     # Columns in df might have been already renamed
     rename_dict = _build_rename_dict(output_schema)
     variables = variables if variables is not None else output_schema.flight_profile_variables
+    variables = variables.copy()
     for i, variable in enumerate(variables):
         if variable.column_name not in df.columns:
             variable = dataclasses.replace(variable, column_name=rename_dict[variable.column_name])
@@ -208,9 +210,9 @@ def flight_profiles(df: pd.DataFrame, level: Level, output_schema: OutputSchema,
     ]
 
     for shade_config in output_schema.flight_profile_shades:
-        if shade_config.column_name in df.columns:
+        if shade_config.name in df.columns:
             axes_doubled_to_shade = [ax for ax, variable in zip(axes_doubled, variables)
-                                     if shade_config.column_name in variable.shade_flags]
+                                     if shade_config.name in variable.shade_flags]
             if len(axes_doubled_to_shade) == 0:
                 continue
 

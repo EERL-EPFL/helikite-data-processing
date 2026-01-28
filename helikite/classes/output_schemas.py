@@ -45,6 +45,7 @@ class FlightProfileVariable:
     column_name: str
     shade_flags: list[str] = dataclasses.field(default_factory=list)
     plot_kwargs: dict = dataclasses.field(default_factory=dict)
+    alpha_ascent: float = 1.0
     alpha_descent: float = 0.5
     x_min: Number | None = None
     x_max: Number | None = None
@@ -71,21 +72,21 @@ flag_hovering = Flag(flag_name="flag_hovering", column_name="Altitude", params=F
 flag_cloud = Flag(flag_name="flag_cloud", column_name="mCDA_total_N", params=FDA_PARAMS_CLOUD)
 
 shade_pollution = FlightProfileVariableShade(
-    column_name=flag_pollution.column_name,
+    name=flag_pollution.flag_name,
     condition=lambda l, v: v,
     label="Pollution",
-    span_kwargs=dict(color="lightcoral", alpha=0.8),
+    span_kwargs=dict(color="lightcoral", alpha=0.5),
     line_name=flag_pollution.column_name,
     line_kwargs=dict(color="rosybrown", label="ground CPC (cm⁻³)", linewidth=1),
 )
 shade_hovering = FlightProfileVariableShade(
-    column_name=flag_hovering.column_name,
+    name=flag_hovering.flag_name,
     condition=lambda l, v: v,
     label="Hovering",
-    span_kwargs=dict(color="beige", alpha=0.8),
+    span_kwargs=dict(color="beige", alpha=1.0),
 )
 shade_cloud = FlightProfileVariableShade(
-    column_name=flag_cloud.column_name,
+    name=flag_cloud.flag_name,
     condition=lambda l, v: v,
     label="Cloud",
     span_kwargs=dict(color="lightblue", alpha=0.5),
@@ -95,13 +96,13 @@ shade_cloud = FlightProfileVariableShade(
 def filter_shade_condition(level: Level, values: pd.Series) -> pd.Series:
     match level:
         case Level.LEVEL2:
-            return values != 1.0
-        case _:
             return values != 0.0
+        case _:
+            return values != 1.0
 
 
 shade_filter = FlightProfileVariableShade(
-    column_name="Filter_position",
+    name="Filter_position",
     condition=filter_shade_condition,
     label="Filter",
     span_kwargs=dict(facecolor='none', edgecolor='gray', hatch='////', alpha=0.5),
@@ -119,8 +120,8 @@ class OutputSchema:
     reference_instrument_candidates: list[Instrument]
     """Reference instrument candidates for the automatic instruments detection"""
     flight_profile_variables: list[FlightProfileVariable] = dataclasses.field(default_factory=list)
-    flight_profile_shades: list[FlightProfileVariableShade] = (shade_pollution, shade_hovering, shade_cloud, shade_filter)
-    flags: tuple[Flag] = (flag_pollution, flag_hovering, flag_cloud)
+    flight_profile_shades: list[FlightProfileVariableShade] = (shade_hovering, shade_pollution, shade_cloud, shade_filter)
+    flags: list[Flag] = (flag_pollution, flag_hovering, flag_cloud)
     """List of flags which should be present in the output dataframe."""
 
 
@@ -178,7 +179,7 @@ class OutputSchemas:
             FlightProfileVariable(
                 column_name="msems_inverted_dN_totalconc_stp",
                 shade_flags=["flag_pollution", "flag_cloud"],
-                plot_kwargs=dict(color="indigo", marker="."),
+                plot_kwargs=dict(color="indigo", marker=".", linestyle="none"),
                 alpha_descent=0.3,
                 x_min = 0,
                 x_divider=200,
@@ -195,14 +196,15 @@ class OutputSchemas:
             FlightProfileVariable(
                 column_name="mcda_dN_totalconc_stp",
                 plot_kwargs=dict(color="salmon", linewidth=3.0),
-                x_bounds=(0, 60),
+                alpha_ascent=0.6,
+                alpha_descent=0.3,
                 x_min = 0,
                 x_divider=10,
                 x_label="mCDA conc. (cm$^{-3}$) [0.66–33 um]",
             ),
             FlightProfileVariable(
                 column_name="smart_tether_Wind (m/s)",
-                plot_kwargs=dict(color="palevioletred", marker="."),
+                plot_kwargs=dict(color="palevioletred", marker=".", linestyle="none"),
                 alpha_descent=0.2,
                 x_min = 0,
                 x_divider=1,  # divider hint, bounds calculated
@@ -210,7 +212,7 @@ class OutputSchemas:
             ),
             FlightProfileVariable(
                 column_name="smart_tether_Wind (degrees)",
-                plot_kwargs=dict(color="olivedrab", marker="."),
+                plot_kwargs=dict(color="olivedrab", marker=".", linestyle="none"),
                 alpha_descent=0.3,
                 x_min = 0,
                 x_max = 360,
@@ -289,6 +291,10 @@ class OutputSchemas:
         if not overwrite and key in cls._REGISTRY:
             raise ValueError(f"OutputSchema '{name}' is already registered")
         cls._REGISTRY[key] = schema
+
+    @classmethod
+    def keys(cls):
+        return cls._REGISTRY.keys()
 
 
 OutputSchemas._register_builtin()

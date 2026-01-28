@@ -118,7 +118,7 @@ class DataProcessorLevel1_5(BaseProcessor):
                  flag: Flag = flag_pollution,
                  corr_path: str | Path = "flag_corr.csv",
                  mask: pd.Series | None = None):
-        flag_values = pd.read_csv(corr_path, index_col=0)["datetime"]
+        flag_values = pd.read_csv(corr_path, index_col=0, parse_dates=True)["datetime"]
 
         self._df.loc[flag.flag_name] = 0
         self._df.loc[flag_values[flag_values].index, flag.flag_name] = 1
