@@ -1,3 +1,4 @@
+import logging
 import pathlib
 import shutil
 from datetime import datetime
@@ -10,7 +11,8 @@ from pydantic import BaseModel
 from helikite.classes.base import BaseProcessor, get_instruments_from_cleaned_data, function_dependencies, \
     launch_operations_changing_df
 from helikite.classes.data_processing_level1 import DataProcessorLevel1
-from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, Level, OutputSchemas
+from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, Level, OutputSchemas, flag_pollution, \
+    Flag
 from helikite.config import Config
 from helikite.constants import constants
 from helikite.instruments import Instrument
@@ -73,65 +75,60 @@ class DataProcessorLevel1_5(BaseProcessor):
         self._df = round_flightnbr_campaign(self._df, self._metadata, self._output_schema, decimals)
 
     @function_dependencies(required_operations=["rename_columns"], changes_df=True, use_once=False,
-                           complete_with_arg="flag_name")
+                           complete_with_arg="flag")
     def detect_flag(self,
-                    flag_name: str = "flag_pollution",
-                    column_name: str = "CPC_total_N",
-                    params: FDAParameters | None = None,
+                    flag: Flag = flag_pollution,
                     auto_path: str | Path = "flag_auto.csv",
-                    plot_detection: bool = True,
-                    yscale: str = "log"):
-        if params is None:
-            params = FDAParameters(inverse=False)
+                    plot_detection: bool = True):
+        params = FDAParameters(inverse=False) if flag.params is None else flag.params
 
-        fda = FDA(self._df, column_name, flag_column_name=None, params=params)
-        flag = fda.detect()
+        fda = FDA(self._df, flag.column_name, flag_column_name=None, params=params)
+        flag_values = fda.detect()
         if plot_detection:
-            fda.plot_detection(yscale=yscale)
-        self._df[flag_name] = flag
+            fda.plot_detection(yscale=flag.y_scale)
 
         if isinstance(auto_path, str):
             auto_path = Path(auto_path)
         auto_path.parent.mkdir(parents=True, exist_ok=True)
 
-        flag_df = pd.DataFrame(data={"datetime": True}, index=self._df.index[(~flag.isna()) & flag])
+        flag_df = pd.DataFrame(data={"datetime": True}, index=self._df.index[(~flag_values.isna()) & flag_values])
         flag_df.to_csv(auto_path, index=True)
 
         self._automatic_flags_files.add(str(auto_path))
 
     @function_dependencies(required_operations=["rename_columns"], changes_df=True, use_once=False,
-                           complete_with_arg="flag_name")
+                           complete_with_arg="flag")
     def choose_flag(self,
-                    flag_name: str = "flag_pollution",  # do not remove, it is used to complete the operation name
-                    column_name: str = "CPC_total_N",
+                    flag: Flag = flag_pollution,
                     auto_path: str | Path | None = None,
-                    corr_path: str | Path = "flag_corr.csv",
-                    yscale: str = "linear"):
+                    corr_path: str | Path = "flag_corr.csv"):
         if auto_path is not None:
-            shutil.copy(auto_path, corr_path)
+            try:
+                shutil.copy(auto_path, corr_path)
+            except shutil.SameFileError:
+                logging.warning(f"{auto_path} and {corr_path} are the same file. Skipping copy.")
 
-        vbox = choose_outliers(self._df[["datetime", column_name]], y=column_name,
+        vbox = choose_outliers(self._df[["datetime", flag.column_name]], y=flag.column_name,
                                coupled_columns=[], outlier_file=str(corr_path),
-                               yscale=yscale, colorscale=None)
+                               yscale=flag.y_scale, colorscale=None)
         self._final_flags_files.add(str(corr_path))
 
         return vbox
 
     @function_dependencies(required_operations=["choose_flag"], changes_df=True, use_once=False,
-                           complete_with_arg="flag_name", complete_req=True)
+                           complete_with_arg="flag", complete_req=True)
     def set_flag(self,
-                 flag_name: str = "flag_pollution",
-                 column_name: str = "CPC_total_N",
+                 flag: Flag = flag_pollution,
                  corr_path: str | Path = "flag_corr.csv",
                  mask: pd.Series | None = None):
-        flag = pd.read_csv(corr_path, index_col=0)["datetime"]
+        flag_values = pd.read_csv(corr_path, index_col=0)["datetime"]
 
-        self._df.loc[flag[flag].index, flag_name] = 1
+        self._df.loc[flag_values[flag_values].index, flag.flag_name] = 1
 
         if mask is not None:
-            full_flag = self._df[flag_name].where(mask, 0)
-            full_flag = full_flag.where(~self._df[flag_name].isna(), pd.NA)
-            self._df[flag_name] = full_flag
+            full_flag = self._df[flag.flag_name].where(mask, 0)
+            full_flag = full_flag.where(~self._df[flag.flag_name].isna(), pd.NA)
+            self._df[flag.flag_name] = full_flag
 
     @function_dependencies(required_operations=["rename_columns"], changes_df=False, use_once=False)
     def plot_flight_profiles(self, flight_basename: str, save_path: str | pathlib.Path,
@@ -171,8 +168,9 @@ class DataProcessorLevel1_5(BaseProcessor):
         return list(expected_columns.keys()) if not with_dtype else expected_columns
 
     @staticmethod
-    def read_csv(level1_5_filepath: str | pathlib.Path) -> pd.DataFrame:
+    def read_data(level1_5_filepath: str | pathlib.Path) -> pd.DataFrame:
         df_level1_5 = pd.read_csv(level1_5_filepath, index_col='datetime', parse_dates=['datetime'])
+        df_level1_5 = df_level1_5.convert_dtypes()
 
         return df_level1_5
 
@@ -203,10 +201,20 @@ def execute_level1_5(config: Config):
 
     output_flags_dir = output_level1_5_dir / "flags"
 
-    for flag_name, column_name, params in data_processor.output_schema.flags:
-        auto_file = output_flags_dir / f"level1.5_{config.flight_basename}_{flag_name}_auto.csv"
-        data_processor.detect_flag(flag_name, column_name, params, auto_file, plot_detection=True)
-        data_processor.set_flag(flag_name, column_name, auto_file)
+    cpc_on_ground = data_processor.output_schema == OutputSchemas.ORACLES_25_26
+    for flag in data_processor.output_schema.flags:
+        auto_file = output_flags_dir / f"level1.5_{config.flight_basename}_{flag.flag_name}_auto.csv"
+        data_processor.detect_flag(flag, auto_file, plot_detection=True)
+        data_processor.choose_flag(flag, auto_file, auto_file)
+
+        if flag.flag_name == flag_pollution.flag_name and cpc_on_ground:
+            close_to_ground = data_processor.df["Altitude"] < 70
+            data_processor.set_flag(flag, auto_file, mask=close_to_ground)
+        else:
+            data_processor.set_flag(flag, auto_file)
+
+    save_path = output_level1_5_dir / f'Level1.5_{config.flight_basename}_Flight_{config.flight}.png'
+    data_processor.plot_flight_profiles(config.flight_basename, save_path, variables=None)
 
     save_path = output_level1_5_dir / f'Level1.5_{config.flight_basename}_SizeDistr_Flight_{config.flight}.png'
     data_processor.plot_size_distr(config.flight_basename, save_path, time_start=None, time_end=None)

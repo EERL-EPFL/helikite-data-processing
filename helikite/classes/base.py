@@ -21,7 +21,7 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 
 def function_dependencies(required_operations: list[str | tuple[str, ...]], changes_df: bool, use_once: bool,
-                          complete_with_arg: str | None = None, complete_req: bool = False):
+                          complete_with_arg: Any | None = None, complete_req: bool = False):
     """A decorator to enforce that a method can only run if the required
     operations have been completed and not rerun.
     """
@@ -38,7 +38,7 @@ def function_dependencies(required_operations: list[str | tuple[str, ...]], chan
                 bound_args = signature.bind(self, *args, **kwargs)
                 bound_args.apply_defaults()
 
-                arg = bound_args.arguments[complete_with_arg]
+                arg = bound_args.arguments[str(complete_with_arg)]
                 operation_name += "_" + str(arg)
 
                 if complete_req:
@@ -83,7 +83,7 @@ def function_dependencies(required_operations: list[str | tuple[str, ...]], chan
         wrapper.__dependencies__ = required_operations
         wrapper.__use_once__ = use_once
         wrapper.__changes_df__ = changes_df
-        wrapper.__arg__ = complete_with_arg
+        wrapper.__arg__ = str(complete_with_arg)
 
         return wrapper
 

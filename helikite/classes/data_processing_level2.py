@@ -52,7 +52,7 @@ class DataProcessorLevel2(BaseProcessor):
 
         # Convert flags to binary
         flag_cols = [flag.flag_name for flag in self._output_schema.flags]
-        self._df[flag_cols] = (self._df[flag_cols] >= 0.5).astype(int)
+        self._df[flag_cols] = (self._df[flag_cols] >= 0.5).astype("Int64")
 
         # Round
         self._df['Lat'] = self._df['Lat'].round(4)

@@ -34,6 +34,11 @@ class Flag:
     flag_name: str
     column_name: str
     params: FDAParameters
+    y_scale: str = "log"
+
+    def __str__(self):
+        return self.flag_name
+
 
 @dataclass(frozen=True)
 class FlightProfileVariable:
@@ -59,7 +64,7 @@ class FlightProfileVariableShade:
 
 
 flag_pollution = Flag(flag_name="flag_pollution", column_name="CPC_total_N", params=FDA_PARAMS_POLLUTION)
-flag_hovering = Flag(flag_name="flag_hovering", column_name="Altitude", params=FDA_PARAMS_HOVERING)
+flag_hovering = Flag(flag_name="flag_hovering", column_name="Altitude", params=FDA_PARAMS_HOVERING, y_scale="linear")
 flag_cloud = Flag(flag_name="flag_cloud", column_name="mCDA_total_N", params=FDA_PARAMS_CLOUD)
 
 shade_pollution = FlightProfileVariableShade(
