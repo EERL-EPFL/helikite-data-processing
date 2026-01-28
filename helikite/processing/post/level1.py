@@ -230,16 +230,12 @@ def flight_profiles(df: pd.DataFrame, level: Level, output_schema: OutputSchema,
         ax.plot(df_down[variable.column_name], df_down["Altitude"], alpha=variable.alpha_descent, **variable.plot_kwargs)
 
     for ax, var in zip(axes_doubled, variables):
-        if var.x_bounds is None:
-            divider = var.x_divider or 1
-            (xmin, xmax), divider = _get_series_bounds(df[var.column_name], divider)
-        else:
-            xmin, xmax = var.x_bounds
-            divider = var.x_divider
+        divider = var.x_divider or 1
+        (x_min, x_max), divider = _get_series_bounds(df[var.column_name], divider, var.x_min, var.x_max)
 
-        ax.set_xlim(xmin, xmax)
+        ax.set_xlim(x_min, x_max)
         if divider is not None:
-            ax.set_xticks(np.arange(xmin, xmax + min(divider, 1), divider))
+            ax.set_xticks(np.arange(x_min, x_max + min(divider, 1), divider))
 
     # Y axis minor ticks, grid and limits on main axes
     for j in range(num_subplots):
@@ -288,18 +284,22 @@ def flight_profiles(df: pd.DataFrame, level: Level, output_schema: OutputSchema,
     return fig
 
 
-def _get_series_bounds(x: pd.Series, default_divider: int) -> tuple[tuple[int, int], int]:
-    min_bound = np.floor(x.quantile(0.01)).astype(int)
-    max_bound = np.ceil(x.quantile(0.99)).astype(int)
+def _get_series_bounds(
+    x: pd.Series,
+    default_divider: Number,
+    default_min: Number | None,
+    default_max: Number | None
+) -> tuple[tuple[Number, Number], Number]:
+    min_bound = x.min() if default_min is None else default_min
+    max_bound = x.quantile(0.99) * 1.1 if default_max is None else default_max
 
-    if max_bound - min_bound > default_divider * 7:
-        divider = ((max_bound - min_bound) // 7)
-        divider = (divider + default_divider - divider % default_divider) if divider % default_divider else divider
-    else:
-        divider = default_divider
+    divider = default_divider
+    while max_bound - min_bound > divider * 6:
+        divider = ((max_bound - min_bound) // 6)
+        divider = divider - (divider % default_divider) + default_divider
 
-    min_bound = min_bound - min_bound % divider
-    max_bound = max_bound + max_bound % divider
+    min_bound = min_bound - (min_bound % divider)
+    max_bound = max_bound + (-max_bound % divider)
 
     return (min_bound, max_bound), divider
 
