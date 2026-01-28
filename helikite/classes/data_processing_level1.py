@@ -14,13 +14,11 @@ from pydantic import BaseModel
 from helikite import Cleaner
 from helikite.classes.base import BaseProcessor, function_dependencies, get_instruments_from_cleaned_data, \
     launch_operations_changing_df
-from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, Level, OutputSchemas
-from helikite.config import Config
+from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, Level
 from helikite.constants import constants
 from helikite.instruments import Instrument
 from helikite.instruments.base import filter_columns_by_instrument
 from helikite.metadata.models import Level0
-from helikite.metadata.utils import load_parquet
 from helikite.processing import choose_outliers
 from helikite.processing.post.TandRH import T_RH_averaging, plot_T_RH
 from helikite.processing.post.altitude import altitude_calculation_barometric, plot_altitude
@@ -324,43 +322,3 @@ class DataProcessorLevel1(BaseProcessor):
     @function_dependencies(required_operations=[], changes_df=False, use_once=False)
     def export_data(self, filepath: str | pathlib.Path | None = None):
         self._df.to_csv(filepath, index=True)
-
-
-def execute_level1(config: Config):
-    input_level0_dir = constants.OUTPUTS_FOLDER / "Processing" / "Level0"
-    output_level1_dir = constants.OUTPUTS_FOLDER / "Processing" / "Level1"
-    output_level1_dir.mkdir(parents=True, exist_ok=True)
-
-    df_level0, metadata = load_parquet(input_level0_dir / f"level0_{config.flight_basename}.parquet")
-
-    data_processor = DataProcessorLevel1(getattr(OutputSchemas, config.output_schema), df_level0, metadata)
-    data_processor.add_missing_columns()
-    data_processor.detect_outliers()
-    data_processor.choose_outliers()
-    data_processor.set_outliers_to_nan()
-
-    data_processor.fillna_if_all_missing({"flight_computer_Lat": 7039.724, "flight_computer_Long": 817.1591})
-    data_processor.plot_outliers_check()
-    data_processor.convert_gps_coordinates(lat_col='flight_computer_Lat', lon_col='flight_computer_Long',
-                                           lat_dir='S', lon_dir='W')
-    data_processor.plot_gps_on_map(center_coords=(-70.6587, -8.2850), zoom_start=14)
-    print("T_RH")
-    data_processor.T_RH_averaging(columns_t=None, columns_rh=None, nan_threshold=400)
-    data_processor.plot_T_RH(save_path=output_level1_dir / f"Level1_{config.flight_basename}_T_RH_averaging.png")
-    data_processor.altitude_calculation_barometric(offset_to_add=0)
-    data_processor.plot_altitude()
-
-    for instrument in data_processor.instruments:
-        data_processor.calculate_derived(instrument)
-        data_processor.normalize(instrument)
-        data_processor.plot_raw_and_normalized_data(instrument)
-        data_processor.plot_distribution(instrument)
-        data_processor.plot_vertical_distribution(instrument)
-
-    save_path = output_level1_dir / f'Level1_{config.flight_basename}_Flight_{config.flight}.png'
-    data_processor.plot_flight_profiles(config.flight_basename, save_path, variables=None)
-
-    save_path = output_level1_dir / f'Level1_{config.flight_basename}_SizeDistr_Flight_{config.flight}.png'
-    data_processor.plot_size_distr(config.flight_basename, save_path, time_start=None, time_end=None)
-
-    data_processor.export_data(filepath=output_level1_dir / f'level1_{config.flight_basename}.csv')

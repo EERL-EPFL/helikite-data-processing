@@ -7,11 +7,7 @@ from pydantic import BaseModel
 from scipy.stats import circmean
 
 from helikite.classes.base import BaseProcessor, get_instruments_from_cleaned_data, function_dependencies
-from helikite.classes.data_processing_level1_5 import DataProcessorLevel1_5
-from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, Level, OutputSchemas
-from helikite.config import Config
-from helikite.constants import constants
-from helikite.metadata.utils import load_parquet
+from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, Level
 from helikite.processing.post.level1 import flight_profiles, plot_size_distributions
 
 
@@ -98,24 +94,3 @@ class DataProcessorLevel2(BaseProcessor):
     @function_dependencies(required_operations=["average"], changes_df=False, use_once=False)
     def export_data(self, filepath: str | pathlib.Path | None = None):
         self._df.to_csv(filepath, index=True)
-
-
-def execute_level2(config: Config):
-    input_dir = constants.OUTPUTS_FOLDER / "Processing"
-    output_level2_dir = constants.OUTPUTS_FOLDER / "Processing" / "Level2"
-    output_level2_dir.mkdir(parents=True, exist_ok=True)
-
-    df_level1_5 = DataProcessorLevel1_5.read_data(input_dir / "Level1.5" / f"level1.5_{config.flight_basename}.csv")
-
-    _, metadata = load_parquet(input_dir / "Level0" / f"level0_{config.flight_basename}.parquet")
-
-    data_processor = DataProcessorLevel2(getattr(OutputSchemas, config.output_schema), df_level1_5, metadata)
-    data_processor.average(rule="10s")
-    save_path = output_level2_dir / f'Level2_{config.flight_basename}_Flight_{config.flight}.png'
-
-    data_processor.plot_flight_profiles(config.flight_basename, save_path, variables=None)
-
-    save_path = output_level2_dir / f'Level2_{config.flight_basename}_SizeDistr_Flight_{config.flight}.png'
-    data_processor.plot_size_distr(config.flight_basename, save_path, time_start=None, time_end=None)
-
-    data_processor.export_data(output_level2_dir / f"level2_{config.flight_basename}.csv")

@@ -11,13 +11,10 @@ from pydantic import BaseModel
 from helikite.classes.base import BaseProcessor, get_instruments_from_cleaned_data, function_dependencies, \
     launch_operations_changing_df
 from helikite.classes.data_processing_level1 import DataProcessorLevel1
-from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, Level, OutputSchemas, flag_pollution, \
+from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, Level, flag_pollution, \
     Flag
-from helikite.config import Config
-from helikite.constants import constants
 from helikite.instruments import Instrument
 from helikite.metadata.models import Level0
-from helikite.metadata.utils import load_parquet
 from helikite.processing import choose_outliers
 from helikite.processing.post.fda import FDAParameters, FDA
 from helikite.processing.post.level1 import fill_msems_takeoff_landing, create_level1_dataframe, rename_columns, \
@@ -181,42 +178,3 @@ class DataProcessorLevel1_5(BaseProcessor):
     )
     def export_data(self, filepath: str | pathlib.Path | None = None):
         self._df.to_csv(filepath, index=False)
-
-
-def execute_level1_5(config: Config):
-    input_dir = constants.OUTPUTS_FOLDER / "Processing"
-    output_level1_5_dir = constants.OUTPUTS_FOLDER / "Processing" / "Level1.5"
-    output_level1_5_dir.mkdir(parents=True, exist_ok=True)
-
-    df_level1 = DataProcessorLevel1.read_data(input_dir / "Level1" / f"level1_{config.flight_basename}.csv")
-
-    _, metadata = load_parquet(input_dir / "Level0" / f"level0_{config.flight_basename}.parquet")
-
-    data_processor = DataProcessorLevel1_5(getattr(OutputSchemas, config.output_schema), df_level1, metadata)
-    data_processor.fill_msems_takeoff_landing(time_window_seconds=90)
-    data_processor.remove_before_takeoff_and_after_landing()
-    data_processor.filter_columns()
-    data_processor.rename_columns()
-    data_processor.round_flightnbr_campaign(decimals=2)
-
-    output_flags_dir = output_level1_5_dir / "flags"
-
-    cpc_on_ground = data_processor.output_schema == OutputSchemas.ORACLES_25_26
-    for flag in data_processor.output_schema.flags:
-        auto_file = output_flags_dir / f"level1.5_{config.flight_basename}_{flag.flag_name}_auto.csv"
-        data_processor.detect_flag(flag, auto_file, plot_detection=True)
-        data_processor.choose_flag(flag, auto_file, auto_file)
-
-        if flag.flag_name == flag_pollution.flag_name and cpc_on_ground:
-            close_to_ground = data_processor.df["Altitude"] < 70
-            data_processor.set_flag(flag, auto_file, mask=close_to_ground)
-        else:
-            data_processor.set_flag(flag, auto_file)
-
-    save_path = output_level1_5_dir / f'Level1.5_{config.flight_basename}_Flight_{config.flight}.png'
-    data_processor.plot_flight_profiles(config.flight_basename, save_path, variables=None)
-
-    save_path = output_level1_5_dir / f'Level1.5_{config.flight_basename}_SizeDistr_Flight_{config.flight}.png'
-    data_processor.plot_size_distr(config.flight_basename, save_path, time_start=None, time_end=None)
-
-    data_processor.export_data(output_level1_5_dir / f"level1.5_{config.flight_basename}.csv")
