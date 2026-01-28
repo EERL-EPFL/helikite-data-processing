@@ -401,11 +401,17 @@ def plot_size_distributions(df: pd.DataFrame, level: Level, output_schema: Outpu
 
 
 def shade_flagged(shade_config: FlightProfileVariableShade, axes: list[plt.Axes], df: pd.DataFrame, level: Level,
-                  shade_coord: str = "y", other_coord_name: str | None = None):
-    name = shade_config.column_name
+                  shade_coord: str = "y", other_coord_name: str | None = None,
+                  timedelta: pd.Timedelta = pd.Timedelta(seconds=1)):
+    name = shade_config.name
     mask = df[[name]].copy()
-    mask[name] = shade_config.condition(level, mask[name])
-    mask.dropna(inplace=True)
+    mask[name] = shade_config.condition(level, mask[name]).astype("Int64")
+
+    # If NaNs are between shaded areas, fill them in, otherwise, do not shade
+    nans_between_shaded = mask[name].ffill().eq(1) & mask[name].bfill().eq(1)
+    nans_between_shaded = nans_between_shaded.fillna(False)
+    mask[name] = mask[name].where(~nans_between_shaded, 1)
+    mask[name] = mask[name].fillna(0)
 
     if mask.empty:
         return
@@ -414,9 +420,15 @@ def shade_flagged(shade_config: FlightProfileVariableShade, axes: list[plt.Axes]
     ends = mask[(mask[name] != mask.shift(-1)[name]).fillna(True)].index
 
     for start, end in zip(starts, ends):
-        if df.loc[start, name] == 1:
+        if end - start <= timedelta:
+            continue
+
+        if mask.loc[start, name] == 1:
             v_min = start if other_coord_name is None else df.loc[start:end, other_coord_name].min()
             v_max = end if other_coord_name is None else df.loc[end, other_coord_name].max()
+
+            if pd.isna(v_min) or pd.isna(v_max):
+                continue
 
             for ax in axes:
                 if shade_coord == "y":
