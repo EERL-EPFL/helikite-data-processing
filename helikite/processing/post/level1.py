@@ -352,25 +352,6 @@ def plot_size_distributions(df: pd.DataFrame, level: Level, output_schema: Outpu
                 ax1_twin.set_ylabel(line_label, color=line_color, fontsize=12, fontweight='bold')
                 ax1_twin.set_ylim(0.0, v_max * 1.1)
 
-
-
-
-    # TODO: timedelta
-    # # Shade areas for Filter_position !== 1.0
-    # if "Filter_position" in df.columns:
-    #     filter_mask = df['Filter_position'] != 1.0
-    #     filter_times = df[filter_mask].index
-    #
-    #     if not filter_times.empty:
-    #         start = filter_times[0]
-    #         for i in range(1, len(filter_times)):
-    #             if (filter_times[i] - filter_times[i - 1]) > timedelta:
-    #                 ax1.axvspan(start, filter_times[i - 1], facecolor='none', edgecolor='gray', hatch='////', alpha=0.5,
-    #                             label='Filter')
-    #                 start = filter_times[i]
-    #         ax1.axvspan(start, filter_times[-1], facecolor='none', edgecolor='gray', hatch='////', alpha=0.5,
-    #                     label='Filter')
-
     # Optional: Clean legend (avoid duplicates)
     handles, labels = ax1.get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
