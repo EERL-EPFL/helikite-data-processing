@@ -89,8 +89,9 @@ class DataProcessorLevel2(BaseProcessor):
         fig.savefig(save_path, dpi=300, bbox_inches='tight')
 
     @staticmethod
-    def read_csv(level2_filepath: str | pathlib.Path) -> pd.DataFrame:
+    def read_data(level2_filepath: str | pathlib.Path) -> pd.DataFrame:
         df_level2 = pd.read_csv(level2_filepath, index_col='datetime', parse_dates=['datetime'])
+        df_level2 = df_level2.convert_dtypes()
 
         return df_level2
 
@@ -104,7 +105,7 @@ def execute_level2(config: Config):
     output_level2_dir = constants.OUTPUTS_FOLDER / "Processing" / "Level2"
     output_level2_dir.mkdir(parents=True, exist_ok=True)
 
-    df_level1_5 = DataProcessorLevel1_5.read_csv(input_dir / "Level1.5" / f"level1.5_{config.flight_basename}.csv")
+    df_level1_5 = DataProcessorLevel1_5.read_data(input_dir / "Level1.5" / f"level1.5_{config.flight_basename}.csv")
 
     _, metadata = load_parquet(input_dir / "Level0" / f"level0_{config.flight_basename}.parquet")
 

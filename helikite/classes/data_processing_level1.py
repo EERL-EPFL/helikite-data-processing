@@ -317,6 +317,7 @@ class DataProcessorLevel1(BaseProcessor):
     def read_data(level1_filepath: str | pathlib.Path) -> pd.DataFrame:
         df_level1 = pd.read_csv(level1_filepath, index_col='DateTime', parse_dates=['DateTime'])
         df_level1.rename(columns={"DateTime.1": "DateTime"}, inplace=True)
+        df_level1 = df_level1.convert_dtypes()
 
         return df_level1
 
