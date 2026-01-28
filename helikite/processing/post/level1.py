@@ -336,8 +336,22 @@ def plot_size_distributions(df: pd.DataFrame, level: Level, output_schema: Outpu
     timedelta = pd.to_timedelta(pd.tseries.frequencies.to_offset(freq_detected))
 
     for shade_config in output_schema.flight_profile_shades:
-        if shade_config.column_name in df.columns:
-            shade_flagged(shade_config, [ax1], df, level)
+        if shade_config.name in df.columns:
+            shade_flagged(shade_config, [ax1], df, level, timedelta=timedelta)
+
+            if shade_config.line_name is not None:
+                values = df[shade_config.line_name]
+                v_max = values.max() if not values.isna().all() else 1.0
+                line_label, line_color = shade_config.line_kwargs["label"], shade_config.line_kwargs.get("color", None)
+
+                ax1_twin = ax1.twinx()
+                ax1_twin.plot(df.index, values, **shade_config.line_kwargs)
+                ax1_twin.tick_params(axis="y", labelsize=11, colors=line_color)
+                ax1_twin.set_ylabel(line_label, color=line_color, fontsize=12, fontweight='bold')
+                ax1_twin.set_ylim(0.0, v_max * 1.1)
+
+
+
 
     # TODO: timedelta
     # # Shade areas for Filter_position !== 1.0

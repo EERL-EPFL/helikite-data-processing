@@ -54,7 +54,7 @@ class FlightProfileVariable:
 
 @dataclass(frozen=True)
 class FlightProfileVariableShade:
-    column_name: str
+    name: str
     condition: Callable[[Level, pd.Series], pd.Series]
     """
     Predicate function that receives a column value and returns True if the corresponding row should be shaded,
@@ -62,6 +62,8 @@ class FlightProfileVariableShade:
     """
     label: str
     span_kwargs: dict
+    line_name: str | None = None
+    line_kwargs: dict | None = None
 
 
 flag_pollution = Flag(flag_name="flag_pollution", column_name="CPC_total_N", params=FDA_PARAMS_POLLUTION)
@@ -73,6 +75,8 @@ shade_pollution = FlightProfileVariableShade(
     condition=lambda l, v: v,
     label="Pollution",
     span_kwargs=dict(color="lightcoral", alpha=0.8),
+    line_name=flag_pollution.column_name,
+    line_kwargs=dict(color="rosybrown", label="ground CPC (cm⁻³)", linewidth=1),
 )
 shade_hovering = FlightProfileVariableShade(
     column_name=flag_hovering.column_name,
