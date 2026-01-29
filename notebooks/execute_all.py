@@ -167,7 +167,10 @@ def main():
     arg_parser.add_argument("--overview-path", type=Path)
     args = arg_parser.parse_args()
 
-    basename_to_flight_nr = _get_basename_to_flight_nr_mapping(args.campaign_dir.parent)
+    if args.overview_path is not None:
+        basename_to_flight_nr = _get_basename_to_flight_nr_mapping(args.overview_path)
+    else:
+        basename_to_flight_nr = {}
 
     pattern = re.compile(
         r"^(?P<date>\d{4}-\d{2}-\d{2})_(?P<suffix>[A-Z])$"
@@ -208,21 +211,26 @@ def main():
         processed_count += 1
 
 
-def _get_basename_to_flight_nr_mapping(dirpath: Path):
-    for filename in os.listdir(dirpath):
-        if filename.endswith(".xlsx"):
-            df = pd.read_excel(dirpath / filename)
-            for col in ["Flight", "Date", "Code"]:
-                if col not in df.columns:
-                    continue
-            df = df[["Flight", "Date", "Code"]].dropna()
-            df["Flight"] = df["Flight"].astype(int)
-            mapping = {
-                f"{row['Date'].date()}_{row['Code']}": str(row["Flight"])
-                for _, row in df.iterrows()
-            }
-            return mapping
-    return {}
+def _get_basename_to_flight_nr_mapping(filepath: Path):
+    df = pd.read_excel(filepath)
+    flight_column = None
+    for col in ["Flight", "Flight number"]:
+        if col in df.columns:
+            flight_column = col
+            break
+    if flight_column is None:
+        raise ValueError(f"Could not find flight column in overview file {filepath}.")
+
+    columns = [flight_column, "Date", "Code"]
+
+    df[flight_column] = df[flight_column].astype("Int64")
+    df["Date"] = df["Date"].ffill()
+    df = df[columns].dropna()
+    mapping = {
+        f"{row['Date'].date()}_{row['Code']}": str(row[flight_column])
+        for _, row in df.iterrows()
+    }
+    return mapping
 
 
 if __name__ == '__main__':
