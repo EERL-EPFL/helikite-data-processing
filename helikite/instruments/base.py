@@ -134,6 +134,9 @@ class Instrument(ABC):
         """Default file identifier callback
         """
 
+        if self.expected_header_value is None:
+            raise ValueError("Expected header value not set. "
+                             "Either set `expected_header_value` or override `file_identifier()`.")
         if first_lines_of_csv[self.header] == self.expected_header_value:
             return True
 
