@@ -723,7 +723,7 @@ class Cleaner(BaseProcessor):
         return VBox([fig, out])  # Use VBox to stack the plot and output
 
     @function_dependencies(["set_pressure_column", "data_corrections"], changes_df=True, use_once=False)
-    def pressure_based_time_synchronization(self, max_lag: int | None = None):
+    def pressure_based_time_synchronization(self, max_lag: float = np.inf):
         """
         Time-synchronizes instruments by maximizing cross-correlation between the pressure data of the reference
         instrument and the other instruments. Runs multiple iterations using a coarse-to-fine scheme,
@@ -758,17 +758,15 @@ class Cleaner(BaseProcessor):
                 df_pressure[instrument.name] = df_pressure[instrument.name].shift(instrument_lags[instrument], freq="s")
                 final_lags[instrument] = instrument_lags[instrument]
 
-        if max_lag is None:
-            max_lag = (ref_index.max() - ref_index.min()).total_seconds() // 2
-
-        max_lag_count = 200
+        curr_max_lag = (ref_index.max() - ref_index.min()).total_seconds() // 2
+        MAX_LAGS = 200
 
         # iteratively narrow down the best lag using a decreasing step size
-        while max_lag >= max_lag_count:
-            step = max_lag // max_lag_count
-            max_lag = step * max_lag_count
+        while curr_max_lag >= MAX_LAGS:
+            step = curr_max_lag // MAX_LAGS
+            curr_max_lag = step * MAX_LAGS
 
-            lags = np.arange(-max_lag, max_lag + 1, step, dtype=int)
+            lags = np.arange(-curr_max_lag, curr_max_lag + 1, step, dtype=int)
 
             instrument_lags = self._get_best_instrument_lags(df_pressure, lags)
             for instrument, lag in instrument_lags.items():
@@ -785,14 +783,17 @@ class Cleaner(BaseProcessor):
                 final_lags[instrument] += lag
 
             # reduce the search range for the next iteration
-            max_lag = (max_lag + 1) // 2
+            curr_max_lag = (curr_max_lag + 1) // 2
 
         # apply the final calculated lags to the actual instrument dataframes
         for instrument, final_lag in final_lags.items():
+            final_lag = np.sign(final_lag) * min(abs(final_lag), abs(max_lag))
             print(f"Shifting {instrument.name} by {final_lag} seconds")
+
             # if time correction was already performed, then we don't need to set `df_before_timeshift` again
             if len(instrument.df_before_timeshift) == 0:
                 instrument.df_before_timeshift = instrument.df.copy()
+
             instrument.df.index = instrument.df.index.shift(final_lag, freq="s")
 
     def _get_best_instrument_lags(self, df_pressure, lags: np.ndarray) -> dict[Instrument, Number]:
