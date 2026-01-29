@@ -1,4 +1,5 @@
 import logging
+import re
 from abc import abstractmethod
 from io import StringIO
 
@@ -317,9 +318,12 @@ class FlightComputerV2(FlightComputer):
         df = pd.read_csv(
             self.filename,
             on_bad_lines="skip",
-            low_memory=False,
-            sep=",",
+            sep=self.delimiter,
+            engine="python",
         )
+
+        if re.fullmatch(r"\d{6}-\d{6}", df.columns[0]):
+            df = df.rename(columns={df.columns[0]: "Time"})
 
         # to convert all the columns to float, except the string columns
         exclude_str_cols = [
@@ -579,21 +583,22 @@ flight_computer_v2 = FlightComputerV2(
     },
     na_values=[],
     expected_header_value=(
-        "Time,"
+        # "Time,"
         # "F_cur_pos,F_cntdown,F_smp_flw,F_smp_tmp,F_smp_prs,F_pump_pw,F_psvolts,F_err_rpt,"
-        "SO_S,SO_D,SO_U,SO_V,SO_W,SO_T,SO_H,SO_P,"
-        "SO_PI,SO_RO,SO_MD,POPID,POPCHAIN,POPtot,POPf,POPT,POPc1,POPc2,"
-        "POPc3,POPc4,POPc5,POPc6,POPc7,POPc8,Ubat,CO2,BME_T,BME_H,BME_P,"
-        "CPUTEMP,RPiT,RPiS,IYaw,IPitch,IRoll,ILat,ILong,IVX,IVY,IVZ,"
+        "SO_S,SO_D,SO_U,SO_V,SO_W,SO_T,SO_H,SO_P,SO_PI,SO_RO,SO_MD,"
+        "POPID,POPCHAIN,POPtot,POPf,POPT,POPc1,POPc2,POPc3,POPc4,POPc5,POPc6,POPc7,POPc8,"
+        "Ubat,CO2,BME_T,BME_H,BME_P,CPUTEMP,RPiT,RPiS,"
+        # "IYaw,IPitch,IRoll,ILat,ILong,IVX,IVY,IVZ,"
         # "IAX,IAY,IAZ,IARX,IARY,IARZ,"
         "Out1_T,Out1_H,Out2_T,Out2_H,"
         # "Inlet2_T,Inlet2_H,"
-        "UTCTime,Status,Lat,LatDir,Long,LongDir,Speed,Course,"
-        "Date,MagVar,MVdir,GLat,GLatDir,GLong,GLongDir,GPSQ,GNSats,"
-        "Hprec,GAlt,AltU,Geoidal,UTCTime2,Heading,HeadTrue,Roll,Pitch,"
+        "UTCTime,Status,Lat,LatDir,Long,LongDir,Speed,Course,Date,MagVar,MVdir,"
+        # "GLat,GLatDir,GLong,GLongDir,GPSQ,GNSats,GAlt,"
+        "Hprec,AltU,Geoidal,UTCTime2,Heading,HeadTrue,Roll,Pitch,"
         "Heave,RollAcc,PitchAcc,HeadAcc"
         # ",GNSSqty"
     ),
+    delimiter=r",|\s+(?!REL)",
     comment="#",
     cols_export=[
         "GAlt",  # GPS Altitude
