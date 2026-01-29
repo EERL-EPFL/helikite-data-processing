@@ -14,14 +14,13 @@ from helikite.classes.data_processing_level1_5 import DataProcessorLevel1_5
 from helikite.classes.data_processing_level2 import DataProcessorLevel2
 from helikite.classes.output_schemas import OutputSchemas, flag_pollution
 from helikite.config import Config
-from helikite.constants import constants
 from helikite.instruments import flight_computer_v2, msems_scan
 from helikite.metadata.utils import load_parquet
 
 
 def execute_level0(config: Config):
     input_dir = config.campaign_data_dirpath / config.flight_basename
-    output_level0_dir = constants.OUTPUTS_FOLDER / "Processing" / "Level0"
+    output_level0_dir = config.processing_dir / "Level0"
     output_level0_dir.mkdir(parents=True, exist_ok=True)
 
     cleaner = Cleaner(
@@ -60,8 +59,8 @@ def execute_level0(config: Config):
 
 
 def execute_level1(config: Config):
-    input_level0_dir = constants.OUTPUTS_FOLDER / "Processing" / "Level0"
-    output_level1_dir = constants.OUTPUTS_FOLDER / "Processing" / "Level1"
+    input_level0_dir = config.processing_dir / "Level0"
+    output_level1_dir = config.processing_dir / "Level1"
     output_level1_dir.mkdir(parents=True, exist_ok=True)
 
     df_level0, metadata = load_parquet(input_level0_dir / f"level0_{config.flight_basename}.parquet")
@@ -101,8 +100,8 @@ def execute_level1(config: Config):
 
 
 def execute_level1_5(config: Config):
-    input_dir = constants.OUTPUTS_FOLDER / "Processing"
-    output_level1_5_dir = constants.OUTPUTS_FOLDER / "Processing" / "Level1.5"
+    input_dir = config.processing_dir
+    output_level1_5_dir = config.processing_dir / "Level1.5"
     output_level1_5_dir.mkdir(parents=True, exist_ok=True)
 
     df_level1 = DataProcessorLevel1.read_data(input_dir / "Level1" / f"level1_{config.flight_basename}.csv")
@@ -140,8 +139,8 @@ def execute_level1_5(config: Config):
 
 
 def execute_level2(config: Config):
-    input_dir = constants.OUTPUTS_FOLDER / "Processing"
-    output_level2_dir = constants.OUTPUTS_FOLDER / "Processing" / "Level2"
+    input_dir = config.processing_dir
+    output_level2_dir = config.processing_dir / "Level2"
     output_level2_dir.mkdir(parents=True, exist_ok=True)
 
     df_level1_5 = DataProcessorLevel1_5.read_data(input_dir / "Level1.5" / f"level1.5_{config.flight_basename}.csv")
@@ -162,8 +161,10 @@ def execute_level2(config: Config):
 
 def main():
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument("campaign_dir", type=Path)
     arg_parser.add_argument("output_schema", type=str, choices=OutputSchemas.keys())
+    arg_parser.add_argument("campaign_dir", type=Path)
+    arg_parser.add_argument("processing_dir", type=Path)
+    arg_parser.add_argument("--overview-path", type=Path)
     args = arg_parser.parse_args()
 
     basename_to_flight_nr = _get_basename_to_flight_nr_mapping(args.campaign_dir.parent)
@@ -188,6 +189,7 @@ def main():
             flight_suffix=suffix,
             output_schema=args.output_schema,
             campaign_data_dirpath=args.campaign_dir,
+            processing_dir=args.processing_dir,
         )
 
         try:

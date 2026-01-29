@@ -13,6 +13,7 @@ class Config(BaseModel):
 
     output_schema: str
     campaign_data_dirpath: Path
+    processing_dir: Path
 
     @property
     def flight_basename(self) -> str:
