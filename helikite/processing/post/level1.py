@@ -228,7 +228,7 @@ def flight_profiles(df: pd.DataFrame, level: Level, output_schema: OutputSchema,
 
     # Plot ascent data
     for ax, variable in zip(axes_doubled, variables):
-        ax.plot(df_up[variable.column_name], df_up["Altitude"], **variable.plot_kwargs)
+        ax.plot(df_up[variable.column_name], df_up["Altitude"], alpha=variable.alpha_ascent, **variable.plot_kwargs)
         ax.plot(df_down[variable.column_name], df_down["Altitude"], alpha=variable.alpha_descent, **variable.plot_kwargs)
 
     for ax, var in zip(axes_doubled, variables):

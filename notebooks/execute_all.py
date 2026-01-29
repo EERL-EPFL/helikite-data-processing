@@ -6,6 +6,7 @@ import traceback
 from pathlib import Path
 
 import pandas as pd
+from matplotlib import pyplot as plt
 
 from helikite import Cleaner
 from helikite.classes.data_processing_level1 import DataProcessorLevel1
@@ -190,6 +191,10 @@ def main():
         )
 
         try:
+            # defaults get changed at some point, so set parameters back to default values before processing a new flight
+            # TODO: remove this temporary fix once the reason why defaults change is understood
+            plt.rcdefaults()
+
             execute_level0(config)
             execute_level1(config)
             execute_level1_5(config)

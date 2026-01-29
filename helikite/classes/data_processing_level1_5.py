@@ -120,7 +120,7 @@ class DataProcessorLevel1_5(BaseProcessor):
                  mask: pd.Series | None = None):
         flag_values = pd.read_csv(corr_path, index_col=0, parse_dates=True)["datetime"]
 
-        self._df.loc[flag.flag_name] = 0
+        self._df[flag.flag_name] = 0
         self._df.loc[flag_values[flag_values].index, flag.flag_name] = 1
         self._df[flag.flag_name] = self._df[flag.flag_name].where(~self._df[flag.column_name].isna(), pd.NA)
 
