@@ -1269,7 +1269,10 @@ class Cleaner(BaseProcessor):
             if candidate in instruments:
                 return candidate
 
-        return None
+        raise ValueError(f"No reference instrument found among "
+                         f"{[instr.registry_name for instr in instruments]} "
+                         f"with candidates "
+                         f"{[instr.registry_name for instr in output_schema.reference_instrument_candidates]}")
 
     @classmethod
     def get_expected_columns(cls, output_schema: OutputSchema, with_dtype: bool) -> list[str] | dict[str, str]:
