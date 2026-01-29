@@ -13,3 +13,4 @@ from .mcda_instrument import mcda
 from .cpc3007 import cpc
 from .tapir import tapir
 from .co2 import co2
+from .maeth import maeth
