@@ -296,13 +296,14 @@ class DataProcessorLevel1(BaseProcessor):
                              output_schema: OutputSchema,
                              reference_instrument: Instrument,
                              with_dtype: bool) -> list[str] | dict[str, str]:
-        data = Cleaner.get_expected_columns(output_schema, with_dtype=True)
+        columns_level0 = Cleaner.get_expected_columns(output_schema, with_dtype=True)
 
-        df_level0 = pd.DataFrame(data)
+        df_level0 = pd.DataFrame({c: pd.Series(dtype=t) for c, t in columns_level0.items()})
         metadata = Level0.mock(reference_instrument.name,
                                instruments=[instrument.name for instrument in output_schema.instruments])
 
-        df_level0 = df_level0.reindex(pd.date_range(metadata.takeoff_time, metadata.landing_time, freq="1s"))
+        new_index = pd.date_range(metadata.takeoff_time, metadata.landing_time, freq="1s", name="DateTime")
+        df_level0 = df_level0.reindex(new_index)
         df_level0.index = df_level0.index.astype("datetime64[s]")
 
         data_processor = cls(output_schema, df_level0, metadata)

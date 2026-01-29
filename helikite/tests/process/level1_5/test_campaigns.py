@@ -5,6 +5,7 @@ import pandas as pd
 import tempfile
 from helikite.classes.cleaning import Cleaner
 from helikite import instruments
+from helikite.classes.output_schemas import OutputSchemas
 from helikite.processing.post.level1 import (
     create_level1_dataframe,
     rename_columns,
@@ -31,7 +32,10 @@ def test_2025_02_12_level1_5(campaign_data):
     """
 
     # First run level0 processing
+    output_schema = OutputSchemas.ORACLES_24_25
+
     cleaner = Cleaner(
+        output_schema=OutputSchemas.ORACLES_24_25,
         instruments=[
             instruments.flight_computer_v2,
             instruments.smart_tether,
@@ -48,6 +52,7 @@ def test_2025_02_12_level1_5(campaign_data):
     cleaner.data_corrections()
     cleaner.set_pressure_column("pressure")
     cleaner.correct_time_and_pressure(max_lag=180)
+    cleaner.remove_duplicates()
     cleaner.merge_instruments()
 
     # Create metadata object for Level 1 processing
@@ -60,9 +65,9 @@ def test_2025_02_12_level1_5(campaign_data):
 
     # Apply Level 1 processing steps with error handling
     try:
-        level1_df = create_level1_dataframe(cleaner.master_df)
-        level1_df = rename_columns(level1_df)
-        level1_df = round_flightnbr_campaign(level1_df, metadata, decimals=2)
+        level1_df = create_level1_dataframe(cleaner.master_df, output_schema)
+        level1_df = rename_columns(level1_df, output_schema)
+        level1_df = round_flightnbr_campaign(level1_df, metadata, output_schema, decimals=2)
     except KeyError as e:
         # If specific columns are missing, create a simplified Level 1 dataframe
         available_cols = list(cleaner.master_df.columns)

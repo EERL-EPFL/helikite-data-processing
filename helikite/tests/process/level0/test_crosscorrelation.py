@@ -3,10 +3,13 @@ from helikite.classes.cleaning import Cleaner
 from helikite import instruments
 import datetime
 
+from helikite.classes.output_schemas import OutputSchemas
+
 
 def test_crosscorrelation_offsets(campaign_data):
 
     cleaner = Cleaner(
+        output_schema=OutputSchemas.TURTMANN,
         instruments=[
             instruments.flight_computer_v1,
             instruments.smart_tether,

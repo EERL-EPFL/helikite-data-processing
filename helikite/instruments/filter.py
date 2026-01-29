@@ -113,7 +113,7 @@ class Filter(Instrument):
 filter = Filter(
     name="filter",
     header=13,
-    delimiter="\t",
+    delimiter=r"\s+",
     dtype={
         "#YY/MM/DD": "str",
         "HR:MN:SC": "str",

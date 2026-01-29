@@ -131,9 +131,11 @@ class BaseProcessor(ABC):
         return True
 
     @property
-    def _flight_computer(self) -> FlightComputer:
-        flight_computer = next(instrument for instrument in self._instruments if isinstance(instrument, FlightComputer))
-        return flight_computer
+    def _flight_computer(self) -> FlightComputer | None:
+        for instrument in self._instruments:
+            if isinstance(instrument, FlightComputer):
+                return instrument
+        return None
 
     @abstractmethod
     def _data_state_info(self) -> list[str]:
@@ -197,6 +199,7 @@ class BaseProcessor(ABC):
 
                 # Print function dependencies and use_once details
                 if dependencies:
+                    dependencies = [d if isinstance(d, str) else " | ".join(d) for d in dependencies]
                     print(f"\tDependencies: {', '.join(dependencies)}")
                 if use_once:
                     print("\tNote: Can only be run once")
@@ -278,9 +281,12 @@ def launch_operations_changing_df(data_processor: BaseProcessor):
             arg = getattr(attr, "__arg__")
 
             match arg:
-                case "flag_name":
+                case "flag":
                     for flag in data_processor.output_schema.flags:
-                        operations_kwargs[attr_name].append({"flag_name": flag.flag_name})
+                        operations_kwargs[attr_name].append({"flag": flag})
+                case "instrument":
+                    for instrument in data_processor.instruments:
+                        operations_kwargs[attr_name].append({"instrument": instrument})
                 case _:
                     continue
 

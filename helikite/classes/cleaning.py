@@ -1278,7 +1278,8 @@ class Cleaner(BaseProcessor):
     def get_expected_columns(cls, output_schema: OutputSchema, with_dtype: bool) -> list[str] | dict[str, str]:
         expected_columns = {}
         for instrument in output_schema.instruments:
-            df = pd.DataFrame({c: pd.Series(dtype=t) for c, t in instrument.dtype.items()})
+            df = pd.DataFrame({c: pd.Series(dtype=t) for c, t in instrument.dtype.items()},
+                              index=pd.DatetimeIndex([], name="DateTime"))
             with temporary_attr(instrument, "date", datetime.date(year=2000, month=1, day=1)):
                 df = instrument.set_time_as_index(df)
                 if df.index.name not in df.columns:

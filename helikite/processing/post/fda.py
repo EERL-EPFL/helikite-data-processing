@@ -98,7 +98,11 @@ class FDA:
         self._df.rename(columns={conc_column_name: CONC_COLUMN_NAME, gt_flag_column_name: FLAG_COLUMN_NAME}, inplace=True)
 
         if self._params.avg_time is not None:
-            freq = pd.infer_freq(self._df.index)
+            try:
+                freq = pd.infer_freq(self._df.index)
+            except Exception:
+                freq = None
+
             if freq is not None and not str.isdigit(freq[0]):
                 freq = f"1{freq}"
 
@@ -247,6 +251,10 @@ class FDA:
     def plot_detection(self, use_time_index: bool = True, figsize=None, fontsize=14, markersize=3, yscale="log",
                        save_path: str | pathlib.Path | None = None, start_time: datetime.datetime | None = None,
                        end_time: datetime.datetime | None = None):
+        if len(self._df) == 0 or len(self._intermediate_flags) == 0:
+            logging.warning("No data to plot. Assure that data is not empty.")
+            return
+
         sns.set_context(context="paper",
                         rc={"font.size": 14,
                             "axes.titlesize": 14,
@@ -370,6 +378,9 @@ class FDA:
 
     @staticmethod
     def sparse_filter(conc: pd.Series, grad: pd.Series, flag_old: pd.Series, params: FDAParameters):
+        if len(flag_old) < 2:
+            return flag_old.copy()
+
         flag_old_int = flag_old.fillna(False).astype("Int64")
         sparse_window, sparse_thr = params.sparse_window, params.sparse_thr
 

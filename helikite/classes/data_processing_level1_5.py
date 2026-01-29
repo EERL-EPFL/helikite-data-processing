@@ -157,7 +157,8 @@ class DataProcessorLevel1_5(BaseProcessor):
                              reference_instrument: Instrument,
                              with_dtype: bool) -> list[str] | dict[str, str]:
         columns_level1 = DataProcessorLevel1.get_expected_columns(output_schema, reference_instrument, with_dtype=True)
-        df_level1 = pd.DataFrame({c: pd.Series(dtype=t) for c, t in columns_level1.items()})
+        df_level1 = pd.DataFrame({c: pd.Series(dtype=t) for c, t in columns_level1.items()},
+                                 index=pd.DatetimeIndex([], name="DateTime"))
         metadata = Level0.mock(reference_instrument.name,
                                instruments=[instrument.name for instrument in output_schema.instruments])
         data_processor = cls(output_schema, df_level1, metadata)

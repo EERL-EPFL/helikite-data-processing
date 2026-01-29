@@ -1,13 +1,13 @@
-import os
 import datetime
-import pytest
-from helikite.classes.cleaning import Cleaner
+import os
+
 from helikite import instruments
+from helikite.classes.cleaning import Cleaner
+from helikite.classes.output_schemas import OutputSchemas
 from helikite.processing.post.level1 import (
     create_level1_dataframe,
     rename_columns,
     round_flightnbr_campaign,
-    fill_msems_takeoff_landing,
 )
 
 
@@ -34,7 +34,10 @@ def test_2025_02_12_level1(campaign_data):
 
     # Step 1: Get level0 data (simulating df_level1 = pd.read_csv(...))
     # In notebook this would be loading a pre-processed level1 CSV
+    output_schema = OutputSchemas.ORACLES_24_25
+
     cleaner = Cleaner(
+        output_schema=OutputSchemas.ORACLES_24_25,
         instruments=[
             instruments.flight_computer_v2,
             instruments.smart_tether,
@@ -51,6 +54,7 @@ def test_2025_02_12_level1(campaign_data):
     cleaner.data_corrections()
     cleaner.set_pressure_column("pressure")
     cleaner.correct_time_and_pressure(max_lag=180)
+    cleaner.remove_duplicates()
     cleaner.merge_instruments()
 
     # Create metadata object (simulating loading from parquet metadata)
@@ -81,9 +85,9 @@ def test_2025_02_12_level1(campaign_data):
 
     # Step 3: Apply Level 1 processing functions (exactly as in notebook)
     try:
-        df_level1 = create_level1_dataframe(df_level1)
-        df_level1 = rename_columns(df_level1)
-        df_level1 = round_flightnbr_campaign(df_level1, metadata, decimals=2)
+        df_level1 = create_level1_dataframe(df_level1, output_schema)
+        df_level1 = rename_columns(df_level1, output_schema)
+        df_level1 = round_flightnbr_campaign(df_level1, metadata, output_schema, decimals=2)
         level1_df = df_level1
         full_processing_succeeded = True
     except KeyError as e:

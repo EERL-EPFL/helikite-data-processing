@@ -39,9 +39,10 @@ def preprocess(
         instrument_objects[instrument] = getattr(instruments, props["config"])
 
     for instrument_name, instrument_obj in instrument_objects.items():
-        matched_file = instrument_obj.detect_from_folder(input_folder)
+        matched_files = instrument_obj.detect_from_folder(input_folder)
 
-        if matched_file:
+        if matched_files:
+            matched_file = matched_files[0]
             props = yaml_config["instruments"][instrument_name]
 
             # Set filename in config

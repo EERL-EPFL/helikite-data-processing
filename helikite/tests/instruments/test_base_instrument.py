@@ -1,10 +1,12 @@
 import importlib
 import inspect
+import os
 import pathlib
 import pkgutil
 import re
 
 import pandas as pd
+import pytest
 
 import helikite.instruments
 from helikite import Cleaner
@@ -13,7 +15,6 @@ from helikite.classes.data_processing_level1 import DataProcessorLevel1
 from helikite.classes.data_processing_level1_5 import DataProcessorLevel1_5
 from helikite.instruments import Instrument, cpc, filter, mcpc, pops, flight_computer_v2
 from helikite.instruments.base import filter_columns_by_instrument
-from helikite.instruments.flight_computer import FlightComputer
 
 
 def test_read_data(campaign_file_paths_and_instruments_2022):
@@ -34,7 +35,7 @@ def test_instrument_instances():
     for _, name, _ in pkgutil.iter_modules([helikite.instruments.__path__[0]]):
         module = importlib.import_module(f"{helikite.instruments.__name__}.{name}")
         for _, cls in inspect.getmembers(module, predicate=inspect.isclass):
-            if issubclass(cls, Instrument) and cls not in excluded_classes:
+            if issubclass(cls, Instrument) and cls not in excluded_classes and not inspect.isabstract(cls):
                 all_classes.add(cls)
 
     uninstantiated_classes = all_classes - registered_classes
@@ -62,17 +63,30 @@ def test_columns_consistency():
                                          f"{unexpected_cols}")
 
         if obj.expected_header_value:
-            cols = re.split("[,;]", obj.expected_header_value.strip("\n"))
-            cols = [col.strip() for col in cols]
-            cols = filter(lambda x: len(x) > 0, cols)
+            cols = re.split(obj.delimiter or "[,;]", obj.expected_header_value.strip("\n"))
+            cols = [
+                col.strip()[1:-1] if col.strip().startswith('"') and col.strip().endswith('"')
+                else col.strip()
+                for col in cols
+            ]
+            cols = [col for col in cols if len(col) > 0]
             unexpected_cols = set(cols) - cols_all
 
             assert not unexpected_cols, (f"Columns from `expected_header_value` are not present in `dtype` of "
                                          f"`{name}`: {unexpected_cols}")
 
 
+@pytest.fixture
+def temp_cwd(tmp_path):
+    old = os.getcwd()
+    os.chdir(tmp_path)
+    yield tmp_path
+    os.chdir(old)
+
+
 def test_expected_columns_level0_oracles(
-    campaign_data_location_2025: str
+    campaign_data_location_2025: str,
+    temp_cwd,
 ):
     df = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level0_2025-02-14T16-16_header.csv", index_col="DateTime")
     df_cpc = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level0_2025-02-14T18-32_header.csv")
@@ -92,7 +106,8 @@ def test_expected_columns_level0_oracles(
 
 
 def test_expected_columns_level0_turtmann(
-    campaign_data_location_turtmann: str
+    campaign_data_location_turtmann: str,
+    temp_cwd,
 ):
     df = pd.read_csv(pathlib.Path(campaign_data_location_turtmann) / "level0_2024-02-20_B_header.csv", index_col="DateTime")
     df_filter_pops = pd.read_csv(pathlib.Path(campaign_data_location_turtmann) / "level0_2024-02-26_B_header.csv")
@@ -108,7 +123,8 @@ def test_expected_columns_level0_turtmann(
 
 
 def test_expected_columns_level1_oracles(
-    campaign_data_location_2025: str
+    campaign_data_location_2025: str,
+    temp_cwd,
 ):
     df = DataProcessorLevel1.read_data(pathlib.Path(campaign_data_location_2025) / "level1_2025-02-14_D_header.csv")
 
@@ -116,10 +132,7 @@ def test_expected_columns_level1_oracles(
     actual_columns = DataProcessorLevel1.get_expected_columns(OutputSchemas.ORACLES_24_25,
                                                               reference_instrument=flight_computer_v2,
                                                               with_dtype=False)
-
-    # TODO: remove once filter is integrated in the pipeline
-    filter_columns = filter_columns_by_instrument(actual_columns, filter)
-    actual_columns = set(col for col in actual_columns if col not in filter_columns)
+    actual_columns = set(actual_columns)
 
     assert set(expected_columns) == set(actual_columns)
 
@@ -134,15 +147,13 @@ def test_expected_columns_level1_oracles(
 #     actual_columns = DataProcessorLevel1.get_expected_columns(OutputSchemas.TURTMANN,
 #                                                               reference_instrument=flight_computer_v1,
 #                                                               with_dtype=False)
-#
-#     # TODO: remove once filter is integrated in the pipeline
-#     filter_columns = filter_columns_by_instrument(actual_columns, filter)
-#     actual_columns = set(col for col in actual_columns if col not in filter_columns)
+#     actual_columns = set(actual_columns)
 #
 #     assert set(expected_columns) == set(actual_columns)
 
 def test_expected_columns_level1_5_oracles(
-    campaign_data_location_2025: str
+    campaign_data_location_2025: str,
+    temp_cwd,
 ):
     df = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level1.5_2025-02-14_D_header.csv")
 
@@ -150,10 +161,7 @@ def test_expected_columns_level1_5_oracles(
     actual_columns = DataProcessorLevel1_5.get_expected_columns(OutputSchemas.ORACLES_24_25,
                                                                 reference_instrument=flight_computer_v2,
                                                                 with_dtype=False)
-
-    # TODO: remove once filter is integrated in the pipeline
-    filter_columns = filter_columns_by_instrument(actual_columns, filter)
-    actual_columns = set(col for col in actual_columns if col not in filter_columns)
+    actual_columns = set(actual_columns)
 
     assert set(expected_columns) == set(actual_columns)
 
@@ -168,9 +176,6 @@ def test_expected_columns_level1_5_oracles(
 #     actual_columns = DataProcessorLevel1_5.get_expected_columns(OutputSchemas.TURTMANN,
 #                                                                 reference_instrument=flight_computer_v2,
 #                                                                 with_dtype=False)
-#
-#     # TODO: remove once filter is integrated in the pipeline
-#     filter_columns = filter_columns_by_instrument(actual_columns, filter)
-#     actual_columns = set(col for col in actual_columns if col not in filter_columns)
+#     actual_columns = set(actual_columns)
 #
 #     assert set(expected_columns) == set(actual_columns)
