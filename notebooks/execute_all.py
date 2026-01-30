@@ -164,7 +164,9 @@ def main():
     arg_parser.add_argument("output_schema", type=str, choices=OutputSchemas.keys())
     arg_parser.add_argument("campaign_dir", type=Path)
     arg_parser.add_argument("processing_dir", type=Path)
-    arg_parser.add_argument("--overview-path", type=Path)
+    arg_parser.add_argument("--overview-path", type=Path, required=True,
+                            help="Path to the .xlsx file containing the flight overview "
+                                 "used to determine flight numbers from flight dates.")
     args = arg_parser.parse_args()
 
     if args.overview_path is not None:
