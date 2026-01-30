@@ -1,8 +1,9 @@
-import pytest
-from helikite.classes.cleaning import Cleaner
-from helikite.tests.process.level0.mock import MockInstrument
-import pandas as pd
 import datetime
+
+import pandas as pd
+
+from helikite.classes.cleaning import Cleaner
+from helikite.tests.process.level0.mock import MockInstrument, get_mock_output_schema
 
 
 def test_cleaner_initialization(campaign_data):
@@ -23,6 +24,7 @@ def test_cleaner_initialization(campaign_data):
     )
 
     cleaner = Cleaner(
+        output_schema=get_mock_output_schema(instrument1, [instrument1, instrument2]),
         instruments=[instrument1, instrument2],
         reference_instrument=instrument1,
         input_folder=str(campaign_data),

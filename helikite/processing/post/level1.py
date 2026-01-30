@@ -1,102 +1,76 @@
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from helikite.processing.post import level1
+import dataclasses
+import datetime
+from numbers import Number
+
+import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import numpy as np
+import pandas as pd
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+from pydantic import BaseModel
+
+from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, FlightProfileVariableShade, Level
+from helikite.instruments.base import filter_columns_by_instrument
 
 
+def create_level1_dataframe(df: pd.DataFrame, output_schema: OutputSchema):
+    selected_columns = []
+    processed_columns = set()
 
-def create_level1_dataframe(df):
-    """
-    Create a level 1 DataFrame by selecting specific columns and returning a copy.
+    for instrument in output_schema.instruments:
+        instr_cols_all = filter_columns_by_instrument(df, instrument)
+        if instrument.final_columns is not None:
+            instr_cols_final = [f"{instrument.name}_{col}" for col in instrument.final_columns]
+        else:
+            instr_cols_final = instr_cols_all
 
-    Parameters:
-        df (pd.DataFrame): The original DataFrame.
+        selected_columns += instr_cols_final
+        processed_columns = processed_columns.union(instr_cols_all)
 
-    Returns:
-        pd.DataFrame: Filtered copy of the DataFrame with selected columns.
-    """
-    # Manually specified columns
-    base_columns = [
-        'DateTime', 'Altitude', 'latitude_dd', 'longitude_dd',
-        'flight_computer_pressure', 'Average_Temperature', 'Average_RH',
-        'smart_tether_Wind (m/s)', 'smart_tether_Wind (degrees)',
-        'pops_total_conc_stp', 'msems_inverted_dN_totalconc_stp',
-        'mcda_dN_totalconc_stp', 'cpc_totalconc_stp',
-        'flight_computer_F_cur_pos', 'flight_computer_F_smp_flw'
-    ]
+    non_instr_columns_to_skip = ["Pressure_ground", "Temperature_ground"]
+    non_instr_columns = [col for col in df.columns
+                         if col not in processed_columns and col not in non_instr_columns_to_skip]
 
-    # Dynamically generated column ranges
-    pops_range = [f'pops_b{i}_dlogDp_stp' for i in range(3, 16)]
-    msems_range = [f'msems_inverted_Bin_Conc{i}_stp' for i in range(1, 61)]
-    mcda_range = [f'mcda_dataB {i}_dN_dlogDp_stp' for i in range(1, 257)]
+    selected_columns = non_instr_columns + selected_columns
 
-    # TAPIR columns
-    tapir_columns = [
-        'tapir_GL', 'tapir_Lat', 'tapir_Le', 'tapir_Lon', 'tapir_Lm', 'tapir_speed',
-        'tapir_route', 'tapir_TP', 'tapir_Tproc1', 'tapir_Tproc2', 'tapir_Tproc3', 'tapir_Tproc4',
-        'tapir_TH', 'tapir_Thead1', 'tapir_Thead2', 'tapir_Thead3', 'tapir_Thead4',
-        'tapir_TB', 'tapir_Tbox'
-    ]
-
-    # Combine all columns
-    selected_columns = base_columns + pops_range + msems_range + mcda_range + tapir_columns
-
-    # Return the filtered DataFrame
     return df[selected_columns].copy()
 
 
-def rename_columns(df):
+def rename_columns(df: pd.DataFrame, output_schema: OutputSchema):
     """
-    Renames columns of the input DataFrame according to predefined rules.
+    Renames columns of the input DataFrame according to predefined rules and instrument-specific rules.
+    See `Instrument.rename_dict`
 
     Parameters:
         df (pd.DataFrame): The DataFrame with columns to be renamed.
+        output_schema (OutputSchema): The OutputSchema object containing the instruments.
 
     Returns:
         pd.DataFrame: DataFrame with renamed columns.
     """
-    # Define all the renaming rules
-    manual_rename = {
+    df_renamed = df.rename(columns=_build_rename_dict(output_schema))
+
+    return df_renamed
+
+
+def _build_rename_dict(output_schema: OutputSchema):
+    rename_dict = {
         'DateTime': 'datetime',
         'latitude_dd': 'Lat',
         'longitude_dd': 'Long',
         'flight_computer_pressure': 'P',
         'Average_Temperature': 'TEMP',
         'Average_RH': 'RH',
-        'smart_tether_Wind (m/s)': 'WindSpeed',
-        'smart_tether_Wind (degrees)': 'WindDir',
-        'pops_total_conc_stp': 'POPS_total_N',
-        'msems_inverted_dN_totalconc_stp': 'mSEMS_total_N',
-        'mcda_dN_totalconc_stp': 'mCDA_total_N',
-        'cpc_totalconc_stp': 'CPC_total_N',
-        'flight_computer_F_cur_pos': 'Filter_position',
-        'flight_computer_F_smp_flw': 'Filter_flow'
     }
+    for instrument in output_schema.instruments:
+        rename_dict = rename_dict | instrument.rename_dict
 
-    # Ranges to rename
-    pops_range = [f'pops_b{i}_dlogDp_stp' for i in range(3, 16)]
-    msems_range = [f'msems_inverted_Bin_Conc{i}_stp' for i in range(1, 61)]
-    mcda_range = [f'mcda_dataB {i}_dN_dlogDp_stp' for i in range(1, 257)]
+    return rename_dict
 
-    # Automatically generated rename mappings
-    pops_rename = {col: f'POPS_b{i}' for i, col in zip(range(3, 16), pops_range)}
-    msems_rename = {col: f'mSEMS_Bin_Conc{i}' for i, col in zip(range(1, 61), msems_range)}
-    mcda_rename = {col: f'mCDA_dataB{i}' for i, col in zip(range(1, 257), mcda_range)}
 
-    # Combine all rename mappings
-    rename_dict = {**manual_rename, **pops_rename, **msems_rename, **mcda_rename}
-
-    # Apply renaming
-    df_renamed = df.rename(columns=rename_dict)
-
-    return df_renamed
-
-def round_flightnbr_campaign(df, metadata, decimals=2):
+def round_flightnbr_campaign(df: pd.DataFrame, metadata: BaseModel, output_schema: OutputSchema, decimals: int):
     """
     Round numeric columns of the DataFrame with special handling for 'Lat' and 'Long',
     and add columns for flight number and campaign.
@@ -104,6 +78,7 @@ def round_flightnbr_campaign(df, metadata, decimals=2):
     Parameters:
         df (pd.DataFrame): The DataFrame to be rounded and modified.
         metadata (object): Metadata object containing the 'flight' attribute.
+        output_schema (OutputSchema): The OutputSchema object containing the campaign name.
         decimals (int, optional): The number of decimal places to round to (default is 2).
 
     Returns:
@@ -127,14 +102,17 @@ def round_flightnbr_campaign(df, metadata, decimals=2):
         df['WindDir'] = df['WindDir'].astype('Int64')
 
     # Add metadata columns
-    df['flight_nr'] = metadata.flight
-    df['campaign'] = 'ORACLES'
+    df = pd.concat([
+        df,
+        pd.DataFrame({'flight_nr': metadata.flight, 'campaign': output_schema.campaign}, index=df.index)
+    ], axis=1)
+
 
     return df
 
 
 
-def fill_msems_takeoff_landing(df, metadata, time_window_seconds=90):
+def fill_msems_takeoff_landing(df, metadata, time_window_seconds):
     """
     Fill missing values in mSEMS columns at takeoff and landing times using nearby values.
 
@@ -188,8 +166,17 @@ def fill_msems_takeoff_landing(df, metadata, time_window_seconds=90):
             print(f"{label} ({event_time}) not in index.")
 
 
-def flight_profiles_1(df, metadata, xlims=None, xticks=None, fig_title=None):
-    
+def flight_profiles(df: pd.DataFrame, level: Level, output_schema: OutputSchema,
+                    variables: list[FlightProfileVariable] | None, fig_title=None):
+    # Columns in df might have been already renamed
+    rename_dict = _build_rename_dict(output_schema)
+    variables = variables if variables is not None else output_schema.flight_profile_variables
+    variables = variables.copy()
+    for i, variable in enumerate(variables):
+        if variable.column_name not in df.columns:
+            variable = dataclasses.replace(variable, column_name=rename_dict[variable.column_name])
+            variables[i] = variable
+
     # Find the index of the maximum altitude
     max_altitude_index = df['Altitude'].idxmax()
     max_altitude_pos = df.index.get_loc(max_altitude_index)
@@ -198,382 +185,82 @@ def flight_profiles_1(df, metadata, xlims=None, xticks=None, fig_title=None):
     df_up = df.iloc[:max_altitude_pos + 1]
     df_down = df.iloc[max_altitude_pos + 1:]
 
-    plt.close('all')
-    fig, ax = plt.subplots(1, 5, figsize=(16,6), gridspec_kw={'width_ratios': [1,1,1,1,0.3]})
+    num_subplots = (len(variables) + 1) // 2
+    fig, axes = plt.subplots(1, num_subplots + 1,
+                             figsize=(4 * num_subplots, 6),
+                             gridspec_kw={'width_ratios': [1] * num_subplots + [0.3]})
     plt.subplots_adjust(wspace=0.3)
-    num_subplots = 4
 
-    ax1 = ax[0]
-    ax2 = ax1.twiny()
-    ax3 = ax[1]
-    ax4 = ax3.twiny()
-    ax5 = ax[2]
-    ax6 = ax5.twiny()
-    ax7 = ax[3]
-    ax8 = ax7.twiny()
+    # repeat each axis twice, excluding the last one
+    axes_doubled = sum(([ax, ax] for ax in axes[:-1]), [])
 
-    # Position second x-axis ticks below the axis for all twinned axes
-    for twin_ax in [ax2, ax4, ax6, ax8]:
-        twin_ax.xaxis.set_ticks_position('bottom')
-        twin_ax.xaxis.set_label_position('bottom')
-        twin_ax.spines['bottom'].set_position(('outward', 40))
+    for i in range(len(axes_doubled)):
+        if i % 2 == 1:
+            ax = axes_doubled[i - 1].twiny()
+            axes_doubled[i] = ax
 
-    # Plot ascent data
-    ax1.plot(df_up["Average_Temperature"], df_up["Altitude"], color="brown", linewidth=3.0)
-    ax2.plot(df_up["Average_RH"], df_up["Altitude"], color="orange", linewidth=3.0)
-    ax3.plot(df_up["msems_inverted_dN_totalconc_stp"], df_up["Altitude"], color="indigo", marker='.')
-    ax4.plot(df_up["cpc_totalconc_stp"], df_up["Altitude"], color="orchid", linewidth=3.0)
-    ax5.plot(df_up["pops_total_conc_stp"], df_up["Altitude"], color="teal", linewidth=3.0)
-    ax6.plot(df_up["mcda_dN_totalconc_stp"], df_up["Altitude"], color="salmon", linewidth=3.0)
-    ax7.scatter(df_up["smart_tether_Wind (m/s)"], df_up["Altitude"], color='palevioletred', marker='.')
-    ax8.scatter(df_up["smart_tether_Wind (degrees)"], df_up["Altitude"], color='olivedrab', marker='.')
+            # Position second x-axis ticks below the axis for all twinned axes_doubled
+            ax.xaxis.set_ticks_position('bottom')
+            ax.xaxis.set_label_position('bottom')
+            ax.spines['bottom'].set_position(('outward', 40))
 
-    # Plot descent data with transparency
-    ax1.plot(df_down["Average_Temperature"], df_down["Altitude"], color="brown", alpha=0.5, linewidth=3.0)
-    ax2.plot(df_down["Average_RH"], df_down["Altitude"], color="orange", alpha=0.5, linewidth=3.0)
-    ax3.plot(df_down["msems_inverted_dN_totalconc_stp"], df_down["Altitude"], color="indigo", alpha=0.3, marker='.')
-    ax4.plot(df_down["cpc_totalconc_stp"], df_down["Altitude"], color="orchid", alpha=0.5, linewidth=3.0)
-    ax5.plot(df_down["pops_total_conc_stp"], df_down["Altitude"], color="teal", alpha=0.5, linewidth=3.0)
-    ax6.plot(df_down["mcda_dN_totalconc_stp"], df_down["Altitude"], color="salmon", alpha=0.5, linewidth=3.0)
-    ax7.scatter(df_down["smart_tether_Wind (m/s)"], df_down["Altitude"], color='palevioletred', alpha=0.2, marker='.')
-    ax8.scatter(df_down["smart_tether_Wind (degrees)"], df_down["Altitude"], color='olivedrab', alpha=0.3, marker='.')
-
-    # Default axis limits and ticks if none provided
-    default_xlim = {
-        'ax1': (-8, 0),
-        'ax2': (60, 100),
-        'ax3': (0, 1200),
-        'ax4': (0, 1200),
-        'ax5': (0, 60),
-        'ax6': (0, 60),
-        'ax7': (0, 8),
-        'ax8': (0, 360)
-    }
-
-    default_xticks = {
-        'ax1': np.arange(-8, 1, 2),
-        'ax2': np.arange(60, 101, 10),
-        'ax3': np.arange(0, 1201, 200),
-        'ax4': np.arange(0, 1201, 200),
-        'ax5': np.arange(0, 61, 10),
-        'ax6': np.arange(0, 61, 10),
-        'ax7': np.arange(0, 9, 2),
-        'ax8': np.arange(0, 361, 90)
-    }
-
-    xlims = xlims or default_xlim
-    xticks = xticks or default_xticks
-
-    # Apply limits and ticks
-    ax1.set_xlim(*xlims.get('ax1', default_xlim['ax1']))
-    ax1.set_xticks(xticks.get('ax1', default_xticks['ax1']))
-
-    ax2.set_xlim(*xlims.get('ax2', default_xlim['ax2']))
-    ax2.set_xticks(xticks.get('ax2', default_xticks['ax2']))
-
-    ax3.set_xlim(*xlims.get('ax3', default_xlim['ax3']))
-    ax3.set_xticks(xticks.get('ax3', default_xticks['ax3']))
-
-    ax4.set_xlim(*xlims.get('ax4', default_xlim['ax4']))
-    ax4.set_xticks(xticks.get('ax4', default_xticks['ax4']))
-
-    ax5.set_xlim(*xlims.get('ax5', default_xlim['ax5']))
-    ax5.set_xticks(xticks.get('ax5', default_xticks['ax5']))
-
-    ax6.set_xlim(*xlims.get('ax6', default_xlim['ax6']))
-    ax6.set_xticks(xticks.get('ax6', default_xticks['ax6']))
-
-    ax7.set_xlim(*xlims.get('ax7', default_xlim['ax7']))
-    ax7.set_xticks(xticks.get('ax7', default_xticks['ax7']))
-
-    ax8.set_xlim(*xlims.get('ax8', default_xlim['ax8']))
-    ax8.set_xticks(xticks.get('ax8', default_xticks['ax8']))
-
-    # Y axis minor ticks, grid and limits on main axes
-    for j in range(num_subplots):
-        ax[j].yaxis.set_minor_locator(ticker.MultipleLocator(base=50))
-        ax[j].set_axisbelow(True)
-        ax[j].grid(which='major', linestyle='--', linewidth=0.5, color='gray')
-        ax[j].grid(which='minor', linestyle='--', linewidth=0.5, color='lightgray')
-        ax[j].set_ylim(-10, df['Altitude'].max() + 10)
-
-    # Label settings
-    ax[0].set_ylabel('Altitude (m)', fontsize=12, fontweight='bold')
-    for i in range(1, num_subplots):
-        ax[i].set_yticklabels('')
-
-    ax1.set_xlabel('Temp (°C)', color="brown", fontweight='bold')
-    ax1.tick_params(axis='x', labelcolor='brown')
-
-    ax2.set_xlabel('RH (%)', color="orange", fontweight='bold')
-    ax2.tick_params(axis='x', labelcolor='orange')
-
-    ax3.set_xlabel('mSEMS conc. (cm$^{-3}$) [8-250 nm]', color="indigo", fontweight='bold')
-    ax3.tick_params(axis='x', labelcolor='indigo')
-
-    ax4.set_xlabel('CPC conc. (cm$^{-3}$) [7–2000 nm]', color="orchid", fontweight='bold')
-    ax4.tick_params(axis='x', labelcolor='orchid')
-
-    ax5.set_xlabel('POPS conc. (cm$^{-3}$) [186-3370 nm]', color="teal", fontweight='bold')
-    ax5.tick_params(axis='x', labelcolor='teal')
-
-    ax6.set_xlabel('mCDA conc. (cm$^{-3}$) [0.66–33 um]', color="salmon", fontweight='bold')
-    ax6.tick_params(axis='x', labelcolor='salmon')
-
-    ax7.set_xlabel('WS (m/s)', color="palevioletred", fontweight='bold')
-    ax7.tick_params(axis='x', labelcolor='palevioletred')
-
-    ax8.set_xlabel('WD (deg)', color="olivedrab", fontweight='bold')
-    ax8.tick_params(axis='x', labelcolor='olivedrab')
-
-    # Hide last subplot axis and add legend
-    ax[4].axis('off')
-    legend_lines = [
-        Line2D([0], [0], color='darkgrey', lw=4, label='Ascent'),
-        Line2D([0], [0], color='lightgrey', lw=4, label='Descent')
-    ]
-    ax[4].legend(
-        handles=legend_lines,
-        loc='upper right',
-        bbox_to_anchor=(1, 1.02),
-        frameon=True,
-        fancybox=True,
-        fontsize=12
-    )
-
-    # Figure title
-    if fig_title is None:
-        fig_title = 'Flight X [Level 1]'
-
-    fig.suptitle(
-        fig_title,
-        fontsize=16,
-        fontweight='bold',
-        y=0.98,
-        x=0.51
-    )
-
-    plt.tight_layout()
-    plt.show()
-    return fig
-
-
-def flight_profiles_2(df, metadata, xlims=None, xticks=None, fig_title=None):
-    
-    # Find the index of the maximum altitude
-    max_altitude_index = df['Altitude'].idxmax()
-    max_altitude_pos = df.index.get_loc(max_altitude_index)
-
-    # Split DataFrame into ascent and descent
-    df_up = df.iloc[:max_altitude_pos + 1]
-    df_down = df.iloc[max_altitude_pos + 1:]
-
-    plt.close('all')
-    fig, ax = plt.subplots(1, 5, figsize=(16,6), gridspec_kw={'width_ratios': [1,1,1,1,0.3]})
-    plt.subplots_adjust(wspace=0.3)
-    num_subplots = 4
-
-    ax1 = ax[0]
-    ax2 = ax1.twiny()
-    ax3 = ax[1]
-    ax4 = ax3.twiny()
-    ax5 = ax[2]
-    ax6 = ax5.twiny()
-    ax7 = ax[3]
-    ax8 = ax7.twiny()
-
-    # Position second x-axis ticks below the axis for all twinned axes
-    for twin_ax in [ax2, ax4, ax6, ax8]:
-        twin_ax.xaxis.set_ticks_position('bottom')
-        twin_ax.xaxis.set_label_position('bottom')
-        twin_ax.spines['bottom'].set_position(('outward', 40))
-
-    # Shade clouds separately for ascent and descent
-    if 'flag_cloud' in df.columns:
-        cloud_points = df[df['flag_cloud'] == 1]
-        if not cloud_points.empty:
-            label_added = False
-            delta_alt = 5  # meters to extend single-point shading
-    
-            # Find the position of max altitude
-            max_alt_pos = df.index.get_loc(df['Altitude'].idxmax())
-            
-            # Split ascent and descent using iloc (integer positions)
-            df_up = df.iloc[:max_alt_pos + 1]
-            df_down = df.iloc[max_alt_pos + 1:]
-    
-            def shade_cloud_segment(df_segment, ax_list):
-                cloud_times_seg = df_segment[df_segment['flag_cloud'] == 1].index
-                if not cloud_times_seg.empty:
-                    start_idx = cloud_times_seg[0]
-                    label_added = False  # define inside the function
-                    for i in range(1, len(cloud_times_seg)):
-                        if (cloud_times_seg[i] - cloud_times_seg[i-1]) > pd.Timedelta(seconds=20):
-                            ymin = df_segment.loc[start_idx, 'Altitude']
-                            ymax = df_segment.loc[cloud_times_seg[i-1], 'Altitude']
-                            delta_alt = 5  # for single-point shading
-                            if ymin == ymax:
-                                ymin -= delta_alt
-                                ymax += delta_alt
-                            for ax in ax_list:
-                                ax.axhspan(ymin, ymax, color='lightblue', alpha=0.3,
-                                           label='Cloud' if not label_added else None)
-                            label_added = True
-                            start_idx = cloud_times_seg[i]
-            
-                    # Final segment
-                    ymin = df_segment.loc[start_idx, 'Altitude']
-                    ymax = df_segment.loc[cloud_times_seg[-1], 'Altitude']
-                    delta_alt = 5
-                    if ymin == ymax:
-                        ymin -= delta_alt
-                        ymax += delta_alt
-                    for ax in ax_list:
-                        ax.axhspan(ymin, ymax, color='lightblue', alpha=0.3,
-                                   label='Cloud' if not label_added else None)
-    
-            # Apply separately for ascent and descent
-            shade_cloud_segment(df_up, [ax3, ax5])
-            shade_cloud_segment(df_down, [ax3, ax5])
-
-
-    # Shade areas for pollution on ax3 (altitude-based)
-    if 'flag_pollution' in df.columns:
-        pollution_times = df[df['flag_pollution'] == 1].index
-        if not pollution_times.empty:
-            start_idx = pollution_times[0]
-            label_added = False
-            for i in range(1, len(pollution_times)):
-                if (pollution_times[i] - pollution_times[i-1]) > pd.Timedelta(seconds=1):
-                    ymin = df.loc[start_idx, 'Altitude']
-                    ymax = df.loc[pollution_times[i-1], 'Altitude']
-                    ax3.axhspan(ymin, ymax, color='lightcoral', alpha=0.3,
-                                label='Pollution' if not label_added else None)
-                    label_added = True
-                    start_idx = pollution_times[i]
-            ymin = df.loc[start_idx, 'Altitude']
-            ymax = df.loc[pollution_times[-1], 'Altitude']
-            ax3.axhspan(ymin, ymax, color='lightcoral', alpha=0.3,
-                        label='Pollution' if not label_added else None)
-    
-    # Plot ascent data
-    ax1.plot(df_up["TEMP"], df_up["Altitude"], color="brown", linewidth=3.0)
-    ax2.plot(df_up["RH"], df_up["Altitude"], color="orange", linewidth=3.0)
-    ax3.plot(df_up["mSEMS_total_N"], df_up["Altitude"], color="indigo", marker='.')
-    ax4.plot(df_up["CPC_total_N"], df_up["Altitude"], color="orchid", linewidth=3.0)
-    ax5.plot(df_up["POPS_total_N"], df_up["Altitude"], color="teal", linewidth=3.0)
-    ax6.plot(df_up["mCDA_total_N"], df_up["Altitude"], color="salmon", linewidth=3.0)
-    ax7.scatter(df_up["WindSpeed"], df_up["Altitude"], color='palevioletred', marker='.')
-    ax8.scatter(df_up["WindDir"], df_up["Altitude"], color='olivedrab', marker='.')
-
-    # Plot descent data with transparency
-    ax1.plot(df_down["TEMP"], df_down["Altitude"], color="brown", alpha=0.5, linewidth=3.0)
-    ax2.plot(df_down["RH"], df_down["Altitude"], color="orange", alpha=0.5, linewidth=3.0)
-    ax3.plot(df_down["mSEMS_total_N"], df_down["Altitude"], color="indigo", alpha=0.3, marker='.')
-    ax4.plot(df_down["CPC_total_N"], df_down["Altitude"], color="orchid", alpha=0.5, linewidth=3.0)
-    ax5.plot(df_down["POPS_total_N"], df_down["Altitude"], color="teal", alpha=0.5, linewidth=3.0)
-    ax6.plot(df_down["mCDA_total_N"], df_down["Altitude"], color="salmon", alpha=0.5, linewidth=3.0)
-    ax7.scatter(df_down["WindSpeed"], df_down["Altitude"], color='palevioletred', alpha=0.2, marker='.')
-    ax8.scatter(df_down["WindDir"], df_down["Altitude"], color='olivedrab', alpha=0.3, marker='.')
-
-    # Default axis limits and ticks if none provided
-    default_xlim = {
-        'ax1': (-8, 0),
-        'ax2': (60, 100),
-        'ax3': (0, 1200),
-        'ax4': (0, 1200),
-        'ax5': (0, 60),
-        'ax6': (0, 60),
-        'ax7': (0, 8),
-        'ax8': (0, 360)
-    }
-
-    default_xticks = {
-        'ax1': np.arange(-8, 1, 2),
-        'ax2': np.arange(60, 101, 10),
-        'ax3': np.arange(0, 1201, 200),
-        'ax4': np.arange(0, 1201, 200),
-        'ax5': np.arange(0, 61, 10),
-        'ax6': np.arange(0, 61, 10),
-        'ax7': np.arange(0, 9, 2),
-        'ax8': np.arange(0, 361, 90)
-    }
-
-    xlims = xlims or default_xlim
-    xticks = xticks or default_xticks
-
-    # Apply limits and ticks
-    ax1.set_xlim(*xlims.get('ax1', default_xlim['ax1']))
-    ax1.set_xticks(xticks.get('ax1', default_xticks['ax1']))
-
-    ax2.set_xlim(*xlims.get('ax2', default_xlim['ax2']))
-    ax2.set_xticks(xticks.get('ax2', default_xticks['ax2']))
-
-    ax3.set_xlim(*xlims.get('ax3', default_xlim['ax3']))
-    ax3.set_xticks(xticks.get('ax3', default_xticks['ax3']))
-
-    ax4.set_xlim(*xlims.get('ax4', default_xlim['ax4']))
-    ax4.set_xticks(xticks.get('ax4', default_xticks['ax4']))
-
-    ax5.set_xlim(*xlims.get('ax5', default_xlim['ax5']))
-    ax5.set_xticks(xticks.get('ax5', default_xticks['ax5']))
-
-    ax6.set_xlim(*xlims.get('ax6', default_xlim['ax6']))
-    ax6.set_xticks(xticks.get('ax6', default_xticks['ax6']))
-
-    ax7.set_xlim(*xlims.get('ax7', default_xlim['ax7']))
-    ax7.set_xticks(xticks.get('ax7', default_xticks['ax7']))
-
-    ax8.set_xlim(*xlims.get('ax8', default_xlim['ax8']))
-    ax8.set_xticks(xticks.get('ax8', default_xticks['ax8']))
-
-    # Y axis minor ticks, grid and limits on main axes
-    for j in range(num_subplots):
-        ax[j].yaxis.set_minor_locator(ticker.MultipleLocator(base=50))
-        ax[j].set_axisbelow(True)
-        ax[j].grid(which='major', linestyle='--', linewidth=0.5, color='gray')
-        ax[j].grid(which='minor', linestyle='--', linewidth=0.5, color='lightgray')
-        ax[j].set_ylim(-10, df['Altitude'].max() + 10)
-
-    # Label settings
-    ax[0].set_ylabel('Altitude (m)', fontsize=12, fontweight='bold')
-    for i in range(1, num_subplots):
-        ax[i].set_yticklabels('')
-
-    ax1.set_xlabel('Temp (°C)', color="brown", fontweight='bold')
-    ax1.tick_params(axis='x', labelcolor='brown')
-
-    ax2.set_xlabel('RH (%)', color="orange", fontweight='bold')
-    ax2.tick_params(axis='x', labelcolor='orange')
-
-    ax3.set_xlabel('mSEMS conc. (cm$^{-3}$) [8-250 nm]', color="indigo", fontweight='bold')
-    ax3.tick_params(axis='x', labelcolor='indigo')
-
-    ax4.set_xlabel('CPC conc. (cm$^{-3}$) [7–2000 nm]', color="orchid", fontweight='bold')
-    ax4.tick_params(axis='x', labelcolor='orchid')
-
-    ax5.set_xlabel('POPS conc. (cm$^{-3}$) [186-3370 nm]', color="teal", fontweight='bold')
-    ax5.tick_params(axis='x', labelcolor='teal')
-
-    ax6.set_xlabel('mCDA conc. (cm$^{-3}$) [0.66–33 um]', color="salmon", fontweight='bold')
-    ax6.tick_params(axis='x', labelcolor='salmon')
-
-    ax7.set_xlabel('WS (m/s)', color="palevioletred", fontweight='bold')
-    ax7.tick_params(axis='x', labelcolor='palevioletred')
-
-    ax8.set_xlabel('WD (deg)', color="olivedrab", fontweight='bold')
-    ax8.tick_params(axis='x', labelcolor='olivedrab')
-
-    # Hide last subplot axis and add legend
-    ax[4].axis('off')
     legend_lines = [
         Line2D([0], [0], color='darkgrey', lw=4, label='Ascent'),
         Line2D([0], [0], color='lightgrey', lw=4, label='Descent'),
-        Patch(facecolor='lightblue', alpha=0.3, label='Cloud'),
-        Patch(facecolor='lightcoral', alpha=0.3, label='Pollution')
     ]
-    
-    ax[4].legend(
+
+    for shade_config in output_schema.flight_profile_shades:
+        if shade_config.name in df.columns:
+            axes_doubled_to_shade = [ax for ax, variable in zip(axes_doubled, variables)
+                                     if shade_config.name in variable.shade_flags]
+            if len(axes_doubled_to_shade) == 0:
+                continue
+
+            for i, df_partial in enumerate([df_up, df_down]):
+                shade_flagged(
+                    shade_config, axes_doubled_to_shade, df_partial, level,
+                    shade_coord="x",
+                    other_coord_name="Altitude",
+                )
+
+                if i == 0:
+                    legend_lines.append(Patch(label=shade_config.label, **shade_config.span_kwargs))
+
+    # Plot ascent data
+    for ax, variable in zip(axes_doubled, variables):
+        ax.plot(df_up[variable.column_name], df_up["Altitude"], alpha=variable.alpha_ascent, **variable.plot_kwargs)
+        ax.plot(df_down[variable.column_name], df_down["Altitude"], alpha=variable.alpha_descent, **variable.plot_kwargs)
+
+    for ax, var in zip(axes_doubled, variables):
+        divider = var.x_divider or 1
+        (x_min, x_max), divider = _get_series_bounds(df[var.column_name], divider, var.x_min, var.x_max)
+
+        ax.set_xlim(x_min, x_max)
+        if divider is not None:
+            ax.set_xticks(np.arange(x_min, x_max + min(divider, 1), divider))
+
+    # Y axis minor ticks, grid and limits on main axes
+    for j in range(num_subplots):
+        axes[j].yaxis.set_minor_locator(ticker.MultipleLocator(base=50))
+        axes[j].set_axisbelow(True)
+        axes[j].grid(which='major', linestyle='--', linewidth=0.5, color='gray')
+        axes[j].grid(which='minor', linestyle='--', linewidth=0.5, color='lightgray')
+        axes[j].set_ylim(-10, df['Altitude'].max() + 10)
+
+    # Label settings
+    axes[0].set_ylabel('Altitude (m)', fontsize=12, fontweight='bold')
+    for i in range(1, num_subplots):
+        axes[i].set_yticklabels('')
+
+    for ax, variable in zip(axes_doubled, variables):
+        if variable.x_label is not None:
+            color = variable.plot_kwargs.get("color", "gray")
+            ax.set_xlabel(variable.x_label, color=color, fontweight='bold')
+            ax.tick_params(axis='x', labelcolor=color, labelsize=11)
+
+    # Hide last subplot axis and add legend
+    axes[-1].axis('off')
+    axes[-1].legend(
         handles=legend_lines,
         loc='upper right',
         bbox_to_anchor=(1, 1.02),
@@ -598,18 +285,155 @@ def flight_profiles_2(df, metadata, xlims=None, xticks=None, fig_title=None):
     plt.show()
     return fig
 
+
+def _get_series_bounds(
+    x: pd.Series,
+    default_divider: Number,
+    default_min: Number | None,
+    default_max: Number | None
+) -> tuple[tuple[Number, Number], Number]:
+    min_bound = x.min() if default_min is None else default_min
+    max_bound = x.quantile(0.99) * 1.1 if default_max is None else default_max
+
+    divider = default_divider
+    while max_bound - min_bound > divider * 6:
+        divider = ((max_bound - min_bound) // 6)
+        divider = divider - (divider % default_divider) + default_divider
+
+    min_bound = min_bound - (min_bound % divider)
+    max_bound = max_bound + (-max_bound % divider)
+
+    return (min_bound, max_bound), divider
+
+
+def plot_size_distributions(df: pd.DataFrame, level: Level, output_schema: OutputSchema, fig_title: str,
+                            time_start: datetime.datetime | None, time_end: datetime.datetime | None,
+                            freq: str = "1s", min_loc_interval: int = 10):
+    # TEMPORAL PLOT OF FLIGHT with POPS and mSEMS HEAT MAPS
+    instruments_with_size_distr = [instr for instr in output_schema.instruments if instr.has_size_distribution]
+    nrows = len(instruments_with_size_distr) + 1
+
+    # Create figure with 3 subplots, sharing the same x-axis
+    fig, axes = plt.subplots(nrows, ncols=1, figsize=(16, 12), sharex=True, gridspec_kw={'height_ratios': [1, 1, 1, 1]})
+    plt.subplots_adjust(hspace=0.1)
+
+    """ SET THE TITLE OF THE PLOT (FLIGHT N° with DATE_X) """
+    # 'i' will automatically be replaced by the set flight number
+    # '_X' has to be changed manually in function of the flight index of the day (A, B, ...)
+    fig.suptitle(fig_title, fontsize=16, fontweight='bold', y=0.91)
+
+    ### SUBPLOT 1: Altitude vs. Time
+    ax1 = axes[0]
+    ax1.plot(df.index, df['Altitude'], color='black', linewidth=2, label='Altitude')
+
+    ax1.set_ylabel('Altitude (m)', fontsize=12, fontweight='bold')
+    ax1.tick_params(axis='y', labelsize=11)
+    ax1.grid(True, linestyle='--', linewidth=0.5)
+    ax1.tick_params(axis='x', labelbottom=False)
+    ax1.set_ylim(-40, df['Altitude'].max() * 1.04)
+
+    freq_detected = pd.infer_freq(df.index)
+    if freq_detected is None:
+        freq_detected = freq
+    timedelta = pd.to_timedelta(pd.tseries.frequencies.to_offset(freq_detected))
+
+    for shade_config in output_schema.flight_profile_shades:
+        if shade_config.name in df.columns:
+            shade_flagged(shade_config, [ax1], df, level, timedelta=timedelta)
+
+            if shade_config.line_name is not None:
+                values = df[shade_config.line_name]
+                v_max = values.max() if not values.isna().all() else 1.0
+                line_label, line_color = shade_config.line_kwargs["label"], shade_config.line_kwargs.get("color", None)
+
+                ax1_twin = ax1.twinx()
+                ax1_twin.plot(df.index, values, **shade_config.line_kwargs)
+                ax1_twin.tick_params(axis="y", labelsize=11, colors=line_color)
+                ax1_twin.set_ylabel(line_label, color=line_color, fontsize=12, fontweight='bold')
+                ax1_twin.set_ylim(0.0, v_max * 1.1)
+
+    # Optional: Clean legend (avoid duplicates)
+    handles, labels = ax1.get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    ax1.legend(by_label.values(), by_label.keys(), fontsize=10)
+
+    verbose = True
+    for i, instrument in enumerate(instruments_with_size_distr):
+        instrument.plot_distribution(df, verbose, time_start, time_end, subplot=(fig, axes[i + 1]))
+
+    # X-axis formatting for all subplots
+    span = df.index.max() - df.index.min()
+
+    ax_last = axes[-1]
+    if span <= pd.Timedelta(days=1):
+        ax_last.xaxis.set_major_formatter(mdates.DateFormatter("%H:%M"))
+        ax_last.xaxis.set_major_locator(mdates.MinuteLocator(interval=min_loc_interval))
+    else:
+        ax_last.xaxis.set_major_formatter(mdates.DateFormatter("%m-%d %H:%M"))
+        ax_last.xaxis.set_major_locator(mdates.HourLocator(interval=min_loc_interval // 24))
+
+    ax_last.set_xlabel('Time', fontsize=13, fontweight='bold', labelpad=10)
+    ax_last.tick_params(axis='x', rotation=90, labelsize=11)
+
+    xlim = ax_last.get_xlim()
+    xlim = (time_start if time_start is not None else xlim[0], time_end if time_end is not None else xlim[1])
+    ax_last.set_xlim(xlim)
+
+    plt.show()
+    return fig
+
+
+def shade_flagged(shade_config: FlightProfileVariableShade, axes: list[plt.Axes], df: pd.DataFrame, level: Level,
+                  shade_coord: str = "y", other_coord_name: str | None = None,
+                  timedelta: pd.Timedelta = pd.Timedelta(seconds=1)):
+    name = shade_config.name
+    mask = df[[name]].copy()
+    mask[name] = shade_config.condition(level, mask[name]).astype("Int64")
+
+    # If NaNs are between shaded areas, fill them in, otherwise, do not shade
+    nans_between_shaded = mask[name].ffill().eq(1) & mask[name].bfill().eq(1)
+    nans_between_shaded = nans_between_shaded.fillna(False)
+    mask[name] = mask[name].where(~nans_between_shaded, 1)
+    mask[name] = mask[name].fillna(0)
+
+    if mask.empty:
+        return
+
+    starts = mask[(mask[name] != mask.shift(1)[name]).fillna(True)].index
+    ends = mask[(mask[name] != mask.shift(-1)[name]).fillna(True)].index
+
+    for start, end in zip(starts, ends):
+        if end - start <= timedelta:
+            continue
+
+        if mask.loc[start, name] == 1:
+            v_min = start if other_coord_name is None else df.loc[start:end, other_coord_name].min()
+            v_max = end if other_coord_name is None else df.loc[end, other_coord_name].max()
+
+            if pd.isna(v_min) or pd.isna(v_max):
+                continue
+
+            for ax in axes:
+                if shade_coord == "y":
+                    ax.axvspan(v_min, v_max, label=shade_config.label, **shade_config.span_kwargs)
+                elif shade_coord == "x":
+                    ax.axhspan(v_min, v_max, label=shade_config.label, **shade_config.span_kwargs)
+                else:
+                    raise ValueError(f"Invalid `flag_coord`: {shade_coord}")
+
+
 def filter_data(df):
     fig, ax1 = plt.subplots(figsize=(12, 6))
-    
+
     # Plot Filter_position
-    ax1.plot(df.index, df['flight_computer_F_cur_pos'], color='tab:blue', label='Filter Position')
+    ax1.plot(df.index, df['filter_cur_pos'], color='tab:blue', label='Filter Position')
     ax1.set_xlabel('Time')
     ax1.set_ylabel('Filter Position', color='tab:blue')
     ax1.tick_params(axis='y', labelcolor='tab:blue')
 
     # Create a second y-axis for Filter_flow
     ax2 = ax1.twinx()
-    ax2.plot(df.index, df['flight_computer_F_pump_pw'], color='tab:red', label='Pump Power')
+    ax2.plot(df.index, df['filter_pump_pw'], color='tab:red', label='Pump Power')
     ax2.set_ylabel('Pump Power', color='tab:red')
     ax2.tick_params(axis='y', labelcolor='tab:red')
 

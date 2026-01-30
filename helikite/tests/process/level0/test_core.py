@@ -1,5 +1,5 @@
 from helikite.classes.cleaning import Cleaner
-from helikite.tests.process.level0.mock import MockInstrument
+from helikite.tests.process.level0.mock import MockInstrument, get_mock_output_schema
 import pandas as pd
 import datetime
 
@@ -19,6 +19,7 @@ def test_set_pressure_column(campaign_data):
 
     # Use the temp directory as input_folder for Cleaner
     cleaner = Cleaner(
+        output_schema=get_mock_output_schema(instrument1),
         instruments=[instrument1],
         reference_instrument=instrument1,
         input_folder=str(campaign_data),
@@ -43,6 +44,7 @@ def test_set_time_as_index(campaign_data):
     )
 
     cleaner = Cleaner(
+        output_schema=get_mock_output_schema(instrument1),
         instruments=[instrument1],
         reference_instrument=instrument1,
         input_folder=str(campaign_data),
@@ -67,6 +69,7 @@ def test_data_corrections(campaign_data):
     )
 
     cleaner = Cleaner(
+        output_schema=get_mock_output_schema(instrument1),
         instruments=[instrument1],
         reference_instrument=instrument1,
         input_folder=str(campaign_data),

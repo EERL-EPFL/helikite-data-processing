@@ -1,15 +1,20 @@
-import datetime
 import importlib
 import inspect
+import os
 import pathlib
 import pkgutil
 import re
 
 import pandas as pd
+import pytest
 
 import helikite.instruments
-from helikite.classes.data_processing import OutputSchemas
-from helikite.instruments import Instrument, cpc, smart_tether
+from helikite import Cleaner
+from helikite.classes.output_schemas import OutputSchemas
+from helikite.classes.data_processing_level1 import DataProcessorLevel1
+from helikite.classes.data_processing_level1_5 import DataProcessorLevel1_5
+from helikite.instruments import Instrument, cpc, filter, mcpc, pops, flight_computer_v2
+from helikite.instruments.base import filter_columns_by_instrument
 
 
 def test_read_data(campaign_file_paths_and_instruments_2022):
@@ -30,7 +35,7 @@ def test_instrument_instances():
     for _, name, _ in pkgutil.iter_modules([helikite.instruments.__path__[0]]):
         module = importlib.import_module(f"{helikite.instruments.__name__}.{name}")
         for _, cls in inspect.getmembers(module, predicate=inspect.isclass):
-            if issubclass(cls, Instrument) and cls not in excluded_classes:
+            if issubclass(cls, Instrument) and cls not in excluded_classes and not inspect.isabstract(cls):
                 all_classes.add(cls)
 
     uninstantiated_classes = all_classes - registered_classes
@@ -58,41 +63,119 @@ def test_columns_consistency():
                                          f"{unexpected_cols}")
 
         if obj.expected_header_value:
-            cols = re.split("[,;]", obj.expected_header_value.strip("\n"))
-            cols = [col.strip() for col in cols]
-            cols = filter(lambda x: len(x) > 0, cols)
+            cols = re.split(obj.delimiter or "[,;]", obj.expected_header_value.strip("\n"))
+            cols = [
+                col.strip()[1:-1] if col.strip().startswith('"') and col.strip().endswith('"')
+                else col.strip()
+                for col in cols
+            ]
+            cols = [col for col in cols if len(col) > 0]
             unexpected_cols = set(cols) - cols_all
 
             assert not unexpected_cols, (f"Columns from `expected_header_value` are not present in `dtype` of "
                                          f"`{name}`: {unexpected_cols}")
 
 
+@pytest.fixture
+def temp_cwd(tmp_path):
+    old = os.getcwd()
+    os.chdir(tmp_path)
+    yield tmp_path
+    os.chdir(old)
+
+
 def test_expected_columns_level0_oracles(
-    campaign_data_location_2025: str
+    campaign_data_location_2025: str,
+    temp_cwd,
 ):
-    df = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level0_2025-02-14T16-16_header.csv")
+    df = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level0_2025-02-14T16-16_header.csv", index_col="DateTime")
     df_cpc = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level0_2025-02-14T18-32_header.csv")
 
     # in the old version of processing "cpc_DateTime" was the last CPC column
-    cpc_columns = [col for col in df_cpc.columns if col.startswith("cpc_")]
+    cpc_columns = filter_columns_by_instrument(df_cpc.columns, cpc)
     cpc_columns = ["cpc_DateTime"] + cpc_columns[:-1]
 
-    columns = df.columns.to_list() + cpc_columns
+    expected_columns = df.columns.to_list() + cpc_columns
+    actual_columns = Cleaner.get_expected_columns(output_schema=OutputSchemas.ORACLES_24_25, with_dtype=False)
 
-    date = datetime.date(2025, 2, 14)
-    cpc.date = date
-    smart_tether.date = date
+    # TODO: remove once filter is integrated in the pipeline
+    filter_columns = filter_columns_by_instrument(actual_columns, filter)
+    actual_columns = set(col for col in actual_columns if col not in filter_columns)
 
-    for instrument in OutputSchemas.ORACLES.instruments:
-        # TODO: remove this once inconsistency with flight computer is resolved
-        if instrument.name == "flight_computer":
-            continue
+    assert set(expected_columns) == set(actual_columns)
 
-        # TODO: remove once filter is integrated in the pipeline
-        if instrument.name == "filter":
-            continue
 
-        expected_columns = [col for col in columns if col.startswith(f"{instrument.name}_")]
-        actual_columns = instrument.get_expected_columns(level=0, is_reference=False)
+def test_expected_columns_level0_turtmann(
+    campaign_data_location_turtmann: str,
+    temp_cwd,
+):
+    df = pd.read_csv(pathlib.Path(campaign_data_location_turtmann) / "level0_2024-02-20_B_header.csv", index_col="DateTime")
+    df_filter_pops = pd.read_csv(pathlib.Path(campaign_data_location_turtmann) / "level0_2024-02-26_B_header.csv")
 
-        assert set(expected_columns) == set(actual_columns)
+    # in the old version of processing "cpc_DateTime" was the last CPC column
+    filter_columns = filter_columns_by_instrument(df_filter_pops.columns, filter)
+    pops_columns = filter_columns_by_instrument(df_filter_pops.columns, pops)
+
+    expected_columns = df.columns.to_list() + filter_columns + pops_columns
+    actual_columns = Cleaner.get_expected_columns(output_schema=OutputSchemas.TURTMANN, with_dtype=False)
+
+    assert set(expected_columns) == set(actual_columns)
+
+
+def test_expected_columns_level1_oracles(
+    campaign_data_location_2025: str,
+    temp_cwd,
+):
+    df = DataProcessorLevel1.read_data(pathlib.Path(campaign_data_location_2025) / "level1_2025-02-14_D_header.csv")
+
+    expected_columns = df.columns.to_list()
+    actual_columns = DataProcessorLevel1.get_expected_columns(OutputSchemas.ORACLES_24_25,
+                                                              reference_instrument=flight_computer_v2,
+                                                              with_dtype=False)
+    actual_columns = set(actual_columns)
+
+    assert set(expected_columns) == set(actual_columns)
+
+
+# TODO: enable testing of Turtmann data
+# def test_expected_columns_level1_turtmann(
+#     campaign_data_location_turtmann: str
+# ):
+#     df = pd.read_csv(pathlib.Path(campaign_data_location_turtmann) / "level1_2024-02-20_B_header.csv", index_col="DateTime")
+#
+#     expected_columns = df.columns.to_list()
+#     actual_columns = DataProcessorLevel1.get_expected_columns(OutputSchemas.TURTMANN,
+#                                                               reference_instrument=flight_computer_v1,
+#                                                               with_dtype=False)
+#     actual_columns = set(actual_columns)
+#
+#     assert set(expected_columns) == set(actual_columns)
+
+def test_expected_columns_level1_5_oracles(
+    campaign_data_location_2025: str,
+    temp_cwd,
+):
+    df = pd.read_csv(pathlib.Path(campaign_data_location_2025) / "level1.5_2025-02-14_D_header.csv")
+
+    expected_columns = df.columns.to_list()
+    actual_columns = DataProcessorLevel1_5.get_expected_columns(OutputSchemas.ORACLES_24_25,
+                                                                reference_instrument=flight_computer_v2,
+                                                                with_dtype=False)
+    actual_columns = set(actual_columns)
+
+    assert set(expected_columns) == set(actual_columns)
+
+
+# TODO: enable testing of Turtmann data
+# def test_expected_columns_level1_5_turtmann(
+#     campaign_data_location_turtmann: str
+# ):
+#     df = pd.read_csv(pathlib.Path(campaign_data_location_turtmann) / "level1.5_2024-02-20_B_header.csv", index_col="datetime")
+#
+#     expected_columns = df.columns.to_list()
+#     actual_columns = DataProcessorLevel1_5.get_expected_columns(OutputSchemas.TURTMANN,
+#                                                                 reference_instrument=flight_computer_v2,
+#                                                                 with_dtype=False)
+#     actual_columns = set(actual_columns)
+#
+#     assert set(expected_columns) == set(actual_columns)

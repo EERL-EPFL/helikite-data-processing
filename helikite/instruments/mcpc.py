@@ -17,8 +17,11 @@ class MCPC(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "mCPC"
+
     def file_identifier(self, first_lines_of_csv) -> bool:
-        if "#MCPC-UAV" in first_lines_of_csv[0]:
+        if any(s in first_lines_of_csv[0] for s in ["#MCPC-UAV", "#aMCPC"]):
             return True
 
         return False
@@ -32,6 +35,8 @@ class MCPC(Instrument):
             df["#YY/MM/DD"] + " " + df["HR:MN:SC"], format="%y/%m/%d %H:%M:%S"
         )
         df.drop(columns=["#YY/MM/DD", "HR:MN:SC"], inplace=True)
+        df.set_index("DateTime", inplace=True)
+        df.index = df.index.astype("datetime64[s]")
 
         return df
 
@@ -44,7 +49,7 @@ class MCPC(Instrument):
             self.filename,
             dtype=self.dtype,
             na_values=self.na_values,
-            header=self.header,
+            skiprows=self.header,
             delimiter=self.delimiter,
             lineterminator=self.lineterminator,
             comment=self.comment,
@@ -63,8 +68,8 @@ mcpc = MCPC(
         "#YY/MM/DD": "str",
         "HR:MN:SC": "str",
         "aveconc": "Int64",
-        "concent": "Int64",
-        "rawconc": "Int64",
+        "concent": "Float64",
+        "rawconc": "Float64",
         "cnt_sec": "Int64",
         "condtmp": "Float64",
         "satttmp": "Float64",
@@ -86,4 +91,5 @@ mcpc = MCPC(
         "mcpcpwr": "Int64",
     },
     export_order=200,
+    pressure_variable="pressur",
 )

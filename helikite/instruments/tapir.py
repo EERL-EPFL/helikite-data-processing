@@ -21,6 +21,9 @@ class TAPIR(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "TAPIR"
+
     def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
         try:
             # Combine GT date and time into a single datetime
@@ -35,7 +38,6 @@ class TAPIR(Instrument):
 
     def data_corrections(self, df, *args, **kwargs):
         df = df.resample("1s").asfreq()
-        df.insert(0, "DateTime", df.index)
 
         return df
 
@@ -45,7 +47,7 @@ class TAPIR(Instrument):
                 self.filename,
                 dtype=self.dtype,
                 engine="python",
-                header=self.header,
+                skiprows=self.header,
                 na_values=self.na_values,
                 delimiter=self.delimiter,
                 lineterminator=self.lineterminator,
@@ -100,6 +102,10 @@ tapir = TAPIR(
     ],
     cols_housekeeping=[
         "YrMoDy", "HrMnSd", "Lat", "Lon", "Le", "speed", "route", "Tproc1", "Tproc2", "Tproc3", "Tproc4", "Thead1", "Thead2", "Thead3", "Thead4", "Tbox"
+    ],
+    cols_final=[
+        "Lat", "Lon", "speed", "route", "Tproc1", "Tproc2", "Tproc3", "Tproc4",
+        "Thead1", "Thead2", "Thead3", "Thead4", "Tbox"
     ],
     pressure_variable=None  # Add if TAPIR has pressure data
 )

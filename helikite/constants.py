@@ -1,12 +1,13 @@
-from pydantic_settings import BaseSettings
-from pathlib import Path
 import logging
 from functools import lru_cache
+from pathlib import Path
+
+from pydantic_settings import BaseSettings
 
 
 class Constants(BaseSettings):
-    INPUTS_FOLDER: Path = Path.cwd().joinpath("inputs")
-    OUTPUTS_FOLDER: Path = Path.cwd().joinpath("outputs")
+    INPUTS_FOLDER: Path = Path.cwd().parent.joinpath("inputs")
+    OUTPUTS_FOLDER: Path = Path.cwd().parent.joinpath("outputs")
     OUTPUTS_INSTRUMENT_SUBFOLDER: str = "instruments"
     CONFIG_FILE: str = "config.yaml"
     MASTER_CSV_FILENAME: str = "helikite-data.csv"
@@ -50,7 +51,6 @@ class Constants(BaseSettings):
 
 @lru_cache()
 def get_constants():
-
     # with open(os.path.join(file_dir, "pyproject.toml"), "r") as f:
     # pyproject = toml.load(f)
     # pyproject_version = pyproject["tool"]["poetry"]["version"]

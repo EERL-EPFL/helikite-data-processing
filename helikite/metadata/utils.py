@@ -1,17 +1,19 @@
+import pathlib
+
 from helikite.metadata.models import Level0
 import pandas as pd
 import pyarrow.parquet as pq
 import orjson
 
 
-def load_parquet(filepath: str) -> tuple[pd.DataFrame, Level0]:
+def load_parquet(filepath: str | pathlib.Path) -> tuple[pd.DataFrame, Level0]:
     """
     Load a Parquet file, extract pandas DataFrame and metadata.
     """
 
     # Read Parquet file
     table = pq.read_table(filepath)
-    df = table.to_pandas()
+    df = table.to_pandas().convert_dtypes()
 
     # Extract level0 metadata and decode keys and values
     metadata = orjson.loads(

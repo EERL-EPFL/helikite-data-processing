@@ -1,4 +1,6 @@
 import pandas as pd
+
+from helikite.classes.output_schemas import OutputSchema
 from helikite.instruments.base import Instrument
 
 
@@ -11,7 +13,10 @@ class MockInstrument(Instrument):
         )
         self.df = self.df_raw.copy()
 
-    def read_from_folder(self, folder, quiet=False):
+    def __repr__(self):
+        return "Mock"
+
+    def read_from_folder(self, input_folder: str, quiet: bool = False, interactive: bool = True) -> pd.DataFrame:
         # Return df_raw directly for testing purposes
         return self.df_raw
 
@@ -32,3 +37,15 @@ class MockInstrument(Instrument):
         # Set the "time" column as the index
         df.index = pd.to_datetime(df["time"])
         return df
+
+
+def get_mock_output_schema(reference_instrument: Instrument, instruments: list[Instrument] | None = None):
+    if instruments is None:
+        instruments = [reference_instrument]
+
+    return OutputSchema(
+        campaign=None,
+        instruments=instruments,
+        reference_instrument_candidates=[reference_instrument],
+        colors={reference_instrument.name: "C0"},
+    )

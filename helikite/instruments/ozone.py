@@ -16,14 +16,17 @@ class OzoneMonitor(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "Ozone"
+
     def file_identifier(self, first_lines_of_csv) -> bool:
         # This one is tricky. There is no header! May run into conflicts later
         # Check there are six commas in the first line, and ends in 0, and only
         # a newline in the second
         if (
-            first_lines_of_csv[0][-2] == "0"
-            and first_lines_of_csv[0].count(",") == 6
-            and first_lines_of_csv[1] == "\n"
+            first_lines_of_csv[self.header][-2] == "0"
+            and first_lines_of_csv[self.header].count(",") == 6
+            and first_lines_of_csv[self.header + 1] == "\n"
         ):
             return True
 
@@ -38,8 +41,8 @@ class OzoneMonitor(Instrument):
         df.drop(columns=["date", "time"], inplace=True)
 
         # Define the datetime column as the index
-        df.reset_index(drop=False, inplace=True)
         df.set_index("DateTime", inplace=True)
+        df.index = df.index.astype("datetime64[s]")
 
         return df
 
@@ -52,7 +55,7 @@ class OzoneMonitor(Instrument):
             self.filename,
             dtype=self.dtype,
             na_values=self.na_values,
-            header=self.header,
+            skiprows=self.header,
             delimiter=self.delimiter,
             lineterminator=self.lineterminator,
             comment=self.comment,
@@ -67,7 +70,6 @@ ozone_monitor = OzoneMonitor(
     name="ozone",
     na_values=["-"],
     index_col=0,
-    header=None,
     names=[
         "ozone",
         "cell_temp",

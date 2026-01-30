@@ -1,8 +1,11 @@
 import datetime
+import logging
+import os
 import pathlib
 from itertools import cycle
-from typing import List
+from numbers import Number
 
+import matplotlib.pyplot as plt
 import numpy as np
 import orjson
 import pandas as pd
@@ -14,27 +17,44 @@ import pyarrow.parquet as pq
 from ipywidgets import Output, VBox
 
 from helikite.classes.base import BaseProcessor, function_dependencies
+from helikite.classes.output_schemas import OutputSchema, Level
 from helikite.constants import constants
-from helikite.instruments.base import Instrument
+from helikite.instruments import msems_inverted, msems_scan
+from helikite.instruments.base import Instrument, filter_columns_by_instrument
 from helikite.metadata.models import Level0
+from helikite.processing.helpers import temporary_attr
 from helikite.processing.post import crosscorrelation
 
 parent_process = psutil.Process().parent().cmdline()[-1]
 
+logger = logging.getLogger(__name__)
+logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 class Cleaner(BaseProcessor):
+    @property
+    def level(self) -> Level:
+        return Level.LEVEL0
+
     def __init__(
         self,
-        instruments: list[Instrument],
-        reference_instrument: Instrument,
+        output_schema: OutputSchema,
         input_folder: str | pathlib.Path,
         flight_date: datetime.date,
+        instruments: list[Instrument] | None = None,
+        reference_instrument: Instrument | None = None,
+        reference_instrument_shift: str | None = None,
         flight: str | None = None,
         time_takeoff: datetime.datetime | None = None,
         time_landing: datetime.datetime | None = None,
         time_offset: datetime.time = datetime.time(0, 0),
+        interactive: bool = True,
     ) -> None:
-        super(Cleaner, self).__init__()
+        if instruments is None:
+            instruments = Cleaner.detect_instruments(output_schema, input_folder)
+        if reference_instrument is None:
+            reference_instrument = Cleaner.choose_reference_instrument(output_schema, instruments)
+
+        super(Cleaner, self).__init__(output_schema, instruments, reference_instrument)
 
         self._instruments: list[Instrument] = []  # For managing in batches
         self.input_folder: str = input_folder if isinstance(input_folder, str) else str(input_folder)
@@ -46,12 +66,13 @@ class Cleaner(BaseProcessor):
         self.pressure_column: str = constants.HOUSEKEEPING_VAR_PRESSURE
         self.master_df: pd.DataFrame | None = None
         self.housekeeping_df: pd.DataFrame | None = None
-        self.reference_instrument: Instrument = reference_instrument
+        self._reference_instrument: Instrument = reference_instrument
+        self._reference_instrument_shift: str | None = reference_instrument_shift
 
         # Create an attribute from each instrument.name
         for instrument in instruments:
             instrument.df_raw = instrument.read_from_folder(
-                self.input_folder, quiet=True
+                self.input_folder, quiet=True, interactive=interactive,
             )
             instrument.df = instrument.df_raw.copy(deep=True)
             instrument.df_before_timeshift = pd.DataFrame()
@@ -73,7 +94,11 @@ class Cleaner(BaseProcessor):
             "available methods."
         )
 
-    def _data_state_info(self) -> List[str]:
+    @property
+    def df(self) -> pd.DataFrame | None:
+        return self.master_df
+
+    def _data_state_info(self) -> list[str]:
         state_info = []
 
         # Add instrument information
@@ -84,7 +109,7 @@ class Cleaner(BaseProcessor):
 
         for instrument in self._instruments:
             reference = (
-                "Yes" if instrument == self.reference_instrument else "No"
+                "Yes" if instrument == self._reference_instrument else "No"
             )
             state_info.append(
                 f"{instrument.name:<20}{len(instrument.df):<10}{reference:<10}"
@@ -133,7 +158,7 @@ class Cleaner(BaseProcessor):
         )
         return state_info
 
-    @function_dependencies(use_once=True)
+    @function_dependencies(required_operations=[], changes_df=True, use_once=True)
     def set_pressure_column(
         self,
         column_name_override: str | None = None,
@@ -163,7 +188,7 @@ class Cleaner(BaseProcessor):
 
         self._print_success_errors("pressure column", success, errors)
 
-    @function_dependencies([], use_once=True)
+    @function_dependencies([], changes_df=True, use_once=True)
     def set_time_as_index(self) -> None:
         """Set the time column as the index for each instrument dataframe"""
 
@@ -173,13 +198,18 @@ class Cleaner(BaseProcessor):
         for instrument in self._instruments:
             try:
                 instrument.df = instrument.set_time_as_index(instrument.df)
+                instrument.df = instrument.df[~instrument.df.index.duplicated(keep="first")]
+                instrument.df.index = instrument.df.index.astype("datetime64[s]")
+                if instrument.df.index.name not in instrument.df.columns:
+                    instrument.df.insert(0, instrument.df.index.name, instrument.df.index)
                 success.append(instrument.name)
+                assert instrument.df.index.dtype == "datetime64[s]", f"Unexpected index type: {instrument.df.index.dtype}"
             except Exception as e:
                 errors.append((instrument.name, e))
 
         self._print_success_errors("time as index", success, errors)
 
-    @function_dependencies(["set_time_as_index"], use_once=True)
+    @function_dependencies(["set_time_as_index"], changes_df=True, use_once=True)
     def data_corrections(
         self,
         start_altitude: float = None,
@@ -201,15 +231,14 @@ class Cleaner(BaseProcessor):
             except Exception as e:
                 errors.append((instrument.name, e))
 
+        if self._reference_instrument_shift is not None:
+            self._reference_instrument.df = self._reference_instrument.df.shift(
+                periods=self._reference_instrument_shift, freq="s"
+            )
+
         self._print_success_errors("data corrections", success, errors)
 
-    @function_dependencies(
-        [
-            "set_time_as_index",
-            "set_pressure_column",
-        ],
-        use_once=False,
-    )
+    @function_dependencies(["set_time_as_index", "set_pressure_column"], changes_df=False, use_once=False)
     def plot_pressure(self) -> None:
         """Creates a plot with the pressure measurement of each instrument
 
@@ -278,7 +307,53 @@ class Cleaner(BaseProcessor):
 
         fig.show()
 
-    @function_dependencies(["set_time_as_index"], use_once=True)
+    @function_dependencies(
+        required_operations=[("correct_time_and_pressure", "pressure_based_time_synchronization")],
+        changes_df=False,
+        use_once=False
+    )
+    def plot_time_sync(self, save_path: str | pathlib.Path, skip: list[Instrument]):
+        plt.close('all')
+        fig, (ax) = plt.subplots(1, 1, figsize=(10, 8))
+
+        for instrument in self._instruments:
+            if instrument in skip:
+                continue
+
+            if instrument.pressure_column not in instrument.df.columns:
+                print(f"Note: {instrument.name} does not have a pressure column")
+                continue
+
+            color = self._output_schema.colors[instrument]
+            if instrument != self._reference_instrument:
+                # Initial (before timeshift)
+                ax.plot(
+                    instrument.df_before_timeshift.index,
+                    instrument.df_before_timeshift['pressure'],
+                    linestyle='dashed',
+                    color=color,
+                    label=f'{instrument} init'
+                )
+
+            # Corrected
+            label = f'{instrument} corr' if instrument != self._reference_instrument else str(instrument)
+            pressure = instrument.df['pressure'].ffill()
+            ax.plot(instrument.df.index, pressure, color=color, label=label)
+
+        ax.set_xlabel("Time", fontsize=10, labelpad=15, fontweight='bold')
+        ax.set_ylabel("Pressure (hPa)", fontsize=10, labelpad=15, fontweight='bold')
+        ax.set_title(f'Flight {self.flight} ({self.flight_date}_B) [Level {self.level.value}]', fontsize=12, fontweight='bold',
+                     pad=15)
+        ax.grid(ls='--')
+        ax.legend(ncols=2)
+
+        # Show the plot
+        plt.show()
+
+        print("Saving figure to:", save_path)
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+
+    @function_dependencies(["set_time_as_index"], changes_df=True, use_once=False)
     def remove_duplicates(self) -> None:
         """Remove duplicate rows from each instrument based on time index,
         and clear repeated values in 'msems_scan_', 'msems_inverted_' columns,
@@ -327,19 +402,17 @@ class Cleaner(BaseProcessor):
                 else:
                     print(f"No 'measurement_nbr' column found in {self.mcda.name}.")
 
-                success.append("cleaner")
+                success.append(instrument.name)
 
             except Exception as e:
-                errors.append(("cleaner", e))
+                errors.append((instrument.name, e))
 
         self._print_success_errors("duplicate removal", success, errors)
 
     @function_dependencies(
-        [
-            "set_time_as_index",
-            "set_pressure_column",
-        ],
-        use_once=False,
+        required_operations=[("correct_time_and_pressure", "pressure_based_time_synchronization"), "remove_duplicates"],
+        changes_df=True,
+        use_once=False
     )
     def merge_instruments(
         self, tolerance_seconds: int = 0, remove_duplicates: bool = True
@@ -363,18 +436,18 @@ class Cleaner(BaseProcessor):
 
             # Use same time resolution as reference instrument
             instrument.df.index = instrument.df.index.astype(
-                self.reference_instrument.df.index.dtype
+                self._reference_instrument.df.index.dtype
             )
 
         print("Using merge_asof to align and merge instrument dataframes.")
 
         # Create a full 1s-spaced datetime index to preserve in the final master_df
-        start = self.reference_instrument.df.index.min()
-        end = self.reference_instrument.df.index.max()
+        start = self._reference_instrument.df.index.min()
+        end = self._reference_instrument.df.index.max()
         full_index = pd.date_range(start=start, end=end, freq="1s")
 
         # Start with the reference instrument dataframe
-        self.master_df = self.reference_instrument.df.copy()
+        self.master_df = self._reference_instrument.df.copy()
         self.master_df.columns = [
             f"{self.reference_instrument.name}_{col}"
             for col in self.master_df.columns
@@ -382,7 +455,7 @@ class Cleaner(BaseProcessor):
 
         # Merge all other dataframes with merge_asof
         for instrument in self._instruments:
-            if instrument == self.reference_instrument:
+            if instrument == self._reference_instrument:
                 continue
 
             temp_df = instrument.df.copy()
@@ -410,16 +483,10 @@ class Cleaner(BaseProcessor):
             "Available at Cleaner.master_df."
         )
 
-    @function_dependencies(
-        [
-            "merge_instruments",
-            "remove_duplicates",
-        ],
-        use_once=False,
-    )
+    @function_dependencies(["define_flight_times", "merge_instruments"], changes_df=False, use_once=False)
     def export_data(
         self,
-        filename: str | None = None,
+        filepath: str | pathlib.Path | None = None,
     ) -> None:
         """Export all data columns from all instruments to local files
 
@@ -438,7 +505,7 @@ class Cleaner(BaseProcessor):
                 "merge_instruments() method."
             )
 
-        if filename is None:
+        if filepath is None:
             # Include the date and time of the first row of the reference
             # instrument in the filename
             time = (
@@ -446,7 +513,8 @@ class Cleaner(BaseProcessor):
                 .to_pydatetime()
                 .strftime("%Y-%m-%dT%H-%M")
             )
-            filename = f"level0_{time}"  # noqa
+            filepath = f"level0_{time}"  # noqa
+
 
         metadata = Level0(
             flight=self.flight,
@@ -471,24 +539,21 @@ class Cleaner(BaseProcessor):
             **{"level0": level0_metadata},
             **existing_metadata,
         }
+
+        dirpath = pathlib.Path(filepath).parent
+        dirpath.mkdir(parents=True, exist_ok=True)
+
         # Save the metadata to the Parquet file
         table = table.replace_schema_metadata(merged_metadata)
-        pq.write_table(table, f"{filename}.parquet")
+        pq.write_table(table, f"{filepath}.parquet")
 
-        self.master_df[all_columns].to_csv(f"{filename}.csv")
+        self.master_df[all_columns].to_csv(f"{filepath}.csv")
 
         print(
-            f"\nDone. The file '{filename}'.{{csv|parquet}} contains all "
+            f"\nDone. The file '{filepath}'.{{csv|parquet}} contains all "
             "instrument data. The metadata is stored in the Parquet file."
         )
 
-    @function_dependencies(
-        [
-            "set_pressure_column",
-            "set_time_as_index",
-        ],
-        use_once=False,
-    )
     def _apply_rolling_window_to_pressure(
         self,
         instrument,
@@ -514,14 +579,7 @@ class Cleaner(BaseProcessor):
             f" on column '{instrument.pressure_column}'"
         )
 
-    @function_dependencies(
-        [
-            "set_pressure_column",
-            "set_time_as_index",
-            "data_corrections",
-        ],
-        use_once=False,
-    )
+    @function_dependencies(["set_pressure_column", "data_corrections"], changes_df=False, use_once=False)
     def define_flight_times(self):
         """Creates a plot to select the start and end of the flight
 
@@ -622,7 +680,7 @@ class Cleaner(BaseProcessor):
             # Add pressure trace to the plot. If it is the reference
             # instrument, plot it with a thicker/darker line, otherwise,
             # plot it lightly with some transparency.
-            if instrument == self.reference_instrument:
+            if instrument == self._reference_instrument:
                 fig.add_trace(
                     go.Scatter(
                         x=instrument.df.index,
@@ -647,7 +705,7 @@ class Cleaner(BaseProcessor):
         # Attach the callback to all traces
         for trace in fig.data:
             # Only allow the reference instrument to be clickable
-            if trace.name == self.reference_instrument.name:
+            if trace.name == self._reference_instrument.name:
                 trace.on_click(select_point_callback)
 
         # Customize plot layout
@@ -664,14 +722,106 @@ class Cleaner(BaseProcessor):
         # Show plot with interactive click functionality
         return VBox([fig, out])  # Use VBox to stack the plot and output
 
-    @function_dependencies(
-        [
-            "set_time_as_index",
-            "data_corrections",
-            "set_pressure_column",
-        ],
-        use_once=False,
-    )
+    @function_dependencies(["set_pressure_column", "data_corrections"], changes_df=True, use_once=False)
+    def pressure_based_time_synchronization(self, max_lag: float = np.inf):
+        """
+        Time-synchronizes instruments by maximizing cross-correlation between the pressure data of the reference
+        instrument and the other instruments. Runs multiple iterations using a coarse-to-fine scheme,
+        starting with a coarse adjustment and refining until the final lags are found.
+
+        Parameters
+        ----------
+        max_lag : int, optional
+            Maximum allowed time lag in seconds used at the first (coarsest) level.
+            If None, it defaults to half of the flight duration.
+        """
+        self._build_df_pressure()
+
+        df_pressure = self.df_pressure.copy()
+        ref_index = self.reference_instrument.df.index
+
+        instrument_lags = {}
+        final_lags = {}
+
+        for instrument in self._instruments:
+            # skip reference or instruments without pressure data
+            if instrument == self._reference_instrument or instrument.name not in df_pressure.columns:
+                continue
+
+            instrument_lags[instrument] = 0
+            final_lags[instrument] = 0
+
+            # preliminary coarse adjustment if indices don't overlap at all
+            instr_index = instrument.df.index
+            if instr_index.max() < ref_index.min() or instr_index.min() > ref_index.max():
+                instrument_lags[instrument] = int((ref_index.mean() - instr_index.mean()).total_seconds())
+                df_pressure[instrument.name] = df_pressure[instrument.name].shift(instrument_lags[instrument], freq="s")
+                final_lags[instrument] = instrument_lags[instrument]
+
+        curr_max_lag = (ref_index.max() - ref_index.min()).total_seconds() // 2
+        MAX_LAGS = 200
+
+        # iteratively narrow down the best lag using a decreasing step size
+        while curr_max_lag >= MAX_LAGS:
+            step = curr_max_lag // MAX_LAGS
+            curr_max_lag = step * MAX_LAGS
+
+            lags = np.arange(-curr_max_lag, curr_max_lag + 1, step, dtype=int)
+
+            instrument_lags = self._get_best_instrument_lags(df_pressure, lags)
+            for instrument, lag in instrument_lags.items():
+                col = instrument.name
+                shifted = df_pressure[col].shift(lag, freq="s")
+
+                # ensure we don't shift data too far out of bounds (keep at least 80% coverage)
+                if shifted.reindex(df_pressure.index).count() / df_pressure[col].count() < 0.8:
+                    continue
+
+                new_index = df_pressure.index.union(shifted.index)
+                df_pressure = df_pressure.reindex(new_index)
+                df_pressure[col] = shifted
+                final_lags[instrument] += lag
+
+            # reduce the search range for the next iteration
+            curr_max_lag = (curr_max_lag + 1) // 2
+
+        # apply the final calculated lags to the actual instrument dataframes
+        for instrument, final_lag in final_lags.items():
+            final_lag = np.sign(final_lag) * min(abs(final_lag), abs(max_lag))
+            print(f"Shifting {instrument.name} by {final_lag} seconds")
+
+            # if time correction was already performed, then we don't need to set `df_before_timeshift` again
+            if len(instrument.df_before_timeshift) == 0:
+                instrument.df_before_timeshift = instrument.df.copy()
+
+            instrument.df.index = instrument.df.index.shift(final_lag, freq="s")
+
+    def _get_best_instrument_lags(self, df_pressure, lags: np.ndarray) -> dict[Instrument, Number]:
+        best_instrument_lags = {}
+
+        df_new = crosscorrelation.df_derived_by_shift(df_pressure, lags, NON_DER=[self.reference_instrument.name])
+
+        with np.errstate(invalid='ignore', divide='ignore'):
+            self.df_corr = df_new.corrwith(df_new.iloc[:, 0]).to_frame().T
+            self.df_corr.index = [df_new.columns[0]]
+
+        for instrument in self._instruments:
+            if instrument == self._reference_instrument:
+                continue
+
+            if instrument.pressure_column in instrument.df.columns:
+                instrument.corr_df = crosscorrelation.df_findtimelag(
+                    self.df_corr, lags, instrument,
+                )
+
+                instrument.corr_max_val = max(instrument.corr_df)
+                instrument.corr_max_idx = instrument.corr_df.idxmax(axis=0)
+
+                best_instrument_lags[instrument] = instrument.corr_max_idx
+
+        return best_instrument_lags
+
+    @function_dependencies(["set_pressure_column", "data_corrections"], changes_df=True, use_once=False)
     def correct_time_and_pressure(
         self,
         max_lag=180,
@@ -742,26 +892,26 @@ class Cleaner(BaseProcessor):
             )
 
             # Apply the threshold to the reference instrument
-            self.reference_instrument.df.loc[
+            self._reference_instrument.df.loc[
                 (
-                    self.reference_instrument.df[
-                        self.reference_instrument.pressure_column
+                    self._reference_instrument.df[
+                        self._reference_instrument.pressure_column
                     ]
                     > reference_pressure_thresholds[1]
                 )
                 | (
-                    self.reference_instrument.df[
-                        self.reference_instrument.pressure_column
+                    self._reference_instrument.df[
+                        self._reference_instrument.pressure_column
                     ]
                     < reference_pressure_thresholds[0]
                 ),
-                self.reference_instrument.pressure_column,
+                self._reference_instrument.pressure_column,
             ] = np.nan
-            self.reference_instrument.df[
-                self.reference_instrument.pressure_column
+            self._reference_instrument.df[
+                self._reference_instrument.pressure_column
             ] = (
-                self.reference_instrument.df[
-                    self.reference_instrument.pressure_column
+                self._reference_instrument.df[
+                    self._reference_instrument.pressure_column
                 ]
                 .interpolate()
                 .rolling(window=rolling_window_size)
@@ -781,42 +931,9 @@ class Cleaner(BaseProcessor):
                     window_size=rolling_window_size,
                 )
 
-        # 0 is ignore because it's at the beginning of the df_corr, not
-        # in the range
-        rangelag = [i for i in range(-max_lag, max_lag + 1) if i != 0]
+        lags = np.arange(-max_lag, max_lag + 1)
 
-        self.df_pressure = self.reference_instrument.df[
-            [self.reference_instrument.pressure_column]
-        ].copy()
-        self.df_pressure.rename(
-            columns={
-                self.reference_instrument.pressure_column: self.reference_instrument.name  # noqa
-            },
-            inplace=True,
-        )
-
-        for instrument in self._instruments:
-            if instrument == self.reference_instrument:
-                # We principally use the ref for this, don't merge with itself
-                continue
-
-            if instrument.pressure_column in instrument.df.columns:
-                df = instrument.df[[instrument.pressure_column]].copy()
-                df.index = df.index.astype(
-                    self.reference_instrument.df.index.dtype
-                )
-
-                df.rename(
-                    columns={instrument.pressure_column: instrument.name},
-                    inplace=True,
-                )
-
-                self.df_pressure = pd.merge_asof(
-                    self.df_pressure,
-                    df,
-                    left_index=True,
-                    right_index=True,
-                )
+        self._build_df_pressure()
 
         takeofftime = self.df_pressure.index.asof(
             pd.Timestamp(self.time_takeoff)
@@ -873,7 +990,7 @@ class Cleaner(BaseProcessor):
                 # print("Applying match pressure correction:")
                 # for instrument in self._instruments:
                 #     print(f"\tWorking on instrument: {instrument.name}")
-                #     if instrument == self.reference_instrument:
+                #     if instrument == self._reference_instrument:
                 #         print("\tSkipping reference instrument")
                 #         continue
                 #     if instrument.pressure_column not in instrument.df.columns:
@@ -902,10 +1019,13 @@ class Cleaner(BaseProcessor):
 
         df_new = crosscorrelation.df_derived_by_shift(
             self.df_pressure,
-            lag=max_lag,
+            lags,
             NON_DER=[self.reference_instrument.name],
         )
-        self.df_corr = df_new.corr()
+
+        with np.errstate(invalid='ignore', divide='ignore'):
+            self.df_corr = df_new.corrwith(df_new.iloc[:, 0]).to_frame().T
+            self.df_corr.index = [df_new.columns[0]]
 
         print("Cross correlation:")
         for instrument in self._instruments:
@@ -921,12 +1041,12 @@ class Cleaner(BaseProcessor):
                     instrument_is_matched_with = primary_instrument
                     break
 
-            if instrument == self.reference_instrument:
+            if instrument == self._reference_instrument:
                 print("\tSkipping reference instrument\n")
                 continue
             if instrument.pressure_column in instrument.df.columns:
                 instrument.corr_df = crosscorrelation.df_findtimelag(
-                    self.df_corr, rangelag, instname=f"{instrument.name}_"
+                    self.df_corr, lags, instrument,
                 )
                 if instrument.corr_df.isna().all():
                     raise ValueError(
@@ -945,9 +1065,9 @@ class Cleaner(BaseProcessor):
                 instrument.df_before_timeshift, instrument.df = (
                     crosscorrelation.df_lagshift(
                         instrument.df,
-                        self.reference_instrument.df,
+                        self._reference_instrument.df,
                         instrument.corr_max_idx,
-                        f"{instrument.name}_",
+                        instrument.name,
                     )
                 )
 
@@ -981,9 +1101,9 @@ class Cleaner(BaseProcessor):
                 secondary_instrument.df,
             ) = crosscorrelation.df_lagshift(
                 secondary_instrument.df,
-                self.reference_instrument.df,
+                self._reference_instrument.df,
                 primary_instrument.corr_max_idx,
-                f"{secondary_instrument.name}_",
+                secondary_instrument.name,
             )
             print(
                 f"\tApplied time adjustment from {primary_instrument.name} to "
@@ -1022,64 +1142,83 @@ class Cleaner(BaseProcessor):
         ):
             fig.show()
 
-    def shift_msems_columns_by_90s(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _build_df_pressure(self):
+        self.df_pressure = self._reference_instrument.df[
+            [self.reference_instrument.pressure_column]
+        ].copy()
+        self.df_pressure.rename(
+            columns={
+                self._reference_instrument.pressure_column: self._reference_instrument.name  # noqa
+            },
+            inplace=True,
+        )
+
+        for instrument in self._instruments:
+            if instrument == self._reference_instrument:
+                # We principally use the ref for this, don't merge with itself
+                continue
+
+            if instrument.pressure_column in instrument.df.columns:
+                df = instrument.df[[instrument.pressure_column]].copy()
+                df.index = df.index.astype(self._reference_instrument.df.index.dtype)
+                df.rename(
+                    columns={instrument.pressure_column: instrument.name},
+                    inplace=True,
+                )
+                self.df_pressure = pd.merge(
+                    self.df_pressure,
+                    df,
+                    left_index=True,
+                    right_index=True,
+                    how="outer",
+                )
+                assert self.df_pressure[instrument.name].count() == df[instrument.name].count()
+
+        full_index = pd.date_range(start=self.df_pressure.index.min(), end=self.df_pressure.index.max(), freq="1s")
+        self.df_pressure = self.df_pressure.reindex(full_index)
+
+    @function_dependencies(["merge_instruments"], changes_df=True, use_once=True)
+    def shift_msems_columns_by_90s(self):
         """
         Shift all 'msems_inverted_' and 'msems_scan_' columns by 90 seconds in time.
-    
-        Parameters
-        ----------
-        df : pd.DataFrame
-            The DataFrame containing the time-indexed data to shift.
-    
-        Returns
-        -------
-        pd.DataFrame
-            The DataFrame with specified columns time-shifted by 90 seconds.
         """
-        if not isinstance(df.index, pd.DatetimeIndex):
+        if not isinstance(self.master_df.index, pd.DatetimeIndex):
             raise ValueError("DataFrame index must be a DateTimeIndex to apply a time-based shift.")
 
-        cols_to_shift = [
-            col for col in df.columns
-            if col.startswith("msems_inverted_") or col.startswith("msems_scan_")
-        ]
+        cols_to_shift = (filter_columns_by_instrument(self.master_df, msems_inverted) +
+                         filter_columns_by_instrument(self.master_df, msems_scan))
 
         if not cols_to_shift:
             print("No msems_inverted_ or msems_scan_ columns found to shift.")
-            return df
+            return
 
-        df_shifted = df.copy()
-        df_shifted[cols_to_shift] = df_shifted[cols_to_shift].shift(freq="90s")
+        self.master_df[cols_to_shift] = self.master_df[cols_to_shift].shift(freq="90s")
 
         print("Shifted msems_inverted and msems_scan columns by 90 seconds.")
 
-        return df_shifted
-
+    @function_dependencies(["set_time_as_index"], changes_df=True, use_once=False)
     def fill_missing_timestamps(
         self,
-        df: pd.DataFrame,
+        instrument: Instrument,
         freq: str = "1S",
         fill_method: str | None = None  # Optional: "ffill", "bfill", or None
-    ) -> pd.DataFrame:
+    ):
         """
-        Reindex the DataFrame to fill in missing timestamps at the specified frequency.
+        Reindex the DataFrame of the instrument to fill in missing timestamps at the specified frequency.
         Optionally forward- or backward-fill missing values.
         Prints the number of timestamps added.
-    
+
         Parameters
         ----------
-        df : pd.DataFrame
+        instrument : Instrument
             The input DataFrame with a DateTimeIndex.
         freq : str
             The desired frequency for the DateTimeIndex (e.g., "1S" for 1 second).
         fill_method : str or None
             Method to fill missing values: "ffill", "bfill", or None (default: None).
-    
-        Returns
-        -------
-        pd.DataFrame
-            A DataFrame with missing timestamps added and values optionally filled.
         """
+        df = instrument.df
+
         if not isinstance(df.index, pd.DatetimeIndex):
             raise ValueError("DataFrame index must be a DateTimeIndex.")
 
@@ -1099,4 +1238,65 @@ class Cleaner(BaseProcessor):
         elif fill_method == "bfill":
             df_full = df_full.bfill()
 
-        return df_full
+        instrument.df = df_full
+
+    @staticmethod
+    def detect_instruments(output_schema: OutputSchema, input_folder: str | pathlib.Path) -> list[Instrument]:
+        """
+        Automatically detect instruments from the files available in the input folder.
+        """
+        all_matched_files = set()
+        flight_instruments = []
+
+        for instrument in output_schema.instruments:
+            matched_files = instrument.detect_from_folder(input_folder, quiet=False, interactive=False)
+
+            if matched_files:
+                flight_instruments.append(instrument)
+                for matched_file in matched_files:
+                    all_matched_files.add(os.path.basename(matched_file))
+
+        for file in os.listdir(input_folder):
+            if file not in all_matched_files:
+                logger.warning(f"{file} was not matched")
+
+        return flight_instruments
+
+    @staticmethod
+    def choose_reference_instrument(output_schema: OutputSchema,
+                                    instruments: list[Instrument]) -> Instrument | None:
+        for candidate in output_schema.reference_instrument_candidates:
+            if candidate in instruments:
+                return candidate
+
+        raise ValueError(f"No reference instrument found among "
+                         f"{[instr.registry_name for instr in instruments]} "
+                         f"with candidates "
+                         f"{[instr.registry_name for instr in output_schema.reference_instrument_candidates]}")
+
+    @classmethod
+    def get_expected_columns(cls, output_schema: OutputSchema, with_dtype: bool) -> list[str] | dict[str, str]:
+        expected_columns = {}
+        for instrument in output_schema.instruments:
+            df = pd.DataFrame({c: pd.Series(dtype=t) for c, t in instrument.dtype.items()},
+                              index=pd.DatetimeIndex([], name="DateTime"))
+            with temporary_attr(instrument, "date", datetime.date(year=2000, month=1, day=1)):
+                df = instrument.set_time_as_index(df)
+                if df.index.name not in df.columns:
+                    df.insert(0, df.index.name, df.index)
+
+            # TODO: Remove this once addition of `scan_direction` is integrated in the cleaning pipeline
+            if instrument.name == "msems_inverted":
+                df.insert(len(df.columns), "scan_direction", pd.Series([], dtype="Int64"))
+
+            df = instrument.data_corrections(df)
+
+            if instrument.pressure_variable is not None:
+                df = instrument.set_housekeeping_pressure_offset_variable(df, constants.HOUSEKEEPING_VAR_PRESSURE)
+
+            expected_columns |= {f"{instrument.name}_{column}": str(t) for column, t in df.dtypes.to_dict().items()}
+
+        if not with_dtype:
+            return list(expected_columns.keys())
+
+        return expected_columns

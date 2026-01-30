@@ -24,18 +24,20 @@ timeseries (with the addition of total particle concentration and altitude).
 Houskeeping file: Look at READINGS (look at msems_err / cpc_err)
 
 """
-
-from helikite.instruments.base import Instrument
-import pandas as pd
-import numpy as np
+import datetime
 import logging
-import matplotlib.pyplot as plt
+import pathlib
+
 import matplotlib.colors as mcolors
 import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from helikite.constants import constants
 
+from helikite.constants import constants
+from helikite.instruments.base import Instrument, filter_columns_by_instrument
 
 # Define logger for this file
 logger = logging.getLogger(__name__)
@@ -45,6 +47,13 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 class MSEMSInverted(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+
+    def __repr__(self):
+        return "mSEMS_inv"
+
+    @property
+    def has_size_distribution(self) -> bool:
+        return True
 
     def data_corrections(self, df, **kwargs):
         """Create new columns to plot bins"""
@@ -116,6 +125,11 @@ class MSEMSInverted(Instrument):
         # Reference msems_inverted dataframe before filling 3 minutes intervals
         self.msems_inverted_ref = df.copy()
 
+        # Set scan direction from MSEMS scan dataframe
+        msems_scan_df = getattr(msems_scan, "df", None)
+        if msems_scan_df is not None:
+            df['scan_direction'] = msems_scan_df['scan_direction']  # To have 0 / 1 values when changing scans
+
         df = df.resample("1s").ffill()
 
         # Repeat last timestamp for addditional 3 minutes in 1-second intervals
@@ -136,22 +150,22 @@ class MSEMSInverted(Instrument):
 
         return df
 
-    def file_identifier(self, first_lines_of_csv) -> bool:
-        # To match "...INVERTED.txt" file
-        if (
-            "#Date\tTime\tTemp(C)\tPress(hPa)\tNumBins\tBin_Dia1\t"
-            "Bin_Dia2\tBin_Dia3"
-        ) in first_lines_of_csv[0]:
-            logger.info("mSEMS Inverted file detected at header 0")
-            self.header = 0
+    def header_lines(self, file_path: str | pathlib.Path) -> list[str]:
+        with open(file_path, encoding="utf-8", errors="replace") as in_file:
+            # the header line of MSEMS Inverted is either the 0th or 55th line
+            line = next(in_file)
+            if self.expected_header_value in line:
+                return [line]
+            else:
+                return super().header_lines(file_path)
 
+    def file_identifier(self, first_lines_of_csv) -> bool:
+        # the header line of MSEMS Inverted is either the 0th or 55th line
+        # To match "...INVERTED.txt" file
+        if self.expected_header_value in first_lines_of_csv[0]:
             return True
-        if (
-            "#Date\tTime\tTemp(C)\tPress(hPa)\tNumBins\tBin_Dia1\t"
-            "Bin_Dia2\tBin_Dia3"
-        ) in first_lines_of_csv[55]:
-            logger.info("mSEMS Inverted file detected at header 55")
-            self.header = 55
+
+        if self.expected_header_value in first_lines_of_csv[self.header]:
             return True
 
         return False
@@ -169,17 +183,22 @@ class MSEMSInverted(Instrument):
 
         # Define the datetime column as the index
         df.set_index("DateTime", inplace=True)
-        df.index = df.index.floor("s")  # astype("datetime64[s]")
+        df.index = df.index.floor("s").astype("datetime64[s]")
 
         return df
 
     def read_data(self) -> pd.DataFrame:
+        # the header line of MSEMS Inverted is either the 0th or 55th line
+        if len(self.header_lines(self.filename)) == 1:
+            header = 0
+        else:
+            header = self.header
 
         df = pd.read_csv(
             self.filename,
             dtype=self.dtype,
             na_values=self.na_values,
-            header=self.header,
+            skiprows=header,
             delimiter=self.delimiter,
             lineterminator=self.lineterminator,
             comment=self.comment,
@@ -189,17 +208,269 @@ class MSEMSInverted(Instrument):
 
         return df
 
+    def calculate_derived(self, df: pd.DataFrame, verbose: bool, *args, **kwargs) -> pd.DataFrame:
+        """
+        Calculate the total concentration from mSEMS measurements
+        and add it to the dataframe.
+
+        Parameters:
+        df (pd.DataFrame): DataFrame containing mSEMS inverted data and Altitude.
+
+        Returns:
+        df (pd.DataFrame): Updated DataFrame with mSEMS dN columns inserted.
+        """
+        # Select only the mSEMS inverted columns
+        filter_msems = filter_columns_by_instrument(df.columns, msems_inverted)
+        msems_data = df[filter_msems]
+
+        # Calculate dN for each bin and total concentration
+        msems_dN = calcN(
+            msems_data,
+            start_column="msems_inverted_Bin_Dia1",
+            end_column="msems_inverted_Bin_Dia60",
+            start_conc="msems_inverted_Bin_Conc1",
+            end_conc="msems_inverted_Bin_Conc60",
+        )
+
+        # Rename the columns corresponding to dN
+        msems_dN = msems_dN.rename(
+            columns=lambda col: col.replace(
+                "msems_inverted_", "msems_inverted_dN_"
+            )
+        )
+
+        # Insert msems_dN into df at the right position
+        if filter_msems:
+            last_msems_index = (
+                df.columns.get_loc(filter_msems[-1]) + 1
+            )  # Insert after this column
+        else:
+            last_msems_index = len(df.columns)
+
+        df = pd.concat(
+            [
+                df.iloc[:, :last_msems_index],
+                msems_dN,
+                df.iloc[:, last_msems_index:],
+            ],
+            axis=1,
+        )
+        df = df.loc[
+            :, ~df.columns.duplicated()
+        ]  # remove potential duplicate columns
+
+        return df
+
+    def normalize(self, df: pd.DataFrame, verbose: bool, *args, **kwargs) -> pd.DataFrame:
+        """
+        Normalize mSEMS concentrations to STP conditions and insert the results
+        right after the existing mSEMS columns.
+
+        Parameters:
+        df (pd.DataFrame): DataFrame containing mSEMS measurements and metadata.
+
+        Returns:
+        df (pd.DataFrame): Updated DataFrame with STP-normalized columns inserted.
+        """
+        # Constants for STP
+        P_STP = 1013.25  # hPa
+        T_STP = 273.15  # Kelvin
+
+        # Measured conditions
+        P_measured = df["flight_computer_pressure"]
+        T_measured = df["Average_Temperature"] + 273.15  # Convert °C to Kelvin
+
+        # Calculate the STP correction factor
+        correction_factor = (P_measured / P_STP) * (T_STP / T_measured)
+
+        # List of columns to correct
+        columns_to_normalize = [
+                                   col for col in df.columns if col.startswith("msems_inverted_Bin_Conc")
+                               ] + ["msems_inverted_dN_totalconc"]
+
+        # Create dictionary for normalized columns
+        normalized_columns = {}
+
+        for col in columns_to_normalize:
+            if col in df.columns:
+                normalized_columns[col + "_stp"] = df[col] * correction_factor
+
+        # Find where to insert (after the last mSEMS-related column)
+        msems_columns = [col for col in df.columns if col.startswith("msems_")]
+        if msems_columns:
+            last_msems_index = df.columns.get_loc(msems_columns[-1]) + 1
+        else:
+            last_msems_index = len(df.columns)
+
+        # Insert normalized columns
+        df = pd.concat(
+            [
+                df.iloc[:, :last_msems_index],
+                pd.DataFrame(normalized_columns, index=df.index),
+                df.iloc[:, last_msems_index:],
+            ],
+            axis=1,
+        )
+
+        return df
+
+    def plot_raw_and_normalized(self, df: pd.DataFrame, verbose: bool, *args, **kwargs):
+        """Plots mSEMS total concentration vs Altitude."""
+        plt.figure(figsize=(8, 6))
+        plt.plot(
+            df["msems_inverted_dN_totalconc"],
+            df["Altitude"],
+            label="Measured",
+            color="blue",
+            marker=".",
+            linestyle="none",
+        )
+        if "msems_inverted_dN_totalconc_stp" in df.columns:
+            plt.plot(
+                df["msems_inverted_dN_totalconc_stp"],
+                df["Altitude"],
+                label="STP-normalized",
+                color="red",
+                marker=".",
+                linestyle="none",
+            )
+        plt.xlabel("mSEMS total concentration (cm$^{-3}$)", fontsize=12)
+        plt.ylabel("Altitude (m)", fontsize=12)
+        plt.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+
+    def plot_distribution(self, df: pd.DataFrame, verbose: bool,
+                          time_start: datetime.datetime, time_end: datetime.datetime,
+                          subplot: tuple[plt.Figure, plt.Axes] | None = None):
+        """
+        Plots mSEMS size distribution and total concentration from a given DataFrame.
+
+        Parameters:
+        - df: pandas DataFrame with required mSEMS columns
+        - time_start, time_end: optional pandas.Timestamp or str for limiting the time range
+        """
+        if subplot is not None:
+            fig, ax = subplot
+            is_custom_subplot = True
+        else:
+            fig, ax = plt.subplots(figsize=(12, 4))
+            is_custom_subplot = False
+
+        if time_start is not None:
+            df = df[df.index >= pd.to_datetime(time_start)]
+        if time_end is not None:
+            df = df[df.index <= pd.to_datetime(time_end)]
+
+        # Define diameter and concentration column ranges
+        start_dia = 'msems_inverted_Bin_Dia1'
+        end_dia = 'msems_inverted_Bin_Dia60'
+        start_conc = self.column_name(df, 'msems_inverted_Bin_Conc1_stp')
+        end_conc = self.column_name(df, 'msems_inverted_Bin_Conc60_stp')
+
+        # Get diameter bin averages
+        if start_dia and end_dia in df.columns:
+            bin_diameter_averages = df.loc[:, start_dia:end_dia].mean()
+        else:
+            bin_diameter_averages = MSEMS_BIN_DIAMETER_AVERAGES
+
+        # Prepare the concentration data
+        counts = df.loc[:, start_conc:end_conc]
+        counts.index = df.index
+        counts = counts.astype(float).dropna(how='any') if not counts.isna().all().all() else counts
+        counts = counts.clip(lower=1)
+
+        # Create the 2D meshgrid
+        xx, yy = np.meshgrid(counts.index.values, bin_diameter_averages)
+        vmax_value = np.nanmax(counts.values)
+        print(f"max value ({self.name}): {vmax_value}")
+
+        # Plot the pcolormesh
+        norm = mcolors.LogNorm(vmin=1, vmax=1000)
+        mesh = ax.pcolormesh(xx, yy, counts.values.T, cmap='viridis', norm=norm, shading="gouraud")
+
+        # Colorbar
+        divider = make_axes_locatable(ax)
+        cax = inset_axes(
+            ax,
+            width="1.5%",
+            height="100%",
+            loc="lower left",
+            bbox_to_anchor=(1.08, -0.025, 1, 1),
+            bbox_transform=ax.transAxes
+        )
+        cb = fig.colorbar(mesh, cax=cax, orientation="vertical")
+        cb.set_label("dN/dlogD$_p$ (cm$^{-3}$)", fontsize=13, fontweight="bold")
+        cb.ax.tick_params(labelsize=11)
+
+        if not is_custom_subplot:
+            # Custom x-axis formatter
+            class CustomDateFormatter(mdates.DateFormatter):
+                def __init__(
+                    self, fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M", *args, **kwargs
+                ):
+                    super().__init__(fmt, *args, **kwargs)
+                    self.date_fmt = date_fmt
+                    self.prev_date = None
+
+                def __call__(self, x, pos=None):
+                    date = mdates.num2date(x)
+                    current_date = date.date()
+                    if self.prev_date != current_date:
+                        self.prev_date = current_date
+                        return date.strftime(self.date_fmt)
+                    else:
+                        return date.strftime(self.fmt)
+
+            ax.xaxis.set_major_formatter(
+                CustomDateFormatter(fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M")
+            )
+            ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
+            ax.tick_params(axis="x", rotation=90, labelsize=11)
+
+        # Axis labels and formatting
+        ax.set_yscale("log")
+        ax.set_ylabel("Part. Diameter (nm)", fontsize=12, fontweight="bold")
+        ax.set_ylim(8, 250)
+        ax.tick_params(axis='y', labelsize=11)
+        ax.grid(True, linestyle="--", alpha=0.6, axis="x")
+
+        if not is_custom_subplot:
+            ax.set_xlabel("Time", fontsize=12, fontweight="bold", labelpad=10)
+            ax.set_title(
+                "mSEMS size distribution and total concentration",
+                fontsize=13,
+                fontweight="bold",
+            )
+
+        # Secondary y-axis for total concentration
+        total_conc = df[self.column_name(df, "msems_inverted_dN_totalconc_stp")]
+        total_conc_max = total_conc.max() if not total_conc.isna().all() else 2000
+        ax2 = ax.twinx()
+        ax2.scatter(df.index, total_conc, color="red", marker='.')
+        ax2.set_ylabel("mSEMS conc (cm$^{-3}$)", fontsize=12, fontweight="bold", color="red", labelpad=8)
+        ax2.tick_params(axis="y", labelsize=11, colors="red")
+        ax2.set_ylim(0, total_conc_max * 1.1)
+
+        if not is_custom_subplot:
+            plt.subplots_adjust(bottom=0.25, right=0.85)
+            plt.show()
+
 
 class MSEMSReadings(Instrument):
     # To match a "...READINGS.txt" file
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "mSEMS"
+
     def file_identifier(self, first_lines_of_csv) -> bool:
         if (
             "#mSEMS" in first_lines_of_csv[0]
-            and "#YY/MM/DD" in first_lines_of_csv[31]
-            and "mono_dia" in first_lines_of_csv[31]
+            and "#YY/MM/DD" in first_lines_of_csv[self.header]
+            and "mono_dia" in first_lines_of_csv[self.header]
         ):
             return True
 
@@ -218,7 +489,7 @@ class MSEMSReadings(Instrument):
 
         # Define the datetime column as the index
         df.set_index("DateTime", inplace=True)
-        df.index = df.index.floor("s")  # astype("datetime64[s]")
+        df.index = df.index.floor("s").astype("datetime64[s]")
 
         return df
 
@@ -231,7 +502,7 @@ class MSEMSReadings(Instrument):
             self.filename,
             dtype=self.dtype,
             na_values=self.na_values,
-            header=self.header,
+            skiprows=self.header,
             delimiter=self.delimiter,
             lineterminator=self.lineterminator,
             comment=self.comment,
@@ -247,11 +518,14 @@ class MSEMSScan(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "mSEMS_scan"
+
     def file_identifier(self, first_lines_of_csv) -> bool:
         if (
             "#mSEMS" in first_lines_of_csv[0]
             and "#scan_conf" in first_lines_of_csv[31]
-            and "scan_direction" in first_lines_of_csv[55]
+            and "scan_direction" in first_lines_of_csv[self.header]
         ):
             return True
 
@@ -270,7 +544,7 @@ class MSEMSScan(Instrument):
 
         # Define the datetime column as the index
         df.set_index("DateTime", inplace=True)
-        df.index = df.index.floor("s")  # astype("datetime64[s]")
+        df.index = df.index.floor("s").astype("datetime64[s]")
 
         return df
 
@@ -291,7 +565,7 @@ class MSEMSScan(Instrument):
             self.filename,
             dtype=self.dtype,
             na_values=self.na_values,
-            header=self.header,
+            skiprows=self.header,
             delimiter=self.delimiter,
             lineterminator=self.lineterminator,
             comment=self.comment,
@@ -394,6 +668,7 @@ msems_scan = MSEMSScan(
     pressure_variable="press_avg",
     cols_export=[],
     cols_housekeeping=[],
+    cols_final=[],
 )
 
 # To match a "...READINGS.txt" file
@@ -435,6 +710,7 @@ msems_readings = MSEMSReadings(
     pressure_variable="pressure",
     cols_export=[],
     cols_housekeeping=[],
+    cols_final=[],
 )
 
 # To match a "...INVERTED.txt" file
@@ -569,11 +845,34 @@ msems_inverted = MSEMSInverted(
         "Bin_Conc59": "Float64",
         "Bin_Conc60": "Float64",
     },
+    expected_header_value="#Date\tTime\tTemp(C)\tPress(hPa)\tNumBins\tBin_Dia1\tBin_Dia2\tBin_Dia3",
     export_order=720,
     pressure_variable="Press(hPa)",
     cols_export=[],
     cols_housekeeping=[],
+    cols_final=[f"Bin_Conc{i}_stp" for i in range(1, 61)] + ["dN_totalconc_stp"],
+    coupled_columns=[
+        [f"msems_inverted_Bin_Conc{i}" for i in range(1, 61)] +
+        [f"msems_inverted_dN_Bin_Conc{i}" for i in range(1, 61)] +
+        ["msems_inverted_dN_totalconc"],
+    ],
+    rename_dict={f'msems_inverted_Bin_Conc{i}_stp': f'mSEMS_Bin_Conc{i}' for i in range(1, 61)} |
+                {'msems_inverted_dN_totalconc_stp': 'mSEMS_total_N'},
 )
+
+
+MSEMS_BIN_DIAMETER_AVERAGES = np.array([
+    8.209426, 8.652978, 9.120773, 9.614176, 10.134633, 10.683676, 11.262924,
+    11.874097, 12.519017, 13.199618, 13.917952, 14.676198, 15.476672,
+    16.319869, 17.212476, 18.155273, 19.151085, 20.203080, 21.314636,
+    22.489353, 23.731074, 25.043907, 26.432241, 27.900779, 29.454554,
+    31.098968, 32.839819, 34.683337, 36.636229, 38.705716, 40.899590,
+    43.226267, 45.694846, 48.315185, 51.097974, 54.054825, 57.198371,
+    60.542379, 64.101873, 67.893280, 71.934588, 76.245533, 80.847801,
+    85.765265, 91.024253, 96.653846, 102.686223, 109.157047, 116.105907,
+    123.576809, 131.618741, 140.286300, 149.640401, 159.749066, 170.688305,
+    182.543091, 195.408432, 209.392962, 224.611976, 241.211823
+])
 
 
 def calcN(df, start_column, end_column, start_conc, end_conc):
@@ -615,268 +914,6 @@ def calcN(df, start_column, end_column, start_conc, end_conc):
     dN = bin_concs.mul(dlogDp.values).astype("Float64")
 
     # Sum without NaN issues
-    dN["msems_inverted_totalconc"] = dN.sum(axis=1, skipna=True).replace(0, pd.NA)
+    dN["msems_inverted_totalconc"] = dN.sum(axis=1, skipna=True, min_count=1)
 
     return dN
-
-
-def plot_msems_distribution(df, time_start=None, time_end=None):
-    """
-    Plots mSEMS size distribution and total concentration from a given DataFrame.
-
-    Parameters:
-    - df: pandas DataFrame with required mSEMS columns
-    - time_start, time_end: optional pandas.Timestamp or str for limiting the time range
-    """
-    plt.close("all")
-
-    # Define diameter and concentration column ranges
-    start_dia = "msems_inverted_Bin_Dia1"
-    end_dia = "msems_inverted_Bin_Dia60"
-    start_conc = "msems_inverted_Bin_Conc1_stp"
-    end_conc = "msems_inverted_Bin_Conc60_stp"
-
-    # Bin diameter averages
-    bin_diameter_averages = df.loc[:, start_dia:end_dia].mean()
-
-    # Prepare the concentration data
-    counts = df.loc[:, start_conc:end_conc].copy()
-    counts.index = df.index
-    counts = counts.astype(float).dropna(how="any")
-    counts = counts.clip(lower=1)
-
-    if time_start is not None:
-        counts = counts[counts.index >= pd.to_datetime(time_start)]
-    if time_end is not None:
-        counts = counts[counts.index <= pd.to_datetime(time_end)]
-
-    # Create the 2D meshgrid
-    xx, yy = np.meshgrid(counts.index.values, bin_diameter_averages)
-    vmax_value = counts.values.max()
-    print(vmax_value)
-
-    # Begin plotting
-    fig, ax = plt.subplots(figsize=(12, 4))
-
-    # Plot the pcolormesh
-    norm = mcolors.LogNorm(vmin=1, vmax=1200)
-    mesh = ax.pcolormesh(
-        xx, yy, counts.values.T, cmap="viridis", norm=norm, shading="gouraud"
-    )
-
-    # Colorbar
-    divider = make_axes_locatable(ax)
-    cax = inset_axes(
-        ax,
-        width="2.5%",
-        height="100%",
-        loc="lower left",
-        bbox_to_anchor=(1.1, -0.025, 1, 1),
-        bbox_transform=ax.transAxes,
-    )
-    cb = fig.colorbar(mesh, cax=cax, orientation="vertical")
-    cb.set_label("dN/dlogD$_p$ (cm$^{-3}$)", fontsize=12, fontweight="bold")
-    cb.ax.tick_params(labelsize=12)
-
-    # Custom x-axis formatter
-    class CustomDateFormatter(mdates.DateFormatter):
-        def __init__(
-            self, fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M", *args, **kwargs
-        ):
-            super().__init__(fmt, *args, **kwargs)
-            self.date_fmt = date_fmt
-            self.prev_date = None
-
-        def __call__(self, x, pos=None):
-            date = mdates.num2date(x)
-            current_date = date.date()
-            if self.prev_date != current_date:
-                self.prev_date = current_date
-                return date.strftime(self.date_fmt)
-            else:
-                return date.strftime(self.fmt)
-
-    ax.xaxis.set_major_formatter(
-        CustomDateFormatter(fmt="%H:%M", date_fmt="%Y-%m-%d %H:%M")
-    )
-    ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=10))
-
-    # Axis labels and formatting
-    ax.tick_params(axis="x", rotation=90, labelsize=12)
-    ax.set_yscale("log")
-    ax.set_ylabel("Particle Diameter (nm)", fontsize=12, fontweight="bold")
-    ax.set_xlabel("Time", fontsize=12, fontweight="bold", labelpad=10)
-    ax.set_ylim(8, 236)
-    ax.set_title(
-        "mSEMS size distribution and total concentration",
-        fontsize=13,
-        fontweight="bold",
-    )
-    ax.tick_params(axis="y", labelsize=12)
-
-    # Secondary y-axis for total concentration
-    total_conc = df["msems_inverted_dN_totalconc_stp"].dropna()
-    ax2 = ax.twinx()
-    ax2.plot(total_conc.index, total_conc, color="red", linewidth=2)
-    ax2.set_ylabel(
-        "N$_{8-236}$ (cm$^{-3}$)", fontsize=12, fontweight="bold", color="red"
-    )
-    ax2.tick_params(axis="y", labelsize=12, colors="red")
-    ax2.set_ylim(0, total_conc.max() * 1.1)
-
-    plt.subplots_adjust(bottom=0.25, right=0.85)
-    plt.show()
-
-
-def mSEMS_total_conc_dN(df):
-    """
-    Calculate the total concentration from mSEMS measurements
-    and add it to the dataframe. Also plots mSEMS total concentration vs Altitude.
-
-    Parameters:
-    df (pd.DataFrame): DataFrame containing mSEMS inverted data and Altitude.
-
-    Returns:
-    df (pd.DataFrame): Updated DataFrame with mSEMS dN columns inserted.
-    """
-    plt.close("all")
-
-    # Select only the mSEMS inverted columns
-    filter_msems = [col for col in df if col.startswith("msems_inverted_")]
-    msems_data = df[filter_msems]
-
-    # Calculate dN for each bin and total concentration
-    msems_dN = calcN(
-        msems_data,
-        start_column="msems_inverted_Bin_Dia1",
-        end_column="msems_inverted_Bin_Dia60",
-        start_conc="msems_inverted_Bin_Conc1",
-        end_conc="msems_inverted_Bin_Conc60",
-    )
-
-    # Rename the columns corresponding to dN
-    msems_dN = msems_dN.rename(
-        columns=lambda col: col.replace(
-            "msems_inverted_", "msems_inverted_dN_"
-        )
-    )
-
-    # Insert msems_dN into df at the right position
-    if filter_msems:
-        last_msems_index = (
-            df.columns.get_loc(filter_msems[-1]) + 1
-        )  # Insert after this column
-    else:
-        last_msems_index = len(df.columns)
-
-    df = pd.concat(
-        [
-            df.iloc[:, :last_msems_index],
-            msems_dN,
-            df.iloc[:, last_msems_index:],
-        ],
-        axis=1,
-    )
-    df = df.loc[
-        :, ~df.columns.duplicated()
-    ]  # remove potential duplicate columns
-
-    # Plot mSEMS total concentration vs Altitude
-    fig, ax = plt.subplots(1, 1, figsize=(8, 6))
-    ax.plot(
-        df["msems_inverted_dN_totalconc"],
-        df["Altitude"],
-        label="mSEMS total conc",
-        color="indigo",
-        marker=".",
-        linestyle="none",
-    )
-    ax.grid(ls="--")
-    ax.set_ylabel("Altitude (m)", fontsize=12)
-    ax.set_xlabel("mSEMS total concentration (cm$^{-3}$)", fontsize=12)
-    ax.legend()
-    plt.tight_layout()
-    plt.show()
-
-    return df
-
-
-def mSEMS_STP_normalization(df):
-    """
-    Normalize mSEMS concentrations to STP conditions and insert the results
-    right after the existing mSEMS columns.
-
-    Parameters:
-    df (pd.DataFrame): DataFrame containing mSEMS measurements and metadata.
-
-    Returns:
-    df (pd.DataFrame): Updated DataFrame with STP-normalized columns inserted.
-    """
-    plt.close("all")
-
-    # Constants for STP
-    P_STP = 1013.25  # hPa
-    T_STP = 273.15  # Kelvin
-
-    # Measured conditions
-    P_measured = df["flight_computer_pressure"]
-    T_measured = df["Average_Temperature"] + 273.15  # Convert °C to Kelvin
-
-    # Calculate the STP correction factor
-    correction_factor = (P_measured / P_STP) * (T_STP / T_measured)
-
-    # List of columns to correct
-    columns_to_normalize = [
-        col for col in df.columns if col.startswith("msems_inverted_Bin_Conc")
-    ] + ["msems_inverted_dN_totalconc"]
-
-    # Create dictionary for normalized columns
-    normalized_columns = {}
-
-    for col in columns_to_normalize:
-        if col in df.columns:
-            normalized_columns[col + "_stp"] = df[col] * correction_factor
-
-    # Find where to insert (after the last mSEMS-related column)
-    msems_columns = [col for col in df.columns if col.startswith("msems_")]
-    if msems_columns:
-        last_msems_index = df.columns.get_loc(msems_columns[-1]) + 1
-    else:
-        last_msems_index = len(df.columns)
-
-    # Insert normalized columns
-    df = pd.concat(
-        [
-            df.iloc[:, :last_msems_index],
-            pd.DataFrame(normalized_columns, index=df.index),
-            df.iloc[:, last_msems_index:],
-        ],
-        axis=1,
-    )
-
-    # PLOT
-    plt.figure(figsize=(8, 6))
-    plt.plot(
-        df["msems_inverted_dN_totalconc"],
-        df["Altitude"],
-        label="Measured",
-        color="blue",
-        marker=".",
-        linestyle="none",
-    )
-    plt.plot(
-        df["msems_inverted_dN_totalconc_stp"],
-        df["Altitude"],
-        label="STP-normalized",
-        color="red",
-        marker=".",
-        linestyle="none",
-    )
-    plt.xlabel("mSEMS total concentration (cm$^{-3}$)", fontsize=12)
-    plt.ylabel("Altitude (m)", fontsize=12)
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
-
-    return df

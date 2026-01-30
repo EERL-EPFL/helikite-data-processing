@@ -2,12 +2,11 @@
 CPC3007
 Total particle concentration in size range of 7 - 2000 nm.
 """
-from typing import List
 
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from helikite.instruments.base import Instrument
+from helikite.instruments.base import Instrument, filter_columns_by_instrument
 
 
 class CPC(Instrument):
@@ -17,17 +16,20 @@ class CPC(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "CPC"
+
     def data_corrections(self, df, *args, **kwargs) -> pd.DataFrame:
         df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
-        df = df.rename(columns={'Concentration (#/cm3)': 'totalconc_raw'})
+        df = df.rename(columns={'Concentration (#/cm3)': 'totalconc_raw',
+                                'Concentration (#/cm�)': 'totalconc_raw'})
 
         df = df.resample("1s").asfreq()
-        df.insert(0, "DateTime", df.index)
 
         return df
 
-    def file_identifier(self, first_lines_of_csv: List[str]) -> bool:
-        if self.expected_header_value in first_lines_of_csv[17]:
+    def file_identifier(self, first_lines_of_csv: list[str]) -> bool:
+        if self.expected_header_value[:-4] in first_lines_of_csv[self.header]:
             return True
 
         return False
@@ -38,7 +40,9 @@ class CPC(Instrument):
                 "No flight date provided. Necessary for CPC"
             )
 
-        df["DateTime"] = df["Time"].apply(lambda t: pd.to_datetime(f"{self.date} {t}"))
+        df["DateTime"] = df["Time"].apply(lambda t: pd.to_datetime(f"{self.date} {t}", errors="coerce"))
+        df.drop(columns=["Time"], inplace=True)
+        df.dropna(subset=["DateTime"], inplace=True)
         df.set_index("DateTime", inplace=True)
         df.index = df.index.astype("datetime64[s]")
 
@@ -49,20 +53,20 @@ class CPC(Instrument):
             self.filename,
             dtype=self.dtype,
             engine="python",
-            skiprows=17,
             skipfooter=1,
             na_values=self.na_values,
-            header=self.header,
+            skiprows=self.header,
             delimiter=self.delimiter,
             lineterminator=self.lineterminator,
             comment=self.comment,
             names=self.names,
             index_col=self.index_col,
+            encoding_errors="replace",
         )
 
         return df
 
-    def CPC_STP_normalization(self, df):
+    def normalize(self, df: pd.DataFrame, verbose: bool, *args, **kwargs) -> pd.DataFrame:
         """
         Normalize CPC3007 concentrations to STP conditions and insert the results
         right after the existing CPC columns.
@@ -73,7 +77,6 @@ class CPC(Instrument):
         Returns:
         df (pd.DataFrame): Updated DataFrame with STP-normalized columns inserted.
         """
-        plt.close('all')
     
         # Constants for STP
         P_STP = 1013.25  # hPa
@@ -88,7 +91,7 @@ class CPC(Instrument):
         normalized_column = df['cpc_totalconc_raw'] * correction_factor
     
         # Prepare to insert
-        cpc_columns = [col for col in df.columns if col.startswith('cpc_')]
+        cpc_columns = filter_columns_by_instrument(df.columns, cpc)
         if cpc_columns:
             last_cpc_index = df.columns.get_loc(cpc_columns[-1]) + 1
         else:
@@ -104,19 +107,25 @@ class CPC(Instrument):
              df.iloc[:, last_cpc_index:]],
             axis=1
         )
-        
-        # PLOT
+
+        return df
+
+    def plot_raw_and_normalized(self, df: pd.DataFrame, verbose: bool, *args, **kwargs):
         plt.figure(figsize=(8, 6))
+
         plt.plot(df['cpc_totalconc_raw'], df['Altitude'], label='Measured', color='blue', marker='.', linestyle='none')
-        plt.plot(df['cpc_totalconc_stp'], df['Altitude'], label='STP-normalized', color='red', marker='.', linestyle='none')
+        if 'cpc_totalconc_stp' in df.columns:
+            plt.plot(df['cpc_totalconc_stp'], df['Altitude'], label='STP-normalized', color='red', marker='.',
+                     linestyle='none')
         plt.xlabel('CPC3007 total concentration (cm$^{-3}$)', fontsize=12)
         plt.ylabel('Altitude (m)', fontsize=12)
+
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
+
         plt.show()
-    
-        return df
+
 
 cpc = CPC(
     name="cpc",
@@ -125,6 +134,8 @@ cpc = CPC(
         "Concentration (#/cm3)": "Int64"
     },
     expected_header_value="Time,Concentration (#/cm3),\n",
-    header=0,
+    cols_final=["totalconc_stp"],
+    header=17,
     pressure_variable=None,
+    rename_dict={'cpc_totalconc_stp': 'CPC_total_N'},
 )

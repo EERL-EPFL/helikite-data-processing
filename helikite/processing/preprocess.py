@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
-import yaml
-from helikite.constants import constants
-from helikite import instruments
-import os
-from typing import Any, Dict
 import logging
+import os
+from typing import Any
+
+import yaml
+
+from helikite import instruments
+from helikite.constants import constants
 
 logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
@@ -37,12 +39,10 @@ def preprocess(
         instrument_objects[instrument] = getattr(instruments, props["config"])
 
     for instrument_name, instrument_obj in instrument_objects.items():
-        matched_file = instrument_obj.detect_from_folder(
-            input_folder,
-            lines_to_read=constants.QTY_LINES_TO_IDENTIFY_INSTRUMENT,
-        )
+        matched_files = instrument_obj.detect_from_folder(input_folder)
 
-        if matched_file:
+        if matched_files:
+            matched_file = matched_files[0]
             props = yaml_config["instruments"][instrument_name]
 
             # Set filename in config
@@ -111,7 +111,7 @@ def generate_config(
 
     # Go through each instrument in the __init__ of config.instrument
     instrument_objects = instruments.__dict__.items()
-    yaml_config: Dict[str, Any] = {}
+    yaml_config: dict[str, Any] = {}
     yaml_config["instruments"] = {}
     yaml_config["global"] = {
         "time_trim": {

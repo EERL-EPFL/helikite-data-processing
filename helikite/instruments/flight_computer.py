@@ -1,22 +1,55 @@
-from typing import List
+import logging
+import re
+from abc import abstractmethod
+from io import StringIO
 
+import pandas as pd
+
+from helikite.constants import constants
 from helikite.instruments.base import Instrument
 from helikite.processing.conversions import pressure_to_altitude
-from io import StringIO
-from helikite.constants import constants
-from helikite.processing.post import altitude
-import logging
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-
 
 # Define logger for this file
 logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 
-class FlightComputerV1(Instrument):
+class FlightComputer(Instrument):
+    def __repr__(self):
+        return "FC"
+
+    @property
+    @abstractmethod
+    def T1_column(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def T2_column(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def H1_column(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def H2_column(self) -> str:
+        pass
+
+    @property
+    @abstractmethod
+    def lat_column(self) -> str | None:
+        pass
+
+    @property
+    @abstractmethod
+    def long_column(self) -> str | None:
+        pass
+
+
+class FlightComputerV1(FlightComputer):
     """
     This flight computer relates to the first version used in campaigns
     in 2023, 2024. A new version was designed in 2024. See FlightComputerV2.
@@ -24,6 +57,30 @@ class FlightComputerV1(Instrument):
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+
+    @property
+    def T1_column(self) -> str:
+        return "TEMP1"
+
+    @property
+    def T2_column(self) -> str:
+        return "TEMP2"
+
+    @property
+    def H1_column(self) -> str:
+        return "RH1"
+
+    @property
+    def H2_column(self) -> str:
+        return "RH2"
+
+    @property
+    def lat_column(self) -> str | None:
+        return None
+
+    @property
+    def long_column(self) -> str | None:
+        return None
 
     def data_corrections(
         self,
@@ -38,12 +95,15 @@ class FlightComputerV1(Instrument):
         # Create altitude column by using average of first 10 seconds of data
         if start_pressure is None or start_temperature is None:
             try:
-                first_period = df.loc[
-                    df.index[0] : df.index[0]  # noqa
-                    + pd.Timedelta(seconds=start_duration_seconds)
-                ]
+                if not df.empty:
+                    first_period = df.loc[
+                        df.index[0]: df.index[0]  # noqa
+                                     + pd.Timedelta(seconds=start_duration_seconds)
+                    ]
 
-                averaged_sample = first_period.mean(numeric_only=True)
+                    averaged_sample = first_period.mean(numeric_only=True)
+                else:
+                    averaged_sample = df.copy()
             except IndexError as e:
                 logger.error(
                     "There is not enough data in the flight computer to "
@@ -110,7 +170,7 @@ class FlightComputerV1(Instrument):
         df.set_index("DateTime", inplace=True)
 
         # Set to index type to seconds
-        df.index = df.index.floor('s') #astype("datetime64[s]")
+        df.index = df.index.floor('s').astype("datetime64[s]")
 
         return df
 
@@ -138,7 +198,7 @@ class FlightComputerV1(Instrument):
             cleaned_csv,  # Load the StringIO object created above
             dtype=self.dtype,
             na_values=self.na_values,
-            header=self.header,
+            skiprows=self.header,
             delimiter=self.delimiter,
             lineterminator=self.lineterminator,
             comment=self.comment,
@@ -149,34 +209,38 @@ class FlightComputerV1(Instrument):
         return df
 
 
-class FlightComputerV2(Instrument):
+class FlightComputerV2(FlightComputer):
     """
     This flight computer relates to the second version used in campaigns
     in 2024. This version uses a new set of metadata and a modified CSV format.
     """
 
+    @property
+    def lat_column(self) -> str | None:
+        return "Lat"
+
+    @property
+    def long_column(self) -> str | None:
+        return "Long"
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-    def file_identifier(self, first_lines_of_csv) -> bool:
-        # In V2, datetime is prefixed with a space, check partial is within
-        # first line
+    @property
+    def T1_column(self) -> str:
+        return "Out1_T"
 
-        # Datetime is prefixed with space, so we need to account for that
-        header_partial = (
-            "Time,F_cur_pos,F_cntdown,F_smp_flw,F_smp_tmp,F_smp_prs,F_pump_pw,"
-            "F_psvolts,F_err_rpt,SO_S,SO_D,SO_U,SO_V,SO_W,SO_T,SO_H,SO_P,"
-            "SO_PI,SO_RO,SO_MD,POPID,POPCHAIN,POPtot,POPf,POPT,POPc1,POPc2,"
-            "POPc3,POPc4,POPc5,POPc6,POPc7,POPc8,Ubat,CO2,BME_T,BME_H,BME_P,"
-            #"CPUTEMP,RPiT,RPiS,IYaw,IPitch,IRoll,ILat,ILong,IVX,IVY,IVZ,IAX,"
-            #"IAY,IAZ,IARX,IARY,IARZ,Out1_T,Out1_H,Out2_T,Out2_H,Inlet2_T,"
-            #"Inlet2_H,UTCTime,Status,Lat,LatDir,Long,LongDir,Speed,Course,"
-            #"Date,MagVar,MVdir,GLat,GLatDir,GLong,GLongDir,GPSQ,GNSats,"
-            #"Hprec,GAlt,AltU,Geoidal,UTCTime2,Heading,HeadTrue,Roll,Pitch,"
-            #"Heave,RollAcc,PitchAcc,HeadAcc,GNSSqty"
-        )
+    @property
+    def T2_column(self) -> str:
+        return "Out2_T"
 
-        return header_partial in first_lines_of_csv[0]
+    @property
+    def H1_column(self) -> str:
+        return "Out1_H"
+
+    @property
+    def H2_column(self) -> str:
+        return "Out2_H"
 
     def read_data(self) -> pd.DataFrame:
         """Read data into dataframe, adjusting for duplicate headers."""
@@ -254,9 +318,12 @@ class FlightComputerV2(Instrument):
         df = pd.read_csv(
             self.filename,
             on_bad_lines="skip",
-            low_memory=False,
-            sep=",",
+            sep=self.delimiter,
+            engine="python",
         )
+
+        if re.fullmatch(r"\d{6}-\d{6}", df.columns[0]):
+            df = df.rename(columns={df.columns[0]: "Time"})
 
         # to convert all the columns to float, except the string columns
         exclude_str_cols = [
@@ -325,7 +392,7 @@ class FlightComputerV2(Instrument):
         df.set_index("DateTime", inplace=True)
 
         # Set to index type to seconds
-        df.index = df.index.floor('s') #astype("datetime64[s]")
+        df.index = df.index.floor('s').astype("datetime64[s]")
 
         return df
 
@@ -387,6 +454,10 @@ flight_computer_v1 = FlightComputerV1(
     ],
     export_order=100,
     pressure_variable="P_baro",
+    coupled_columns=[
+        ('flight_computer_TEMP1', 'flight_computer_RH1'),
+        ('flight_computer_TEMP2', 'flight_computer_RH2'),
+    ]
 )
 
 flight_computer_v2 = FlightComputerV2(
@@ -486,8 +557,48 @@ flight_computer_v2 = FlightComputerV2(
         "PitchAcc": "Float64",
         "HeadAcc": "Float64",
         "GNSSqty": "Float64",
+        "MSsheath_rh": "Float64",
+        "MSsheath_temp": "Float64",
+        "MSpressure": "Float64",
+        "MSlfe_temp": "Float64",
+        "MSsheath_flow": "Float64",
+        "MSsheath_pwr": "Float64",
+        "MSimpct_prs": "Float64",
+        "MShv_volts": "Float64",
+        "MShv_dac": "Float64",
+        "MSsd_install": "Float64",
+        "MSext_volts": "Float64",
+        "MSmsems_errs": "Float64",
+        "MSmcpc_hrtb": "Float64",
+        "MSmcpc_smpf": "Float64",
+        "MSmcpc_satf": "Float64",
+        "MSmcpc_cndt": "Float64",
+        "MSmcpc_satt": "Float64",
+        "MSmcpc_sn": "Float64",
+        "MSmcpc_errs": "Float64",
+        "MSmcpcpwr": "Float64",
+        "MSmcpcpmp": "Float64",
+        "MSsd_save": "Float64",
+        "MSsave_flag": "Float64",
     },
     na_values=[],
+    expected_header_value=(
+        # "Time,"
+        # "F_cur_pos,F_cntdown,F_smp_flw,F_smp_tmp,F_smp_prs,F_pump_pw,F_psvolts,F_err_rpt,"
+        "SO_S,SO_D,SO_U,SO_V,SO_W,SO_T,SO_H,SO_P,SO_PI,SO_RO,SO_MD,"
+        "POPID,POPCHAIN,POPtot,POPf,POPT,POPc1,POPc2,POPc3,POPc4,POPc5,POPc6,POPc7,POPc8,"
+        "Ubat,CO2,BME_T,BME_H,BME_P,CPUTEMP,RPiT,RPiS,"
+        # "IYaw,IPitch,IRoll,ILat,ILong,IVX,IVY,IVZ,"
+        # "IAX,IAY,IAZ,IARX,IARY,IARZ,"
+        "Out1_T,Out1_H,Out2_T,Out2_H,"
+        # "Inlet2_T,Inlet2_H,"
+        "UTCTime,Status,Lat,LatDir,Long,LongDir,Speed,Course,Date,MagVar,MVdir,"
+        # "GLat,GLatDir,GLong,GLongDir,GPSQ,GNSats,GAlt,"
+        "Hprec,AltU,Geoidal,UTCTime2,Heading,HeadTrue,Roll,Pitch,"
+        "Heave,RollAcc,PitchAcc,HeadAcc"
+        # ",GNSSqty"
+    ),
+    delimiter=r",|\s+(?!REL)",
     comment="#",
     cols_export=[
         "GAlt",  # GPS Altitude
@@ -600,6 +711,12 @@ flight_computer_v2 = FlightComputerV2(
         "HeadAcc",
         "GNSSqty",
     ],
+    cols_final=["pressure"],
     export_order=100,
     pressure_variable="BME_P",
+    coupled_columns=[
+        ('flight_computer_Out1_T', 'flight_computer_Out1_H'),
+        ('flight_computer_Out2_T', 'flight_computer_Out2_H'),
+        ('flight_computer_Lat', 'flight_computer_Long'),
+    ],
 )

@@ -32,6 +32,9 @@ class SmartTether(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "ST"
+
     def date_extractor(self, first_lines_of_csv) -> datetime.datetime:
         date_line = first_lines_of_csv[1]
         date_string = date_line.split(" ")[-1].strip()
@@ -41,7 +44,7 @@ class SmartTether(Instrument):
     def file_identifier(self, first_lines_of_csv) -> bool:
         if first_lines_of_csv[
             0
-        ] == "SmartTether log file\n" and first_lines_of_csv[3] == (
+        ] == "SmartTether log file\n" and first_lines_of_csv[self.header] == (
             "Time,Comment,Module ID,Alt (m),P (mbar),T (deg C),%RH,Wind "
             "(degrees),Wind (m/s),Supply (V),UTC Time,Latitude (deg),"
             "Longitude (deg),Course (deg),Speed (m/s)\n"
@@ -101,7 +104,7 @@ class SmartTether(Instrument):
             self.filename,
             dtype=self.dtype,
             na_values=self.na_values,
-            header=self.header,
+            skiprows=self.header,
             delimiter=self.delimiter,
             lineterminator=self.lineterminator,
             comment=self.comment,
@@ -131,7 +134,7 @@ smart_tether = SmartTether(
         "Course (deg)": "Float64",
         "Speed (m/s)": "Float64",
     },
-    header=2,
+    header=3,
     export_order=600,
     cols_export=[
         "Comment",
@@ -160,7 +163,15 @@ smart_tether = SmartTether(
         "Course (deg)",
         "Speed (m/s)",
     ],
+    cols_final=["Wind (degrees)", "Wind (m/s)"],
     pressure_variable="P (mbar)",
+    coupled_columns=[
+        ('smart_tether_Wind (m/s)', 'smart_tether_Wind (degrees)'),
+    ],
+    rename_dict={
+        'smart_tether_Wind (m/s)': 'WindSpeed',
+        'smart_tether_Wind (degrees)': 'WindDir',
+    },
 )
 
 

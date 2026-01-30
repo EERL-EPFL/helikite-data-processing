@@ -3,10 +3,13 @@ from helikite.classes.cleaning import Cleaner
 from helikite import instruments
 import datetime
 
+from helikite.classes.output_schemas import OutputSchemas
+
 
 def test_merge_instruments(campaign_data):
 
     cleaner = Cleaner(
+        output_schema=OutputSchemas.TURTMANN,
         instruments=[
             instruments.flight_computer_v1,
             instruments.smart_tether,
@@ -31,6 +34,7 @@ def test_merge_instruments(campaign_data):
         reference_pressure_thresholds=(900, 1200),
         walk_time_seconds=60,
     )
+    cleaner.remove_duplicates()
     cleaner.merge_instruments()
 
     # Assert that the merged DataFrame is correct

@@ -1,5 +1,9 @@
+from collections import defaultdict
+
 import pandas as pd
 import numpy as np
+
+from helikite.instruments.base import filter_columns_by_instrument
 
 
 def crosscorr(datax, datay, lag=10):
@@ -17,34 +21,30 @@ def crosscorr(datax, datay, lag=10):
     return datax.corr(datay.shift(lag))
 
 
-def df_derived_by_shift(df_init, lag=0, NON_DER=[]):
+def df_derived_by_shift(df_init: pd.DataFrame, lags: np.ndarray, NON_DER=[]):
     df = df_init.copy()
-    if not lag:
-        return df
-    cols = {}
-    for i in range(1, 2 * lag + 1):
-        for x in list(df.columns):
-            if x not in NON_DER:
-                if x not in cols:
-                    cols[x] = ["{}_{}".format(x, i)]
-                else:
-                    cols[x].append("{}_{}".format(x, i))
+
+    cols = defaultdict(list)
+    for x in list(df.columns):
+        if x not in NON_DER:
+            for lag in lags:
+                cols[x].append("{}_{}".format(x, lag))
     for k, v in cols.items():
         columns = v
         dfn = pd.DataFrame(data=None, columns=columns, index=df.index)
-        i = -lag
         for c in columns:
-            dfn[c] = df[k].shift(periods=i)
-            i += 1
+            lag = int(c.removeprefix(k + "_"))
+            dfn[c] = df[k].shift(periods=lag)
         df = pd.concat([df, dfn], axis=1)  # , join_axes=[df.index])
     return df
 
 
-def df_findtimelag(df, range_list, instname=""):
-    filter_inst = [col for col in df if col.startswith(instname)]
+def df_findtimelag(df, lags, instrument):
+    filter_inst = filter_columns_by_instrument(df.columns, instrument)
+    assert len(filter_inst) == len(lags), (f"Number of detected instrument columns ({len(filter_inst)})"
+                                           f" differ from number of lags {len(lags)}.")
     df_inst = df[filter_inst].iloc[0]
-
-    df_inst = df_inst.set_axis(range_list, copy=False)
+    df_inst = df_inst.set_axis(lags, copy=False)
 
     return df_inst
 
@@ -58,28 +58,11 @@ def df_lagshift(
     """
     print(f"\tShifting {instrument_name} by {shift_quantity} index")
 
-    # Add columns to the reference, so we know which to delete later
-    # df_reference.columns = [f"{col}_ref" for col in df_reference.columns]
-    df_original = df_instrument.copy()
+    df_shifted = df_instrument.copy()
+    df_shifted.index = df_shifted.index.shift(periods=shift_quantity, freq="1s")
+    df_shifted = df_shifted.reindex(index=df_reference.index)
 
-    df_reference_index = df_reference.copy().index.to_frame()
-
-    # Remove index name
-    df_reference_index = df_reference_index.rename_axis(None, axis=1)
-
-    df_shifted = df_original.shift(periods=shift_quantity, axis=0)
-    # Ensure both indices have the same datetime dtype before merging
-    df_reference_index.index = df_reference_index.index.astype('datetime64[ns]')
-    df_shifted.index = df_shifted.index.astype('datetime64[ns]')
-    # Get only the index of the reference and merge with instrument
-    df_synchronised = pd.merge_asof(
-        df_reference_index,
-        df_shifted,
-        left_index=True,
-        right_index=True,
-    )
-
-    return (df_original, df_synchronised)
+    return df_instrument, df_shifted
 
 
 # correct the other instrument pressure with the reference pressure

@@ -1,12 +1,13 @@
-import pytest
-from helikite.classes.cleaning import Cleaner
-from helikite.tests.process.level0.mock import MockInstrument
 import datetime
+
+from helikite.classes.cleaning import Cleaner
+from helikite.tests.process.level0.mock import MockInstrument, get_mock_output_schema
 
 
 def test_cleaner_state(capfd, campaign_data):
     instrument1 = MockInstrument("inst1")
     cleaner = Cleaner(
+        output_schema=get_mock_output_schema(instrument1),
         instruments=[instrument1],
         reference_instrument=instrument1,
         input_folder=str(campaign_data),
@@ -22,6 +23,7 @@ def test_cleaner_state(capfd, campaign_data):
 def test_cleaner_help(capfd, campaign_data):
     instrument1 = MockInstrument("inst1")
     cleaner = Cleaner(
+        get_mock_output_schema(instrument1),
         instruments=[instrument1],
         reference_instrument=instrument1,
         input_folder=str(campaign_data),

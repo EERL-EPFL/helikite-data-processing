@@ -84,21 +84,15 @@ def stp_moist_test(x, t, p1, rh):
     p = p1 * 100  # in Pa
     t = t + 273.15  # in K
 
-    for i in range(len(t)):
-        if t[i] > 273.15:
-            e_s = (
-                np.exp(34.494 - (4924.9 / ((t[i] - 273.15) + 237.1)))
-                / ((t[i] - 273.15) + 105) ** 1.57
-            )
-        else:
-            e_s = (
-                np.exp(43.494 - (6545.8 / ((t[i] - 273.15) + 278)))
-                / ((t[i] - 273.15) + 868) ** 2
-            )
+    e_sv = np.exp(34.494 - (4924.9 / ((t - 273.15) + 237.1))) / ((t - 273.15) + 105) ** 1.57
+    e_si = np.exp(43.494 - (6545.8 / ((t - 273.15) + 278))) / ((t - 273.15) + 868) ** 2
 
-        e = (rh * e_s) / 100
-        t_v = t / (1 - (e / p) * (1 - 0.622))
-        v_stp = (273.15 / t_v) * (p / 101315)
-        x_stp = x / v_stp
+    # use `e_sv` for temperatures above 273.15 K and `e_si` for temperatures below
+    e_s = e_sv.where(t > 273.15, e_si)
+
+    e = (rh * e_s) / 100
+    t_v = t / (1 - (e / p) * (1 - 0.622))
+    v_stp = (273.15 / t_v) * (p / 101315)
+    x_stp = x / v_stp
 
     return x_stp

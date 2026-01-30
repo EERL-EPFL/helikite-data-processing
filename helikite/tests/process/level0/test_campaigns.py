@@ -3,11 +3,14 @@ from helikite.classes.cleaning import Cleaner
 from helikite import instruments
 import datetime
 
+from helikite.classes.output_schemas import OutputSchemas
+
 
 def test_2024_04_02(campaign_data):
     """Test the campaign of 2024-04-02"""
 
     cleaner = Cleaner(
+        output_schema=OutputSchemas.TURTMANN,
         instruments=[
             instruments.flight_computer_v1,
             instruments.smart_tether,
@@ -44,6 +47,7 @@ def test_2025_02_12(campaign_data):
     """
 
     cleaner = Cleaner(
+        output_schema=OutputSchemas.ORACLES_24_25,
         instruments=[
             instruments.flight_computer_v2,
             instruments.smart_tether,
@@ -59,6 +63,7 @@ def test_2025_02_12(campaign_data):
     cleaner.data_corrections()
     cleaner.set_pressure_column("pressure")
     cleaner.correct_time_and_pressure(max_lag=180)
+    cleaner.remove_duplicates()
     cleaner.merge_instruments()
 
     # Assert that the merged DataFrame is correct

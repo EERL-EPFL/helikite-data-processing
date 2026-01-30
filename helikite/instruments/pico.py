@@ -23,11 +23,14 @@ class Pico(Instrument):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
+    def __repr__(self):
+        return "Pico"
+
     def file_identifier(self, first_lines_of_csv) -> bool:
         if (
             "win0Fit0,win0Fit1,win0Fit2,win0Fit3,win0Fit4,win0Fit5,win0Fit6,"
             "win0Fit7,win0Fit8,win0Fit9,win1Fit0,win1Fit1,win1Fit2"
-        ) in first_lines_of_csv[0]:
+        ) in first_lines_of_csv[self.header]:
             return True
 
         return False
@@ -45,6 +48,7 @@ class Pico(Instrument):
 
         # Define the datetime column as the index
         df.set_index("DateTime", inplace=True)
+        df.index = df.index.astype("datetime64[s]")
 
         return df
 
@@ -57,7 +61,7 @@ class Pico(Instrument):
             self.filename,
             dtype=self.dtype,
             na_values=self.na_values,
-            header=self.header,
+            skiprows=self.header,
             delimiter=self.delimiter,
             lineterminator=self.lineterminator,
             comment=self.comment,
