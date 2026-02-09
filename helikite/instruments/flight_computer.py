@@ -585,8 +585,8 @@ flight_computer_v2 = FlightComputerV2(
     expected_header_value=(
         # "Time,"
         # "F_cur_pos,F_cntdown,F_smp_flw,F_smp_tmp,F_smp_prs,F_pump_pw,F_psvolts,F_err_rpt,"
-        "SO_S,SO_D,SO_U,SO_V,SO_W,SO_T,SO_H,SO_P,SO_PI,SO_RO,SO_MD,"
-        "POPID,POPCHAIN,POPtot,POPf,POPT,POPc1,POPc2,POPc3,POPc4,POPc5,POPc6,POPc7,POPc8,"
+        #"SO_S,SO_D,SO_U,SO_V,SO_W,SO_T,SO_H,SO_P,SO_PI,SO_RO,SO_MD,"
+        #"POPID,POPCHAIN,POPtot,POPf,POPT,POPc1,POPc2,POPc3,POPc4,POPc5,POPc6,POPc7,POPc8,"
         "Ubat,CO2,BME_T,BME_H,BME_P,CPUTEMP,RPiT,RPiS,"
         # "IYaw,IPitch,IRoll,ILat,ILong,IVX,IVY,IVZ,"
         # "IAX,IAY,IAZ,IARX,IARY,IARZ,"

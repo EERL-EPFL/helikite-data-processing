@@ -2,6 +2,7 @@ import inspect
 import logging
 import os
 import pathlib
+import re
 from abc import ABC, abstractmethod
 from datetime import datetime, date
 from typing import Any
@@ -140,8 +141,8 @@ class Instrument(ABC):
         if first_lines_of_csv[self.header] == self.expected_header_value:
             return True
 
-        header_partial_set = set(map(lambda s: s.strip(), self.expected_header_value.split(",")))
-        first_line_set = set(map(lambda s: s.strip(), first_lines_of_csv[self.header].split(",")))
+        header_partial_set = set(map(lambda s: s.strip(), re.split(self.delimiter, self.expected_header_value)))
+        first_line_set = set(map(lambda s: s.strip(), re.split(self.delimiter, first_lines_of_csv[self.header])))
 
         return header_partial_set.issubset(first_line_set)
 
@@ -340,7 +341,8 @@ class Instrument(ABC):
                 successful_matches.append(filename)
                 if len(successful_matches) > 1:
                     if interactive:
-                        message = (f"Instrument detect in multiple files: {successful_matches}.\n"
+                        message = (f"Instrument {self.registry_name} "
+                                   f"detected in multiple files: {successful_matches}.\n"
                                    f"Please enter an index of the instrument to use: ")
                         index = int(input(message))
                         successful_matches = [successful_matches[index]]
