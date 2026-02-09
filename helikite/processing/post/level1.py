@@ -236,7 +236,7 @@ def flight_profiles(df: pd.DataFrame, level: Level, output_schema: OutputSchema,
         (x_min, x_max), divider = _get_series_bounds(df[var.column_name], divider, var.x_min, var.x_max)
 
         ax.set_xlim(x_min, x_max)
-        if divider is not None:
+        if divider is not None and x_min is not None and x_max is not None:
             ax.set_xticks(np.arange(x_min, x_max + min(divider, 1), divider))
 
     # Y axis minor ticks, grid and limits on main axes
@@ -292,6 +292,9 @@ def _get_series_bounds(
     default_min: Number | None,
     default_max: Number | None
 ) -> tuple[tuple[Number, Number], Number]:
+    if x.isna().all().all():
+        return (default_min, default_max), default_divider
+
     min_bound = x.min() if default_min is None else default_min
     max_bound = x.quantile(0.99) * 1.1 if default_max is None else default_max
 

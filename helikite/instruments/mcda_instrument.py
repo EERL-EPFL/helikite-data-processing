@@ -305,7 +305,7 @@ class mCDA(Instrument):
         counts = counts.astype(float)
         counts[counts == 0] = np.nan
 
-        vmax_value = np.nanmax(counts.values)
+        vmax_value = np.nanmax(counts.values) if not counts.isna().all().all() else np.nan
         print(f"max value ({self.name}): {vmax_value}")
 
         # Create 2D mesh grid
