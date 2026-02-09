@@ -372,23 +372,30 @@ class MSEMSInverted(Instrument):
         # Get diameter bin averages
         if start_dia and end_dia in df.columns:
             bin_diameter_averages = df.loc[:, start_dia:end_dia].mean()
+            if bin_diameter_averages.isna().any():
+                logger.warning("NaNs are present in `bin_diameter_averages`. "
+                               "Setting `bin_diameter_averages` to the default `MSEMS_BIN_DIAMETER_AVERAGES`")
+                bin_diameter_averages = MSEMS_BIN_DIAMETER_AVERAGES
         else:
             bin_diameter_averages = MSEMS_BIN_DIAMETER_AVERAGES
 
         # Prepare the concentration data
         counts = df.loc[:, start_conc:end_conc]
         counts.index = df.index
-        counts = counts.astype(float).dropna(how='any') if not counts.isna().all().all() else counts
+        counts = counts.astype(float)
+        counts = counts.dropna(how='any') if not counts.isna().all().all() else counts
         counts = counts.clip(lower=1)
+
+        vmax_value = np.nanmax(counts.values) if not counts.isna().all().all() else np.nan
+        print(f"max value ({self.name}): {vmax_value}")
 
         # Create the 2D meshgrid
         xx, yy = np.meshgrid(counts.index.values, bin_diameter_averages)
-        vmax_value = np.nanmax(counts.values)
-        print(f"max value ({self.name}): {vmax_value}")
+        Z = counts.values.T
 
         # Plot the pcolormesh
         norm = mcolors.LogNorm(vmin=1, vmax=1000)
-        mesh = ax.pcolormesh(xx, yy, counts.values.T, cmap='viridis', norm=norm, shading="gouraud")
+        mesh = ax.pcolormesh(xx, yy, Z, cmap='viridis', norm=norm, shading="gouraud")
 
         # Colorbar
         divider = make_axes_locatable(ax)

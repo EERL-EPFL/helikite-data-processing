@@ -257,7 +257,7 @@ class POPS(Instrument):
         counts = df.loc[:, start_conc:end_conc]
         counts = counts.set_index(df.index).astype(float)
 
-        vmax_value = counts.values.max()
+        vmax_value = np.nanmax(counts.values) if not counts.isna().all().all() else np.nan
         print(f"max value ({self.name}): {vmax_value}")
 
         # Create 2D grid
