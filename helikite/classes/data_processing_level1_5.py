@@ -65,7 +65,7 @@ class DataProcessorLevel1_5(BaseProcessor):
 
     @function_dependencies(required_operations=["filter_columns"], changes_df=True, use_once=True)
     def rename_columns(self):
-        self._df = rename_columns(self._df, self._output_schema)
+        self._df = rename_columns(self._df, self._output_schema, self._reference_instrument)
 
     @function_dependencies(required_operations=["filter_columns"], changes_df=True, use_once=True)
     def round_flightnbr_campaign(self, decimals=2):
@@ -134,7 +134,8 @@ class DataProcessorLevel1_5(BaseProcessor):
                              variables: list[FlightProfileVariable] | None = None):
         plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level {self.level.value}]'
-        fig = flight_profiles(self._df, self.level, self._output_schema, variables, fig_title=title)
+        fig = flight_profiles(self._df, self._reference_instrument,
+                              self.level, self._output_schema, variables, fig_title=title)
 
         # Save the figure after plotting
         print("Saving figure to:", save_path)

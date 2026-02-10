@@ -261,7 +261,8 @@ class MSEMSInverted(Instrument):
 
         return df
 
-    def normalize(self, df: pd.DataFrame, verbose: bool, *args, **kwargs) -> pd.DataFrame:
+    def normalize(self, df: pd.DataFrame, reference_instrument: Instrument,
+                  verbose: bool, *args, **kwargs) -> pd.DataFrame:
         """
         Normalize mSEMS concentrations to STP conditions and insert the results
         right after the existing mSEMS columns.
@@ -277,7 +278,7 @@ class MSEMSInverted(Instrument):
         T_STP = 273.15  # Kelvin
 
         # Measured conditions
-        P_measured = df["flight_computer_pressure"]
+        P_measured = df[f"{reference_instrument.name}_pressure"]
         T_measured = df["Average_Temperature"] + 273.15  # Convert °C to Kelvin
 
         # Calculate the STP correction factor
@@ -673,6 +674,7 @@ msems_scan = MSEMSScan(
     },
     export_order=710,
     pressure_variable="press_avg",
+    temperature_variable="temp_avg",
     cols_export=[],
     cols_housekeeping=[],
     cols_final=[],
@@ -855,6 +857,7 @@ msems_inverted = MSEMSInverted(
     expected_header_value="#Date\tTime\tTemp(C)\tPress(hPa)\tNumBins\tBin_Dia1\tBin_Dia2\tBin_Dia3",
     export_order=720,
     pressure_variable="Press(hPa)",
+    temperature_variable="Temp(C)",
     cols_export=[],
     cols_housekeeping=[],
     cols_final=[f"Bin_Conc{i}_stp" for i in range(1, 61)] + ["dN_totalconc_stp"],

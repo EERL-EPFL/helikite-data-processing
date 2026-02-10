@@ -86,7 +86,7 @@ def test_2025_02_12_level1(campaign_data):
     # Step 3: Apply Level 1 processing functions (exactly as in notebook)
     try:
         df_level1 = create_level1_dataframe(df_level1, output_schema)
-        df_level1 = rename_columns(df_level1, output_schema)
+        df_level1 = rename_columns(df_level1, output_schema, instruments.flight_computer_v2)
         df_level1 = round_flightnbr_campaign(df_level1, metadata, output_schema, decimals=2)
         level1_df = df_level1
         full_processing_succeeded = True

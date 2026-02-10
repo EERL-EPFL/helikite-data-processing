@@ -70,7 +70,8 @@ class CO2(Instrument):
 
         raise ValueError(f"Failed to read CO2 data from {self.filename}")
 
-    def normalize(self, df: pd.DataFrame, verbose: bool, min_threshold: Number, max_threshold: Number) -> pd.DataFrame:
+    def normalize(self, df: pd.DataFrame, reference_instrument: Instrument,
+                  verbose: bool, min_threshold: Number, max_threshold: Number) -> pd.DataFrame:
         """
         Process CO2 data to convert to STP moist and dry values, apply calibration,
         and filter out unrealistic values. Only processes if mean CO2 is above threshold.
@@ -99,7 +100,9 @@ class CO2(Instrument):
         # Perform STP conversion
         print(self._describe(df[co2_column_name].values))
         CO2_moist = stp_moist_test(df[co2_column_name],
-                                   df['Average_Temperature'], df['flight_computer_pressure'], df['Average_RH'])
+                                   df['Average_Temperature'],
+                                   df[f'{reference_instrument.name}_pressure'],
+                                   df['Average_RH'])
 
         # Apply calibration (same for both, but only using moist in output)
         CO2_final_moist = 1.011742 * CO2_moist - 26.332125

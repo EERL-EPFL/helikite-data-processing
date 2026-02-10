@@ -38,6 +38,7 @@ class Instrument(ABC):
         cols_final: list[str] | None = None, # Columns to keep in the final data file
         export_order: int | None = None,  # Order hierarchy in export file
         pressure_variable: str | None = None,  # The variable measuring pressure
+        temperature_variable: str | None = None, # The variable measuring temperature
         registry_name: str | None = None,
         # Groups of columns that are coupled. If a row contains an outlier in any column within a tuple,
         # then the values in all other columns of that tuple should also be treated as outliers.
@@ -59,6 +60,7 @@ class Instrument(ABC):
         self.cols_final = cols_final
         self.export_order = export_order
         self.pressure_variable = pressure_variable
+        self.temperature_variable = temperature_variable
         self.coupled_columns = coupled_columns if coupled_columns is not None else []
         self._rename_dict = rename_dict if rename_dict is not None else {}
 
@@ -395,7 +397,8 @@ class Instrument(ABC):
 
         return df
 
-    def normalize(self, df: pd.DataFrame, verbose: bool, *args, **kwargs) -> pd.DataFrame:
+    def normalize(self, df: pd.DataFrame, reference_instrument: "Instrument",
+                  verbose: bool, *args, **kwargs) -> pd.DataFrame:
         """Apply normalization to the data, i.e., normalization to STP conditions"""
         if verbose:
             logger.warning(f"Data normalization not implemented for {self.registry_name}.")

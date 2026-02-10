@@ -38,8 +38,9 @@ class MAeth(Instrument):
 
         return df
 
-    def normalize(self, df: pd.DataFrame, verbose: bool, *args, **kwargs) -> pd.DataFrame:
-        pressure = df["flight_computer_pressure"]
+    def normalize(self, df: pd.DataFrame, reference_instrument: Instrument,
+                  verbose: bool, *args, **kwargs) -> pd.DataFrame:
+        pressure = df[f"{reference_instrument.name}_pressure"]
         temperature = df["Average_Temperature"]
 
         df["maeth_UV BC1_STP"] = MAeth._stp_convert_dry(df["maeth_UV BC1"], temperature, pressure)

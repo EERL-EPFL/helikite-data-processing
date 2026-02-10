@@ -16,8 +16,9 @@ from helikite.classes.base import BaseProcessor, function_dependencies, get_inst
     launch_operations_changing_df
 from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, Level
 from helikite.constants import constants
-from helikite.instruments import Instrument
+from helikite.instruments import Instrument, smart_tether
 from helikite.instruments.base import filter_columns_by_instrument
+from helikite.instruments.flight_computer import FlightComputer
 from helikite.metadata.models import Level0
 from helikite.processing import choose_outliers
 from helikite.processing.post.TandRH import T_RH_averaging, plot_T_RH
@@ -74,19 +75,28 @@ class DataProcessorLevel1(BaseProcessor):
         fc = self._flight_computer
         wind_ms_column = "smart_tether_Wind (m/s)"
         wind_deg_column = "smart_tether_Wind (degrees)"
+
         if columns is None:
-            columns = [
-                f"{fc.name}_{fc.T1_column}",
-                f"{fc.name}_{fc.T2_column}",
-                f"{fc.name}_{fc.H1_column}",
-                f"{fc.name}_{fc.H2_column}",
-                f"{fc.name}_{fc.lat_column}",
-                f"{fc.name}_{fc.long_column}",
-                wind_ms_column,
-                wind_deg_column,
-            ]
+            columns = []
+            if fc is not None:
+                columns += [
+                    f"{fc.name}_{fc.T1_column}",
+                    f"{fc.name}_{fc.T2_column}",
+                    f"{fc.name}_{fc.H1_column}",
+                    f"{fc.name}_{fc.H2_column}",
+                    f"{fc.name}_{fc.lat_column}",
+                    f"{fc.name}_{fc.long_column}"
+                ]
+            if smart_tether in self.instruments:
+                columns += [
+                    wind_ms_column,
+                    wind_deg_column,
+                ]
+
         if acceptable_ranges is None:
-            acceptable_ranges = {wind_ms_column: (0, np.inf)}
+            acceptable_ranges = {}
+            if smart_tether in self.instruments:
+                acceptable_ranges |= {wind_ms_column: (0, np.inf)}
 
         detect_outliers(outliers_file, self._df, columns, acceptable_ranges, iqr_factor)
 
@@ -158,7 +168,7 @@ class DataProcessorLevel1(BaseProcessor):
 
     @function_dependencies(required_operations=["set_outliers_to_nan"], changes_df=False, use_once=False)
     def plot_outliers_check(self):
-        plot_outliers_check(self._df, self._flight_computer)
+        plot_outliers_check(self._df, self._reference_instrument, self._flight_computer)
 
     @function_dependencies(required_operations=["set_outliers_to_nan"], changes_df=True, use_once=False)
     def convert_gps_coordinates(self,
@@ -180,9 +190,13 @@ class DataProcessorLevel1(BaseProcessor):
 
     @function_dependencies(required_operations=["T_RH_averaging"], changes_df=False, use_once=False)
     def plot_T_RH(self, save_path: str | pathlib.Path | None = None):
-        plot_T_RH(self._df, self._flight_computer, save_path)
+        plot_T_RH(self._df, self._reference_instrument, self._flight_computer, save_path)
 
     def _build_FC_T_columns(self) -> list[str]:
+        if not isinstance(self._reference_instrument, FlightComputer):
+            if self._reference_instrument.temperature_variable is None:
+                raise ValueError("Reference instrument does not have a temperature variable")
+            return [f"{self._reference_instrument.name}_{self._reference_instrument.temperature_variable}"]
         return [
             f"{self._flight_computer.name}_{self._flight_computer.T1_column}",
             f"{self._flight_computer.name}_{self._flight_computer.T2_column}",
@@ -196,11 +210,11 @@ class DataProcessorLevel1(BaseProcessor):
 
     @function_dependencies(required_operations=["T_RH_averaging"], changes_df=True, use_once=False)
     def altitude_calculation_barometric(self, offset_to_add: Number = 0):
-        self._df = altitude_calculation_barometric(self._df, self._metadata, offset_to_add)
+        self._df = altitude_calculation_barometric(self._df, self._reference_instrument, self._metadata, offset_to_add)
 
     @function_dependencies(required_operations=["altitude_calculation_barometric"], changes_df=False, use_once=False)
     def plot_altitude(self):
-        plot_altitude(self._df)
+        plot_altitude(self._df, self._reference_instrument)
 
     @function_dependencies(required_operations=[], changes_df=True, use_once=True)
     def add_missing_columns(self):
@@ -242,7 +256,7 @@ class DataProcessorLevel1(BaseProcessor):
                            complete_with_arg="instrument")
     def normalize(self, instrument: Instrument, verbose: bool = True, *args, **kwargs):
         if self._check_schema_contains_instrument(instrument):
-            self._df = instrument.normalize(self._df, verbose, *args, **kwargs)
+            self._df = instrument.normalize(self._df, self._reference_instrument, verbose, *args, **kwargs)
 
     @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
                            changes_df=False, use_once=False,
@@ -274,7 +288,8 @@ class DataProcessorLevel1(BaseProcessor):
                              variables: list[FlightProfileVariable] | None = None):
         plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level {self.level.value}]'
-        fig = flight_profiles(self._df, self.level, self._output_schema, variables, fig_title=title)
+        fig = flight_profiles(self._df, self._reference_instrument,
+                              self.level, self._output_schema, variables, fig_title=title)
 
         # Save the figure after plotting
         print("Saving figure to:", save_path)

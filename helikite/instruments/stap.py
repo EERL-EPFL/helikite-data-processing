@@ -63,7 +63,8 @@ class STAP(Instrument):
 
         return df
 
-    def normalize(self, df: pd.DataFrame, verbose: bool, *args, **kwargs) -> pd.DataFrame:
+    def normalize(self, df: pd.DataFrame, reference_instrument: Instrument,
+                  verbose: bool, *args, **kwargs) -> pd.DataFrame:
         """
         Normalize STAP measurements to STP conditions.
 
@@ -79,7 +80,7 @@ class STAP(Instrument):
         T_STP = 273.15  # Kelvin
 
         # Measured conditions
-        P_measured = df["flight_computer_pressure"]
+        P_measured = df[f"{reference_instrument.name}_pressure"]
         T_measured = df["Average_Temperature"] + 273.15  # Convert °C to Kelvin
 
         # Calculate the STP correction factor
@@ -296,4 +297,5 @@ stap_raw = STAPRaw(
         "stapctl",
     ],
     pressure_variable="smp_prs",
+    temperature_variable="smp_tmp",
 )

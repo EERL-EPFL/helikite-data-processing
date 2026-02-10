@@ -66,7 +66,7 @@ class CPC(Instrument):
 
         return df
 
-    def normalize(self, df: pd.DataFrame, verbose: bool, *args, **kwargs) -> pd.DataFrame:
+    def normalize(self, df: pd.DataFrame, reference_instrument: Instrument, verbose: bool, *args, **kwargs) -> pd.DataFrame:
         """
         Normalize CPC3007 concentrations to STP conditions and insert the results
         right after the existing CPC columns.
@@ -83,7 +83,7 @@ class CPC(Instrument):
         T_STP = 273.15   # Kelvin
     
         # Measured conditions
-        P_measured = df["flight_computer_pressure"]
+        P_measured = df[f"{reference_instrument.name}_pressure"]
         T_measured = df["Average_Temperature"] + 273.15  # Convert °C to Kelvin
     
         # Calculate STP correction
