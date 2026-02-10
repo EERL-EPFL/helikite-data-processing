@@ -132,7 +132,7 @@ class BaseProcessor(ABC):
 
     @property
     def _flight_computer(self) -> FlightComputer | None:
-        for instrument in self._instruments:
+        for instrument in self._output_schema.instruments:
             if isinstance(instrument, FlightComputer):
                 return instrument
         return None

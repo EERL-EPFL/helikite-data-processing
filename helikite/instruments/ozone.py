@@ -91,4 +91,5 @@ ozone_monitor = OzoneMonitor(
     cols_housekeeping=["ozone", "cell_temp", "cell_pressure", "flow_rate"],
     export_order=250,
     pressure_variable="cell_pressure",
+    temperature_variable="cell_temp",
 )

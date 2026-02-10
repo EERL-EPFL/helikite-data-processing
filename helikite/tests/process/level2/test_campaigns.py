@@ -68,7 +68,7 @@ def test_2025_02_12_level2(campaign_data):
     # Apply Level 1 processing steps with error handling
     try:
         level1_df = create_level1_dataframe(cleaner.master_df, output_schema)
-        level1_df = rename_columns(level1_df, output_schema)
+        level1_df = rename_columns(level1_df, output_schema, instruments.flight_computer_v2)
         level1_df = round_flightnbr_campaign(level1_df, metadata, output_schema, decimals=2)
     except KeyError as e:
         # If specific columns are missing, create a simplified Level 1 df

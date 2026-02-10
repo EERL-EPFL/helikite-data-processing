@@ -12,7 +12,7 @@ from matplotlib.patches import Patch
 from pydantic import BaseModel
 
 from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, FlightProfileVariableShade, Level
-from helikite.instruments.base import filter_columns_by_instrument
+from helikite.instruments.base import filter_columns_by_instrument, Instrument
 
 
 def create_level1_dataframe(df: pd.DataFrame, output_schema: OutputSchema):
@@ -38,7 +38,7 @@ def create_level1_dataframe(df: pd.DataFrame, output_schema: OutputSchema):
     return df[selected_columns].copy()
 
 
-def rename_columns(df: pd.DataFrame, output_schema: OutputSchema):
+def rename_columns(df: pd.DataFrame, output_schema: OutputSchema, reference_instrument: Instrument):
     """
     Renames columns of the input DataFrame according to predefined rules and instrument-specific rules.
     See `Instrument.rename_dict`
@@ -46,21 +46,22 @@ def rename_columns(df: pd.DataFrame, output_schema: OutputSchema):
     Parameters:
         df (pd.DataFrame): The DataFrame with columns to be renamed.
         output_schema (OutputSchema): The OutputSchema object containing the instruments.
+        reference_instrument (Instrument): Reference instrument to take pressure values from.
 
     Returns:
         pd.DataFrame: DataFrame with renamed columns.
     """
-    df_renamed = df.rename(columns=_build_rename_dict(output_schema))
+    df_renamed = df.rename(columns=_build_rename_dict(output_schema, reference_instrument))
 
     return df_renamed
 
 
-def _build_rename_dict(output_schema: OutputSchema):
+def _build_rename_dict(output_schema: OutputSchema, reference_instrument: Instrument):
     rename_dict = {
         'DateTime': 'datetime',
         'latitude_dd': 'Lat',
         'longitude_dd': 'Long',
-        'flight_computer_pressure': 'P',
+        f'{reference_instrument.name}_pressure': 'P',
         'Average_Temperature': 'TEMP',
         'Average_RH': 'RH',
     }
@@ -166,10 +167,10 @@ def fill_msems_takeoff_landing(df, metadata, time_window_seconds):
             print(f"{label} ({event_time}) not in index.")
 
 
-def flight_profiles(df: pd.DataFrame, level: Level, output_schema: OutputSchema,
+def flight_profiles(df: pd.DataFrame, reference_instrument: Instrument, level: Level, output_schema: OutputSchema,
                     variables: list[FlightProfileVariable] | None, fig_title=None):
     # Columns in df might have been already renamed
-    rename_dict = _build_rename_dict(output_schema)
+    rename_dict = _build_rename_dict(output_schema, reference_instrument)
     variables = variables if variables is not None else output_schema.flight_profile_variables
     variables = variables.copy()
     for i, variable in enumerate(variables):

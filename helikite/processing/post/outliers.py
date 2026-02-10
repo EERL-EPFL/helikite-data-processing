@@ -7,17 +7,19 @@ from branca.colormap import linear
 import matplotlib.dates as mdates
 
 from helikite.constants import constants
+from helikite.instruments import Instrument
 from helikite.instruments.flight_computer import FlightComputer
 
 logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
-def plot_outliers_check(df, flight_computer: FlightComputer):
+def plot_outliers_check(df, reference_instrument: Instrument, flight_computer: FlightComputer):
     """
     Plots various flight parameters against flight_computer_pressure.
     
     Args:
         df (pd.DataFrame): The DataFrame containing flight data.
+        reference_instrument (Instrument): Reference instrument to take pressure values from.
         flight_computer (FlightComputer):
             Flight computer instance, required to obtain correct column names, since they differ between versions.
 
@@ -27,16 +29,17 @@ def plot_outliers_check(df, flight_computer: FlightComputer):
     gps_available = flight_computer.lat_column is not None and flight_computer.long_column is not None
     ncols = 4 if gps_available else 3
     fig, axs = plt.subplots(2, ncols, figsize=(ncols * 4, 8), sharey=True, constrained_layout=True, squeeze=False)
+    pressure_column = f"{reference_instrument.name}_pressure"
 
     # Plot Wind Speed vs Pressure
-    axs[0, 0].scatter(df['smart_tether_Wind (m/s)'], df['flight_computer_pressure'],
+    axs[0, 0].scatter(df['smart_tether_Wind (m/s)'], df[pressure_column],
                       color='palevioletred', alpha=0.7, s=10)
     axs[0, 0].set_xlabel('Wind Speed (m/s)', fontsize=10)
     axs[0, 0].set_ylabel('Pressure (hPa)', fontsize=10)
     axs[0, 0].set_title('WS', fontsize=10, fontweight='bold')
 
     # Plot Wind Direction vs Pressure
-    axs[1, 0].scatter(df['smart_tether_Wind (degrees)'], df['flight_computer_pressure'],
+    axs[1, 0].scatter(df['smart_tether_Wind (degrees)'], df[pressure_column],
                       color='olivedrab', alpha=0.7, s=10)
     axs[1, 0].set_xlabel('Wind Direction (°)', fontsize=10)
     axs[1, 0].set_ylabel('Pressure (hPa)', fontsize=10)
@@ -51,38 +54,38 @@ def plot_outliers_check(df, flight_computer: FlightComputer):
     long_column = f"{flight_computer.name}_{flight_computer.long_column}"
 
     # Plot Out1_T vs Pressure
-    axs[0, 1].scatter(df[t1_column], df['flight_computer_pressure'],
+    axs[0, 1].scatter(df[t1_column], df[pressure_column],
                       color='brown', alpha=0.7, s=10)
     axs[0, 1].set_xlabel('Temperature (°C)', fontsize=10)
     axs[0, 1].set_title('Out1_T', fontsize=10, fontweight='bold')
 
     # Plot Out1_H vs Pressure
-    axs[1, 1].scatter(df[h1_column], df['flight_computer_pressure'],
+    axs[1, 1].scatter(df[h1_column], df[pressure_column],
                       color='orange', alpha=0.7, s=10)
     axs[1, 1].set_xlabel('RH (%)', fontsize=10)
     axs[1, 1].set_title('Out1_H', fontsize=10, fontweight='bold')
 
     # Plot Out2_T vs Pressure
-    axs[0, 2].scatter(df[t2_column], df['flight_computer_pressure'],
+    axs[0, 2].scatter(df[t2_column], df[pressure_column],
                       color='sienna', alpha=0.7, s=10)
     axs[0, 2].set_xlabel('Temperature (°C)', fontsize=10)
     axs[0, 2].set_title('Out2_T', fontsize=10, fontweight='bold')
 
     # Plot Out2_H vs Pressure
-    axs[1, 2].scatter(df[h2_column], df['flight_computer_pressure'],
+    axs[1, 2].scatter(df[h2_column], df[pressure_column],
                       color='darkorange', alpha=0.7, s=10)
     axs[1, 2].set_xlabel('RH (%)', fontsize=10)
     axs[1, 2].set_title('Out2_H', fontsize=10, fontweight='bold')
 
     if gps_available:
         # Plot Latitude vs Pressure
-        axs[0, 3].scatter(df[lat_column], df['flight_computer_pressure'],
+        axs[0, 3].scatter(df[lat_column], df[pressure_column],
                           color='teal', alpha=0.7, s=10)
         axs[0, 3].set_xlabel('Latitude', fontsize=10)
         axs[0, 3].set_title(flight_computer.lat_column, fontsize=10, fontweight='bold')
 
         # Plot Longitude vs Pressure
-        axs[1, 3].scatter(df[long_column], df['flight_computer_pressure'],
+        axs[1, 3].scatter(df[long_column], df[pressure_column],
                           color='salmon', alpha=0.7, s=10)
         axs[1, 3].set_xlabel('Longitude', fontsize=10)
         axs[1, 3].set_title(flight_computer.lat_column, fontsize=10, fontweight='bold')

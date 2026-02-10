@@ -200,7 +200,8 @@ class mCDA(Instrument):
 
         return df
 
-    def normalize(self, df: pd.DataFrame, verbose: bool, *args, **kwargs) -> pd.DataFrame:
+    def normalize(self, df: pd.DataFrame, reference_instrument: Instrument,
+                  verbose: bool, *args, **kwargs) -> pd.DataFrame:
         """
         Normalize mCDA concentrations to STP conditions and insert the results
         right after the existing mCDA columns.
@@ -217,7 +218,7 @@ class mCDA(Instrument):
         T_STP = 273.15  # Kelvin
 
         # Measured conditions
-        P_measured = df["flight_computer_pressure"]
+        P_measured = df[f"{reference_instrument.name}_pressure"]
         T_measured = df["Average_Temperature"] + 273.15  # Convert °C to Kelvin
 
         # Calculate the STP correction factor
@@ -395,8 +396,7 @@ class mCDA(Instrument):
         counts[counts == 0] = np.nan
 
         # Create 2D grid from altitude and bin diameters (reversed)
-        bin_diameters = MCDA_MIDPOINT_DIAMETER_LIST
-        yy, xx = np.meshgrid(counts.index.values, bin_diameters)
+        yy, xx = np.meshgrid(counts.index.values, MCDA_MIDPOINT_DIAMETER_LIST)
         Z = counts.values.T  # Shape must be (nrows = bins, ncols = altitude steps)
 
         # Plotting
@@ -498,6 +498,7 @@ mcda = mCDA(
     cols_final=[f"dataB {i}_dN_dlogDp_stp" for i in range(1, 257)] + ["dN_totalconc_stp"],
     export_order=730,
     pressure_variable="Pressure",
+    temperature_variable="Temperature",
     coupled_columns=[
         [f"mcda_dataB {i}" for i in range(1, 513)] +
         [f"mcda_dataB {i}_dN" for i in range(1, 257)] +

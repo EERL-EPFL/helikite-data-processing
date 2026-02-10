@@ -3,6 +3,7 @@ import pathlib
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from helikite.instruments import Instrument
 from helikite.instruments.flight_computer import FlightComputer
 
 
@@ -48,21 +49,26 @@ def _filter_columns_by_nan_count(columns: list[str], df: pd.DataFrame, nan_thres
     return columns_filtered
 
 
-def plot_T_RH(df, flight_computer: FlightComputer, save_path: str | pathlib.Path | None):
+def plot_T_RH(df,
+              reference_instrument: Instrument,
+              flight_computer: FlightComputer,
+              save_path: str | pathlib.Path | None):
     t1_column = f"{flight_computer.name}_{flight_computer.T1_column}"
     t2_column = f"{flight_computer.name}_{flight_computer.T2_column}"
     h1_column = f"{flight_computer.name}_{flight_computer.H1_column}"
     h2_column = f"{flight_computer.name}_{flight_computer.H2_column}"
+
+    pressure_column = f"{reference_instrument.name}_pressure"
 
     # PLOT
     plt.close('all')
     fig, ax = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
 
     # Temperature plot
-    ax[0].plot(df[t1_column], df["flight_computer_pressure"], label="Out1_T", color='blue')
-    ax[0].plot(df[t2_column], df["flight_computer_pressure"], label="Out2_T", color='orange')
-    ax[0].plot(df["Average_Temperature"], df["flight_computer_pressure"], label="Average_T", color='red')
-    ax[0].plot(df["smart_tether_T (deg C)"], df["flight_computer_pressure"], label="ST_T", color='green', linestyle='--')
+    ax[0].plot(df[t1_column], df[pressure_column], label="Out1_T", color='blue')
+    ax[0].plot(df[t2_column], df[pressure_column], label="Out2_T", color='orange')
+    ax[0].plot(df["Average_Temperature"], df[pressure_column], label="Average_T", color='red')
+    ax[0].plot(df["smart_tether_T (deg C)"], df[pressure_column], label="ST_T", color='green', linestyle='--')
     ax[0].set_xlabel("Temperature (°C)")
     ax[0].set_ylabel("Pressure (hPa)")
     ax[0].legend()
@@ -70,10 +76,10 @@ def plot_T_RH(df, flight_computer: FlightComputer, save_path: str | pathlib.Path
     ax[0].invert_yaxis()
 
     # Humidity plot
-    ax[1].plot(df[h1_column], df["flight_computer_pressure"], label="Out1_RH", color='blue')
-    ax[1].plot(df[h2_column], df["flight_computer_pressure"], label="Out2_RH", color='orange')
-    ax[1].plot(df["Average_RH"], df["flight_computer_pressure"], label="Average_RH", color='red')
-    ax[1].plot(df["smart_tether_%RH"], df["flight_computer_pressure"], label="ST_RH", color='green', linestyle='--')
+    ax[1].plot(df[h1_column], df[pressure_column], label="Out1_RH", color='blue')
+    ax[1].plot(df[h2_column], df[pressure_column], label="Out2_RH", color='orange')
+    ax[1].plot(df["Average_RH"], df[pressure_column], label="Average_RH", color='red')
+    ax[1].plot(df["smart_tether_%RH"], df[pressure_column], label="ST_RH", color='green', linestyle='--')
     ax[1].set_xlabel("Relative Humidity (%)")
     ax[1].legend()
     ax[1].grid(True)

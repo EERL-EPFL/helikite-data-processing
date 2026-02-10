@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from pydantic import BaseModel
 
+from helikite.instruments import Instrument
 from helikite.processing.post import altitude
 
 
@@ -312,13 +313,16 @@ def calculate_ground_average(df, takeoff_time, landing_time, pressure_col, temp_
     return df[['Pressure_ground', 'Temperature_ground']]
 
 
-def altitude_calculation_barometric(df: pd.DataFrame, metadata: BaseModel, offset_to_add: Number) -> pd.DataFrame:
+def altitude_calculation_barometric(df: pd.DataFrame,
+                                    reference_instrument: Instrument,
+                                    metadata: BaseModel, offset_to_add: Number) -> pd.DataFrame:
     """
     Calculates altitude using barometric formula based on ground pressure/temperature interpolation
     and pressure readings during flight.
 
     Parameters:
         df (pd.DataFrame): DataFrame containing flight data.
+        reference_instrument (Instrument): Reference instrument to take pressure values from.
         metadata: Metadata object containing takeoff_time and landing_time.
         offset_to_add: Offset to add to altitude estimate.
 
@@ -327,19 +331,21 @@ def altitude_calculation_barometric(df: pd.DataFrame, metadata: BaseModel, offse
     """
     plt.close('all')
 
+    pressure_column = f"{reference_instrument.name}_pressure"
+
     # Interpolate ground pressure and temperature
     df[['Pressure_ground', 'Temperature_ground']] = altitude.calculate_ground_average(
         df,
         metadata.takeoff_time,
         metadata.landing_time,
-        pressure_col='flight_computer_pressure',
+        pressure_col=pressure_column,
         temp_col='Average_Temperature'
     )
 
     # Estimate the flight altitude
     df['Altitude'] = altitude.EstimateAltitude(
         df['Pressure_ground'],
-        df['flight_computer_pressure'],
+        df[pressure_column],
         df['Temperature_ground']
     )
 
@@ -348,7 +354,7 @@ def altitude_calculation_barometric(df: pd.DataFrame, metadata: BaseModel, offse
     return df
 
 
-def plot_altitude(df: pd.DataFrame):
+def plot_altitude(df: pd.DataFrame, reference_instrument: Instrument):
     # PLOT
     plt.close('all')
     fig, ax1 = plt.subplots(figsize=(8, 6))
@@ -360,7 +366,7 @@ def plot_altitude(df: pd.DataFrame):
     ax1.grid(ls='--')
 
     ax2 = ax1.twinx()
-    ax2.plot(df.index, df['flight_computer_pressure'], label='Pressure', color='cadetblue', linestyle='--')
+    ax2.plot(df.index, df[f'{reference_instrument.name}_pressure'], label='Pressure', color='cadetblue', linestyle='--')
     ax2.set_ylabel('Pressure (hPa)', color='cadetblue')
     ax2.tick_params(axis='y', labelcolor='cadetblue')
    
@@ -371,13 +377,14 @@ def plot_altitude(df: pd.DataFrame):
     return df
 
     
-def altitude_calculation_hypsometric(df, metadata):
+def altitude_calculation_hypsometric(df: pd.DataFrame, reference_instrument: Instrument, metadata: BaseModel):
     """
     Calculates altitude using the hypsometric formula, based on ground pressure/temperature interpolation
     and pressure readings during flight.
 
     Parameters:
         df (pd.DataFrame): DataFrame containing flight data.
+        reference_instrument (Instrument): Reference instrument to take pressure values from.
         metadata: Metadata object containing takeoff_time and landing_time.
 
     Returns:
@@ -390,12 +397,13 @@ def altitude_calculation_hypsometric(df, metadata):
     df['DateTime'] = df.index
 
     # Interpolate ground pressure and temperature
+    pressure_column = f'{reference_instrument.name}_pressure'
     df[['Pressure_ground', 'Temperature_ground']] = altitude.calculate_ground_average(
         df,
         metadata.takeoff_time,
         metadata.landing_time,
         time_col='DateTime',
-        pressure_col='flight_computer_pressure',
+        pressure_col=pressure_column,
         temp_col='Average_Temperature'
     )
 
@@ -405,7 +413,7 @@ def altitude_calculation_hypsometric(df, metadata):
 
     def calculate_altitude_for_row(row):
         p0 = row["Pressure_ground"]
-        p = row["flight_computer_pressure"]
+        p = row[pressure_column]
         t = row["Average_Temperature"]
         return calculate_altitude_hypsometric_simple(p0, p, t)
 
@@ -421,7 +429,7 @@ def altitude_calculation_hypsometric(df, metadata):
     ax1.grid(ls='--')
 
     ax2 = ax1.twinx()
-    ax2.plot(df.index, df['flight_computer_pressure'], label='Pressure', color='cadetblue', linestyle='--')
+    ax2.plot(df.index, df[pressure_column], label='Pressure', color='cadetblue', linestyle='--')
     ax2.set_ylabel('Pressure (hPa)', color='cadetblue')
     ax2.tick_params(axis='y', labelcolor='cadetblue')
 

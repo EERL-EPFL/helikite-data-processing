@@ -140,7 +140,8 @@ class POPS(Instrument):
 
         return df
 
-    def normalize(self, df: pd.DataFrame, verbose: bool, *args, **kwargs) -> pd.DataFrame:
+    def normalize(self, df: pd.DataFrame, reference_instrument: Instrument,
+                  verbose: bool, *args, **kwargs) -> pd.DataFrame:
         """
         Normalize POPS concentrations to STP conditions.
 
@@ -156,7 +157,7 @@ class POPS(Instrument):
         T_STP = 273.15  # Kelvin
 
         # Measured conditions
-        P_measured = df["flight_computer_pressure"]
+        P_measured = df[f"{reference_instrument.name}_pressure"]
         T_measured = df["Average_Temperature"] + 273.15  # Convert °C to Kelvin
 
         # Calculate the STP correction factor
@@ -321,7 +322,6 @@ class POPS(Instrument):
         ax2.plot(df.index, total_conc, color='red', linewidth=2, label='Total POPS Conc.')
         ax2.set_ylabel('POPS conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red', labelpad=8)
         ax2.tick_params(axis='y', labelsize=11, colors='red')
-        ax2.spines['right'].set_color('red')
         ax2.set_ylim(-20, total_conc_max * 1.1)
 
         if not is_custom_subplot:
@@ -463,6 +463,7 @@ pops = POPS(
     ],
     cols_final=[f"b{i}_dlogDp_stp" for i in range(3, 16)] + ["total_conc_stp"],
     pressure_variable="P",
+    temperature_variable="Temp",
     coupled_columns=[
         [f"pops_b{i}" for i in range(16)] +
         [f"pops_b{i}_dlogDp" for i in range(3, 16)] +
