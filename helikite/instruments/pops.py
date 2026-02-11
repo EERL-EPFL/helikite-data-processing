@@ -64,6 +64,9 @@ class POPS(Instrument):
 
         df.columns = df.columns.str.strip()
 
+        if df[[f"b{i}" for i in range(16)]].sum() == 0:
+            df[[f"b{i}" for i in range(16)]] = pd.NA
+
         # Calculate PartCon_186
         df["PartCon_186"] = (
             df["b3"]
