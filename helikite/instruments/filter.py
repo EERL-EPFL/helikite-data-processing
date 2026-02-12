@@ -106,8 +106,22 @@ class Filter(Instrument):
                 names=self.names,
                 index_col=self.index_col,
             )
+            df = df.dropna(subset=["#YY/MM/DD", "HR:MN:SC"])
 
         return df
+
+    def detect_from_folder(self, input_folder: str, quiet: bool = False, interactive: bool = False) -> list[str]:
+        matched_files = super().detect_from_folder(input_folder, quiet, interactive)
+
+        # when processing in non-interactive mode:
+        # if filter columns are present in the flight computer file, use the flight computer file
+        if len(matched_files) > 1 and not interactive:
+            for matched_file in matched_files:
+                header_lines = self.header_lines(matched_file)
+                if self._expected_header_value_FC in header_lines:
+                    return [matched_file]
+
+        return matched_files
 
 
 filter = Filter(
