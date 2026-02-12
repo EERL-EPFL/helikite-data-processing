@@ -70,7 +70,9 @@ class DataProcessorLevel1(BaseProcessor):
 
     @function_dependencies(required_operations=[], changes_df=False, use_once=False)
     def detect_outliers(self, outliers_file: str = "outliers.csv",
-                        columns: list[str] | None = None, acceptable_ranges: dict[str, tuple] | None = None,
+                        columns: list[str] | None = None,
+                        circular_ranges: dict[str, tuple] | None = None,
+                        acceptable_ranges: dict[str, tuple] | None = None,
                         iqr_factor: Number = 5):
         fc = self._flight_computer
         wind_ms_column = "smart_tether_Wind (m/s)"
@@ -93,12 +95,17 @@ class DataProcessorLevel1(BaseProcessor):
                     wind_deg_column,
                 ]
 
+        if circular_ranges is None:
+            circular_ranges = {}
+            if smart_tether in self.instruments:
+                circular_ranges = {wind_deg_column: (0, 360)}
+
         if acceptable_ranges is None:
             acceptable_ranges = {}
             if smart_tether in self.instruments:
                 acceptable_ranges |= {wind_ms_column: (0, np.inf)}
 
-        detect_outliers(outliers_file, self._df, columns, acceptable_ranges, iqr_factor)
+        detect_outliers(outliers_file, self._df, columns, circular_ranges, acceptable_ranges, iqr_factor)
 
         self._outliers_files.add(outliers_file)
 
