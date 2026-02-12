@@ -4,6 +4,7 @@ from numbers import Number
 import pandas as pd
 import plotly.graph_objects as go
 from ipywidgets import Output, VBox, Dropdown, ToggleButton
+from scipy.stats import circmean
 
 
 def choose_outliers(df, y, coupled_columns, outlier_file,
@@ -293,7 +294,7 @@ def choose_outliers(df, y, coupled_columns, outlier_file,
 
 
 def detect_outliers(outliers_file: str | pathlib.Path, df: pd.DataFrame,
-                    columns: list[str], acceptable_ranges: dict[str, tuple],
+                    columns: list[str], circular_ranges: dict[str, tuple], acceptable_ranges: dict[str, tuple],
                     iqr_factor: Number):
     outliers = _load_or_create_outliers(outliers_file, df)
 
@@ -308,14 +309,27 @@ def detect_outliers(outliers_file: str | pathlib.Path, df: pd.DataFrame,
     for column in columns:
         if column is None:
             continue
-        q1 = df[column].quantile(0.25)
-        q3 = df[column].quantile(0.75)
+
+        if column in circular_ranges:
+            values = df[column]
+            low, high = circular_ranges[column]
+
+            mean = circmean(values, low=low, high=high, nan_policy="omit")
+
+            values = values - mean
+            values = values % (high - low)
+            values = values.where(values.abs() < (high - low) / 2, values - (high - low))
+        else:
+            values = df[column]
+
+        q1 = values.quantile(0.25)
+        q3 = values.quantile(0.75)
         iqr = q3 - q1
 
         lower_bound = q1 - iqr_factor * iqr
         upper_bound = q3 + iqr_factor * iqr
 
-        mask = (df[column] < lower_bound) | (df[column] > upper_bound)
+        mask = (values < lower_bound) | (values > upper_bound)
         outliers = _set_column_outliers(column, mask, outliers)
 
     for column, acceptable_range in acceptable_ranges.items():
