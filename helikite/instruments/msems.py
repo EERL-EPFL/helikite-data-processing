@@ -465,6 +465,18 @@ class MSEMSInverted(Instrument):
             plt.subplots_adjust(bottom=0.25, right=0.85)
             plt.show()
 
+    def remove_duplicates(self, df: pd.DataFrame) -> pd.DataFrame:
+        if 'scan_direction' in df.columns:
+            # Compare current value with previous value to detect changes
+            is_change_inverted = df['scan_direction'] != df['scan_direction'].shift(1)
+            # Nullify repeated rows (set to NaN) where there's no change
+            df.loc[
+                ~is_change_inverted, df.columns != df.index.name] = np.nan
+        else:
+            print(f"No 'scan_direction' column found in {self.name}.")
+
+        return df
+
 
 class MSEMSReadings(Instrument):
     # To match a "...READINGS.txt" file
@@ -580,6 +592,18 @@ class MSEMSScan(Instrument):
             names=self.names,
             index_col=self.index_col,
         )
+
+        return df
+
+    def remove_duplicates(self, df: pd.DataFrame) -> pd.DataFrame:
+        if 'scan_direction' in df.columns:
+            # Compare current value with previous value to detect changes
+            is_change = df['scan_direction'] != df['scan_direction'].shift(1)
+            # Nullify repeated rows (set to NaN) where there's no change
+            df.loc[~is_change, df.columns != df.index.name] = np.nan
+
+        else:
+            print(f"No 'scan_direction' column found in {self.name}.")
 
         return df
 
