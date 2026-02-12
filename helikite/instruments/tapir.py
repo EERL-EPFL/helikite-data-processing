@@ -45,7 +45,7 @@ class TAPIR(Instrument):
         try:
             df = pd.read_csv(
                 self.filename,
-                dtype=self.dtype,
+                dtype=object,
                 engine="python",
                 skiprows=self.header,
                 na_values=self.na_values,
@@ -55,6 +55,15 @@ class TAPIR(Instrument):
                 names=self.names,
                 index_col=self.index_col,
             )
+
+            # there are rows with an incorrect number of values in some TAPIR files
+            is_shifted = df["speed"] == "TP"
+            df.loc[is_shifted, "TP":] = df.loc[is_shifted, "speed":"Thead4"].values
+            df.loc[is_shifted, "Lat":"Lm"] = pd.NA
+            df.loc[is_shifted, "speed":"route"] = 0.0
+
+            df = df.astype(self.dtype)
+
             return df
         except Exception as e:
             logger.error(f"Failed to read TAPIR data from {self.filename}: {e}")
