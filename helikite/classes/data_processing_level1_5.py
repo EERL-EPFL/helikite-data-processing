@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from helikite.classes.base import BaseProcessor, get_instruments_from_cleaned_data, function_dependencies, \
     launch_operations_changing_df
 from helikite.classes.data_processing_level1 import DataProcessorLevel1
-from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, Level, flag_pollution, \
+from helikite.classes.output_schemas import OutputSchema, FlightProfileVariable, Level, flag_pollution_cpc, \
     Flag
 from helikite.instruments import Instrument
 from helikite.metadata.models import Level0
@@ -74,7 +74,7 @@ class DataProcessorLevel1_5(BaseProcessor):
     @function_dependencies(required_operations=["rename_columns"], changes_df=True, use_once=False,
                            complete_with_arg="flag")
     def detect_flag(self,
-                    flag: Flag = flag_pollution,
+                    flag: Flag = flag_pollution_cpc,
                     auto_path: str | Path = "flag_auto.csv",
                     plot_detection: bool = True):
         params = FDAParameters(inverse=False) if flag.params is None else flag.params
@@ -96,7 +96,7 @@ class DataProcessorLevel1_5(BaseProcessor):
     @function_dependencies(required_operations=["rename_columns"], changes_df=True, use_once=False,
                            complete_with_arg="flag")
     def choose_flag(self,
-                    flag: Flag = flag_pollution,
+                    flag: Flag = flag_pollution_cpc,
                     auto_path: str | Path | None = None,
                     corr_path: str | Path = "flag_corr.csv"):
         if auto_path is not None:
@@ -115,7 +115,7 @@ class DataProcessorLevel1_5(BaseProcessor):
     @function_dependencies(required_operations=["choose_flag"], changes_df=True, use_once=False,
                            complete_with_arg="flag", complete_req=True)
     def set_flag(self,
-                 flag: Flag = flag_pollution,
+                 flag: Flag = flag_pollution_cpc,
                  corr_path: str | Path = "flag_corr.csv",
                  mask: pd.Series | None = None):
         flag_values = pd.read_csv(corr_path, index_col=0, parse_dates=True)["datetime"]

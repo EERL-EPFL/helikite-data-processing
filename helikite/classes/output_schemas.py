@@ -67,16 +67,20 @@ class FlightProfileVariableShade:
     line_kwargs: dict | None = None
 
 
-flag_pollution = Flag(flag_name="flag_pollution", column_name="CPC_total_N", params=FDA_PARAMS_POLLUTION)
+flag_pollution_cpc = Flag(flag_name="flag_pollution", column_name="CPC_total_N", params=FDA_PARAMS_POLLUTION)
 flag_hovering = Flag(flag_name="flag_hovering", column_name="Altitude", params=FDA_PARAMS_HOVERING, y_scale="linear")
-flag_cloud = Flag(flag_name="flag_cloud", column_name="mCDA_total_N", params=FDA_PARAMS_CLOUD)
+flag_cloud_mcda = Flag(flag_name="flag_cloud", column_name="mCDA_total_N", params=FDA_PARAMS_CLOUD)
 
-shade_pollution = FlightProfileVariableShade(
-    name=flag_pollution.flag_name,
+shade_pollution_cpc = FlightProfileVariableShade(
+    name=flag_pollution_cpc.flag_name,
     condition=lambda l, v: v,
     label="Pollution",
     span_kwargs=dict(color="lightcoral", alpha=0.5),
-    line_name=flag_pollution.column_name,
+    line_name=flag_pollution_cpc.column_name,
+    line_kwargs=dict(color="rosybrown", label="CPC (cm⁻³)", linewidth=1),
+)
+shade_pollution_cpc_ground = dataclasses.replace(
+    shade_pollution_cpc,
     line_kwargs=dict(color="rosybrown", label="ground CPC (cm⁻³)", linewidth=1),
 )
 shade_hovering = FlightProfileVariableShade(
@@ -85,8 +89,8 @@ shade_hovering = FlightProfileVariableShade(
     label="Hovering",
     span_kwargs=dict(color="beige", alpha=1.0),
 )
-shade_cloud = FlightProfileVariableShade(
-    name=flag_cloud.flag_name,
+shade_cloud_mcda = FlightProfileVariableShade(
+    name=flag_cloud_mcda.flag_name,
     condition=lambda l, v: v,
     label="Cloud",
     span_kwargs=dict(color="lightblue", alpha=0.5),
@@ -120,8 +124,10 @@ class OutputSchema:
     reference_instrument_candidates: list[Instrument]
     """Reference instrument candidates for the automatic instruments detection"""
     flight_profile_variables: list[FlightProfileVariable] = dataclasses.field(default_factory=list)
-    flight_profile_shades: list[FlightProfileVariableShade] = (shade_hovering, shade_pollution, shade_cloud, shade_filter)
-    flags: list[Flag] = (flag_pollution, flag_hovering, flag_cloud)
+    flight_profile_shades: list[FlightProfileVariableShade] = (
+        shade_hovering, shade_pollution_cpc, shade_cloud_mcda, shade_filter
+    )
+    flags: list[Flag] = (flag_pollution_cpc, flag_hovering, flag_cloud_mcda)
     """List of flags which should be present in the output dataframe."""
 
 
@@ -235,6 +241,12 @@ class OutputSchemas:
             mcda,
             filter,
             cpc,
+        ],
+        flight_profile_shades=[
+            shade_hovering,
+            shade_pollution_cpc_ground,
+            shade_cloud_mcda,
+            shade_filter
         ],
     )
 
