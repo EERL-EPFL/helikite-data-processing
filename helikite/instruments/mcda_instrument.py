@@ -305,6 +305,7 @@ class mCDA(Instrument):
         counts = counts.set_index(df.index)
         counts = counts.astype(float)
         counts[counts == 0] = np.nan
+        counts = counts.dropna(how='all') if not counts.isna().all().all() else counts
 
         vmax_value = np.nanmax(counts.values) if not counts.isna().all().all() else np.nan
         print(f"max value ({self.name}): {vmax_value}")
@@ -363,7 +364,7 @@ class mCDA(Instrument):
         total_conc = df[self.column_name(df, 'mcda_dN_totalconc_stp')]
         total_conc_max = total_conc.max() if not total_conc.isna().all() else 15
         ax2 = ax.twinx()
-        ax2.plot(df.index, total_conc, color='red', linewidth=2)
+        ax2.plot(df.index, total_conc.ffill(limit=1), color='red', linewidth=2)
         ax2.set_ylabel('mCDA conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red', labelpad=15)
         ax2.tick_params(axis='y', labelsize=11, colors='red')
         ax2.set_ylim(0, total_conc_max * 2)
@@ -394,6 +395,7 @@ class mCDA(Instrument):
         # Ensure float and replace zeros with NaN
         counts = counts.astype(float)
         counts[counts == 0] = np.nan
+        counts = counts.dropna(how='all') if not counts.isna().all().all() else counts
 
         # Create 2D grid from altitude and bin diameters (reversed)
         yy, xx = np.meshgrid(counts.index.values, MCDA_MIDPOINT_DIAMETER_LIST)

@@ -64,7 +64,7 @@ class POPS(Instrument):
 
         df.columns = df.columns.str.strip()
 
-        if df[[f"b{i}" for i in range(16)]].sum() == 0:
+        if df[[f"b{i}" for i in range(16)]].values.sum() == 0:
             df[[f"b{i}" for i in range(16)]] = pd.NA
 
         # Calculate PartCon_186
@@ -260,6 +260,7 @@ class POPS(Instrument):
         # Extract the relevant columns
         counts = df.loc[:, start_conc:end_conc]
         counts = counts.set_index(df.index).astype(float)
+        counts = counts.dropna(how='all') if not counts.isna().all().all() else counts
 
         vmax_value = np.nanmax(counts.values) if not counts.isna().all().all() else np.nan
         print(f"max value ({self.name}): {vmax_value}")
