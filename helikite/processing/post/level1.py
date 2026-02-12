@@ -307,6 +307,9 @@ def _get_series_bounds(
     min_bound = min_bound - (min_bound % divider)
     max_bound = max_bound + (-max_bound % divider)
 
+    if max_bound - min_bound == divider:
+        max_bound += divider
+
     return (min_bound, max_bound), divider
 
 
