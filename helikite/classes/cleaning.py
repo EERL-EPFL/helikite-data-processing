@@ -365,45 +365,8 @@ class Cleaner(BaseProcessor):
 
         for instrument in self._instruments:
             try:
-                # Step 1: Remove duplicate rows based on the time index
-                # instrument.df = instrument.remove_duplicates(instrument.df)
-
-                # Step 2: Handle repeated values in msems_scan
-                if 'scan_direction' in self.msems_scan.df.columns:
-                    # Compare current value with previous value to detect changes
-                    is_change = self.msems_scan.df['scan_direction'] != self.msems_scan.df['scan_direction'].shift(1)
-                    # Nullify repeated rows (set to NaN) where there's no change
-                    self.msems_scan.df.loc[~is_change, self.msems_scan.df.columns != self.msems_scan.df.index.name] = np.nan
-
-                else:
-                    print(f"No 'scan_direction' column found in {self.msems_scan.name}.")
-
-                # Step 3: Handle repeated values in msems_inverted
-                if 'scan_direction' in self.msems_inverted.df.columns:
-                    # Compare current value with previous value to detect changes
-                    is_change_inverted = self.msems_inverted.df['scan_direction'] != self.msems_inverted.df['scan_direction'].shift(1)
-                    # Nullify repeated rows (set to NaN) where there's no change
-                    self.msems_inverted.df.loc[~is_change_inverted, self.msems_inverted.df.columns != self.msems_inverted.df.index.name] = np.nan
-                else:
-                    print(f"No 'scan_direction' column found in {self.msems_inverted.name}.")
-
-                # Step 4: Handle repeated values in mcda
-                if 'measurement_nbr' in self.mcda.df.columns:
-                    # Compare current value with previous value to detect changes in measurement_nbr
-                    is_change_mcd = self.mcda.df['measurement_nbr'] != self.mcda.df['measurement_nbr'].shift(1)
-                    # List of target columns where you want to nullify repetitive data
-                    target_columns_mcda = [
-                        'Temperature', 'Pressure', 'RH', 'pmav', 'offset1', 'offset2',
-                        'calib1', 'calib2', 'measurement_nbr', 'pressure'
-                    ]
-                    # Nullify repeated rows (set to NaN) where there's no change
-                    self.mcda.df.loc[~is_change_mcd, target_columns_mcda] = np.nan
-
-                else:
-                    print(f"No 'measurement_nbr' column found in {self.mcda.name}.")
-
+                instrument.df = instrument.remove_duplicates(instrument.df)
                 success.append(instrument.name)
-
             except Exception as e:
                 errors.append((instrument.name, e))
 

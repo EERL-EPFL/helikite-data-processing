@@ -161,6 +161,23 @@ class mCDA(Instrument):
         """
         return df
 
+    def remove_duplicates(self, df: pd.DataFrame) -> pd.DataFrame:
+        if 'measurement_nbr' in df.columns:
+            # Compare current value with previous value to detect changes in measurement_nbr
+            is_change_mcd = df['measurement_nbr'] != df['measurement_nbr'].shift(1)
+            # List of target columns where you want to nullify repetitive data
+            target_columns_mcda = [
+                'Temperature', 'Pressure', 'RH', 'pmav', 'offset1', 'offset2',
+                'calib1', 'calib2', 'measurement_nbr', 'pressure'
+            ]
+            # Nullify repeated rows (set to NaN) where there's no change
+            df.loc[~is_change_mcd, target_columns_mcda] = np.nan
+
+        else:
+            print(f"No 'measurement_nbr' column found in {self.name}.")
+
+        return df
+
     def calculate_derived(self, df: pd.DataFrame, verbose: bool, *args, **kwargs) -> pd.DataFrame:
         # Select columns from 'mcda_dataB 1' to 'mcda_dataB 256'
         dataB_cols = df.loc[:, 'mcda_dataB 1':'mcda_dataB 256']
