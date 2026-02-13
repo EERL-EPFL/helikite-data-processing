@@ -166,6 +166,7 @@ smart_tether = SmartTether(
     cols_final=["Wind (degrees)", "Wind (m/s)"],
     pressure_variable="P (mbar)",
     temperature_variable="T (deg C)",
+    rh_variable="%RH",
     coupled_columns=[
         ('smart_tether_Wind (m/s)', 'smart_tether_Wind (degrees)'),
     ],

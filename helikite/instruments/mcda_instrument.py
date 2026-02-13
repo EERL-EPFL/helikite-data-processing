@@ -518,6 +518,7 @@ mcda = mCDA(
     export_order=730,
     pressure_variable="Pressure",
     temperature_variable="Temperature",
+    rh_variable="RH",
     coupled_columns=[
         [f"mcda_dataB {i}" for i in range(1, 513)] +
         [f"mcda_dataB {i}_dN" for i in range(1, 257)] +
