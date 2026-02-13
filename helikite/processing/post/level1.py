@@ -415,7 +415,7 @@ def shade_flagged(shade_config: FlightProfileVariableShade, axes: list[plt.Axes]
 
         if mask.loc[start, name] == 1:
             v_min = start if other_coord_name is None else df.loc[start:end, other_coord_name].min()
-            v_max = end if other_coord_name is None else df.loc[end, other_coord_name].max()
+            v_max = end if other_coord_name is None else df.loc[start:end, other_coord_name].max()
 
             if pd.isna(v_min) or pd.isna(v_max):
                 continue
