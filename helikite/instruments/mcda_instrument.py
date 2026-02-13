@@ -379,6 +379,7 @@ class mCDA(Instrument):
 
         # Plot total concentration
         total_conc = df[self.column_name(df, 'mcda_dN_totalconc_stp')]
+        total_conc = total_conc.where(total_conc > 0, pd.NA)
         total_conc_max = total_conc.max() if not total_conc.isna().all() else 15
         ax2 = ax.twinx()
         ax2.plot(df.index, total_conc.ffill(limit=1), color='red', linewidth=2)

@@ -321,12 +321,13 @@ class POPS(Instrument):
 
         # Plot total concentration on a secondary y-axis
         total_conc = df[self.column_name(df, 'pops_total_conc_stp')]
+        total_conc = total_conc.where(total_conc > 0, pd.NA)
         total_conc_max = total_conc.max() if not total_conc.isna().all() else 40
         ax2 = ax.twinx()
         ax2.plot(df.index, total_conc, color='red', linewidth=2, label='Total POPS Conc.')
         ax2.set_ylabel('POPS conc (cm$^{-3}$)', fontsize=12, fontweight='bold', color='red', labelpad=8)
         ax2.tick_params(axis='y', labelsize=11, colors='red')
-        ax2.set_ylim(-20, total_conc_max * 1.1)
+        ax2.set_ylim(0, total_conc_max * 1.1)
 
         if not is_custom_subplot:
             plt.show()

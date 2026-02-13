@@ -454,6 +454,7 @@ class MSEMSInverted(Instrument):
 
         # Secondary y-axis for total concentration
         total_conc = df[self.column_name(df, "msems_inverted_dN_totalconc_stp")]
+        total_conc = total_conc.where(total_conc > 0, pd.NA)
         total_conc_max = total_conc.max() if not total_conc.isna().all() else 2000
         ax2 = ax.twinx()
         ax2.scatter(df.index, total_conc, color="red", marker='.')
