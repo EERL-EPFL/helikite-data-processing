@@ -257,7 +257,7 @@ def flight_profiles(df: pd.DataFrame, reference_instrument: Instrument, level: L
         if variable.x_label is not None:
             color = variable.plot_kwargs.get("color", "gray")
             ax.set_xlabel(variable.x_label, color=color, fontweight='bold')
-            ax.tick_params(axis='x', labelcolor=color, labelsize=11)
+            ax.tick_params(axis='x', labelcolor=color, labelsize=10)
 
     # Hide last subplot axis and add legend
     axes[-1].axis('off')
