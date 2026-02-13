@@ -167,6 +167,7 @@ maeth = MAeth(
     },
     header=0,
     pressure_variable="Pressure",
+    temperature_variable="Internal temp (C)",
     rename_dict=(
         {
             "maeth_UV BC1_STP": "MA_Abs_Coeff_375",

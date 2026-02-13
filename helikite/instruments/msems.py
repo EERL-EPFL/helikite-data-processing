@@ -699,6 +699,7 @@ msems_scan = MSEMSScan(
     export_order=710,
     pressure_variable="press_avg",
     temperature_variable="temp_avg",
+    rh_variable="sheath_rh_avg",
     cols_export=[],
     cols_housekeeping=[],
     cols_final=[],

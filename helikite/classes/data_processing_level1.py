@@ -202,7 +202,8 @@ class DataProcessorLevel1(BaseProcessor):
     def _build_FC_T_columns(self) -> list[str]:
         if not isinstance(self._reference_instrument, FlightComputer):
             if self._reference_instrument.temperature_variable is None:
-                raise ValueError("Reference instrument does not have a temperature variable")
+                logger.warning("Reference instrument does not have a temperature variable")
+                return []
             return [f"{self._reference_instrument.name}_{self._reference_instrument.temperature_variable}"]
         return [
             f"{self._flight_computer.name}_{self._flight_computer.T1_column}",
@@ -210,6 +211,11 @@ class DataProcessorLevel1(BaseProcessor):
         ]
 
     def _build_FC_RH_columns(self) -> list[str]:
+        if not isinstance(self._reference_instrument, FlightComputer):
+            if self._reference_instrument.rh_variable is None:
+                logger.warning("Reference instrument does not have a relative humidity variable")
+                return []
+            return [f"{self._reference_instrument.name}_{self._reference_instrument.rh_variable}"]
         return [
             f"{self._flight_computer.name}_{self._flight_computer.H1_column}",
             f"{self._flight_computer.name}_{self._flight_computer.H2_column}",

@@ -26,9 +26,15 @@ def T_RH_averaging(df, columns_t: list[str], columns_rh: list[str], nan_threshol
     columns_filtered_t = _filter_columns_by_nan_count(columns_t, df, nan_threshold)
     columns_filtered_rh = _filter_columns_by_nan_count(columns_rh, df, nan_threshold)
 
-    # Temperature averaging
-    df["Average_Temperature"] = df[columns_filtered_t].mean(axis=1).ffill().bfill()
-    df["Average_RH"] = df[columns_filtered_rh].mean(axis=1).ffill().bfill()
+    if len(columns_filtered_t) > 0:
+        df["Average_Temperature"] = df[columns_filtered_t].mean(axis=1).ffill().bfill()
+    else:
+        df["Average_Temperature"] = pd.Series(pd.NA, index=df.index, dtype="Float64")
+
+    if len(columns_filtered_rh) > 0:
+        df["Average_RH"] = df[columns_filtered_rh].mean(axis=1).ffill().bfill()
+    else:
+        df["Average_RH"] = pd.Series(pd.NA, index=df.index, dtype="Float64")
 
     return df
 

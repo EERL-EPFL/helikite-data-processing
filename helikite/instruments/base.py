@@ -39,6 +39,7 @@ class Instrument(ABC):
         export_order: int | None = None,  # Order hierarchy in export file
         pressure_variable: str | None = None,  # The variable measuring pressure
         temperature_variable: str | None = None, # The variable measuring temperature
+        rh_variable: str | None = None, # the variable measuring relative humidity
         registry_name: str | None = None,
         # Groups of columns that are coupled. If a row contains an outlier in any column within a tuple,
         # then the values in all other columns of that tuple should also be treated as outliers.
@@ -61,6 +62,7 @@ class Instrument(ABC):
         self.export_order = export_order
         self.pressure_variable = pressure_variable
         self.temperature_variable = temperature_variable
+        self.rh_variable = rh_variable
         self.coupled_columns = coupled_columns if coupled_columns is not None else []
         self._rename_dict = rename_dict if rename_dict is not None else {}
 
