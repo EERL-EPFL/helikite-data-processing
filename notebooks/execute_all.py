@@ -3,19 +3,21 @@ import datetime
 import os
 import re
 import traceback
-from pathlib import Path
+from pathlib import Path, PosixPath
 
 import pandas as pd
+import yaml
 from matplotlib import pyplot as plt
 
 from helikite import Cleaner
 from helikite.classes.data_processing_level1 import DataProcessorLevel1
 from helikite.classes.data_processing_level1_5 import DataProcessorLevel1_5
 from helikite.classes.data_processing_level2 import DataProcessorLevel2
-from helikite.classes.output_schemas import OutputSchemas, flag_pollution
+from helikite.classes.output_schemas import OutputSchemas, flag_pollution_cpc
 from helikite.config import Config
 from helikite.instruments import flight_computer_v2, msems_scan
 from helikite.metadata.utils import load_parquet
+from helikite.processing.helpers import suppress_plots
 
 
 def execute_level0(config: Config):
@@ -31,9 +33,6 @@ def execute_level0(config: Config):
         interactive=False,
     )
     reference_instrument = cleaner.reference_instrument
-
-    if flight_computer_v2 not in cleaner.instruments:
-        return
 
     cleaner.set_time_as_index()
     cleaner.fill_missing_timestamps(reference_instrument, freq="1s", fill_method="ffill")
@@ -83,7 +82,7 @@ def execute_level1(config: Config):
     data_processor.altitude_calculation_barometric(offset_to_add=0)
     data_processor.plot_altitude()
 
-    for instrument in data_processor.instruments:
+    for instrument in data_processor.output_schema.instruments:
         data_processor.calculate_derived(instrument)
         data_processor.normalize(instrument)
         data_processor.plot_raw_and_normalized_data(instrument)
@@ -123,7 +122,7 @@ def execute_level1_5(config: Config):
         data_processor.detect_flag(flag, auto_file, plot_detection=True)
         data_processor.choose_flag(flag, auto_file, auto_file)
 
-        if flag.flag_name == flag_pollution.flag_name and cpc_on_ground:
+        if flag.flag_name == flag_pollution_cpc.flag_name and cpc_on_ground:
             close_to_ground = data_processor.df["Altitude"] < 70
             data_processor.set_flag(flag, auto_file, mask=close_to_ground)
         else:
@@ -164,9 +163,10 @@ def main():
     arg_parser.add_argument("output_schema", type=str, choices=OutputSchemas.keys())
     arg_parser.add_argument("campaign_dir", type=Path)
     arg_parser.add_argument("processing_dir", type=Path)
-    arg_parser.add_argument("--overview-path", type=Path, required=True,
+    arg_parser.add_argument("--overview-path", type=Path,
                             help="Path to the .xlsx file containing the flight overview "
-                                 "used to determine flight numbers from flight dates.")
+                                 "used to determine flight numbers from flight dates. "
+                                 "Expected")
     args = arg_parser.parse_args()
 
     if args.overview_path is not None:
@@ -175,7 +175,7 @@ def main():
         basename_to_flight_nr = {}
 
     pattern = re.compile(
-        r"^(?P<date>\d{4}-\d{2}-\d{2})_(?P<suffix>[A-Z])$"
+        r"^(?P<date>\d{4}-\d{2}-\d{2})_(?P<suffix>[A-Z]+)$"
     )
 
     processed_count = 0
@@ -188,8 +188,16 @@ def main():
         suffix = match.group("suffix")
         basename = f"{date}_{suffix}"
 
+        flight = basename_to_flight_nr.get(basename, str(processed_count + 1))
+
+        # Uncomment if you don't want to rerun processing for already processed files
+        # if (args.processing_dir / "Level2" / f"Level2_{basename}_Flight_{flight}.png").exists():
+        #     print("Already processed " + basename)
+        #     processed_count += 1
+        #     continue
+
         config = Config(
-            flight=basename_to_flight_nr.get(basename, str(processed_count + 1)),
+            flight=flight,
             flight_date=date,
             flight_suffix=suffix,
             output_schema=args.output_schema,
@@ -197,15 +205,24 @@ def main():
             processing_dir=args.processing_dir,
         )
 
+        def yaml_equivalent_of_path(dumper, data):
+            return dumper.represent_str(str(data))
+
+        yaml.SafeDumper.add_representer(PosixPath, yaml_equivalent_of_path)
+        with open("inputs/config_execute.yaml", "w") as config_file:
+            yaml.safe_dump(dict(config), config_file)
+
         try:
             # defaults get changed at some point, so set parameters back to default values before processing a new flight
             # TODO: remove this temporary fix once the reason why defaults change is understood
             plt.rcdefaults()
 
-            execute_level0(config)
-            execute_level1(config)
-            execute_level1_5(config)
-            execute_level2(config)
+            # Remove `suppress_plots()` if you want to see intermediate plots when processing in non-interactive mode
+            with suppress_plots():
+                execute_level0(config)
+                execute_level1(config)
+                execute_level1_5(config)
+                execute_level2(config)
         except Exception as e:
             print(f"Error in processing {basename}")
             traceback.print_exc()
