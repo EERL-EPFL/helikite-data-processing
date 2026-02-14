@@ -19,6 +19,9 @@ class Config(BaseModel):
     def flight_basename(self) -> str:
         return f"{self.flight_date}_{self.flight_suffix}"
 
+    def __iter__(self):
+        return iter(vars(self).items())
+
 
 def load_config(config_path: Path) -> Config:
     with open(config_path, "r") as f:
