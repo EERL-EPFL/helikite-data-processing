@@ -942,7 +942,7 @@ def calcN(df, start_column, end_column, start_conc, end_conc):
     dlogDp = log_upper - log_lower
 
     BD1_upper = lower_boundary["msems_inverted_Bin_Dia2"]
-    BD1_lower = df["msems_inverted_Bin_Dia1"] - delta["msems_inverted_Bin_Dia2"]
+    BD1_lower = bin_diams["msems_inverted_Bin_Dia1"] - delta["msems_inverted_Bin_Dia2"]
     BD1 = np.log10(BD1_upper) - np.log10(BD1_lower)
     dlogDp["msems_inverted_Bin_Dia1"] = BD1
 
