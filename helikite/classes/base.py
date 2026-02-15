@@ -91,6 +91,10 @@ def function_dependencies(required_operations: list[str | tuple[str, ...]], chan
 
 
 class BaseProcessor(ABC):
+    """Abstract base class for processing pipeline stages.
+
+    Provides shared state tracking, dependency management, and utility helpers used by all processing levels.
+    """
     def __init__(
         self,
         output_schema: OutputSchema,
@@ -105,23 +109,28 @@ class BaseProcessor(ABC):
     @property
     @abstractmethod
     def level(self) -> Level:
+        """Processing level identifier."""
         ...
 
     @property
     def output_schema(self):
+        """Return the campaign output format specification."""
         return self._output_schema
 
     @property
     def instruments(self):
+        """Return instruments present in the current flight"""
         return self._instruments
 
     @property
     def reference_instrument(self):
+        """Return the instrument used as synchronization reference."""
         return self._reference_instrument
 
     @property
     @abstractmethod
     def df(self) -> pd.DataFrame | None:
+        """Return the current state of dataframe."""
         ...
 
     def _check_schema_contains_instrument(self, instrument: Instrument) -> bool:
@@ -237,6 +246,7 @@ class BaseProcessor(ABC):
 
     @abstractmethod
     def export_data(self, filepath: str | pathlib.Path | None = None):
+        """Export dataframe in its final state."""
         ...
 
 
@@ -245,6 +255,16 @@ def get_instruments_from_cleaned_data(
     metadata: BaseModel,
     flight_computer_version: str | None,
 ) -> tuple[list[Instrument], Instrument]:
+    """Reconstruct instrument objects from a dataframe and level 0 metadata.
+
+    Args:
+        df: Level 0 dataframe.
+        metadata: Metadata model.
+        flight_computer_version: Optional flight computer version.
+
+    Returns:
+        Tuple of instruments list and reference instrument.
+    """
     flight_computer_name = "flight_computer"
 
     instruments = []
@@ -272,6 +292,14 @@ def get_instruments_from_cleaned_data(
     return instruments, reference_instrument
 
 def launch_operations_changing_df(data_processor: BaseProcessor):
+    """Execute dataframe-modifying operations in dependency order.
+
+    Args:
+        data_processor: Processor instance.
+
+    Returns:
+        Processor after execution.
+    """
     cls = data_processor.__class__
     operations = {}
     operations_kwargs = defaultdict(list)

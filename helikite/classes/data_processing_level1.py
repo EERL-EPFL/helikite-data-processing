@@ -32,8 +32,11 @@ logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 
 class DataProcessorLevel1(BaseProcessor):
+    """Level 1 processor for performing quality control and calculating average humidity and temperature,
+     flight altitude, and instrument-specific processing."""
     @property
     def level(self) -> Level:
+        """Processing level identifier."""
         return Level.LEVEL1
 
 
@@ -47,14 +50,13 @@ class DataProcessorLevel1(BaseProcessor):
 
     @property
     def df(self) -> pd.DataFrame:
+        """Return the current state of dataframe."""
         return self._df
 
     @property
-    def instruments(self) -> list[Instrument]:
-        return self._instruments
-
-    @property
-    def coupled_columns(self) -> list[tuple[str, ...]] | None:
+    def coupled_columns(self) -> list[tuple[str, ...]]:
+        """Return list of column names. If any column in a tuple is marked as an outlier,
+        all other columns in the same tuple should also be marked as outliers."""
         coupled_columns = []
         for instrument in self._instruments:
             coupled_columns += instrument.coupled_columns
@@ -74,6 +76,7 @@ class DataProcessorLevel1(BaseProcessor):
                         circular_ranges: dict[str, tuple] | None = None,
                         acceptable_ranges: dict[str, tuple] | None = None,
                         iqr_factor: Number = 5):
+        """Automatically detect statistical outliers and write results to file."""
         fc = self._flight_computer
         wind_ms_column = "smart_tether_Wind (m/s)"
         wind_deg_column = "smart_tether_Wind (degrees)"
@@ -153,6 +156,7 @@ class DataProcessorLevel1(BaseProcessor):
 
     @function_dependencies(required_operations=[], changes_df=True, use_once=False)
     def fillna_if_all_missing(self, values_dict: dict[str, Any] | None = None):
+        """Fill columns with default values when entirely missing."""
         if values_dict is None:
             values_dict = {}
 
@@ -168,6 +172,7 @@ class DataProcessorLevel1(BaseProcessor):
 
     @function_dependencies(required_operations=["choose_outliers"], changes_df=True, use_once=False)
     def set_outliers_to_nan(self):
+        """Mask detected outliers as NaN in the dataframe."""
         for outlier_file in self._outliers_files:
             outliers = pd.read_csv(outlier_file, index_col=0, parse_dates=True)
             columns = [col for col in outliers.columns if col in self._df.columns]
@@ -175,28 +180,43 @@ class DataProcessorLevel1(BaseProcessor):
 
     @function_dependencies(required_operations=["set_outliers_to_nan"], changes_df=False, use_once=False)
     def plot_outliers_check(self):
+        """
+        Plots various flight parameters against flight_computer_pressure.
+        """
         plot_outliers_check(self._df, self._reference_instrument, self._flight_computer)
 
     @function_dependencies(required_operations=["set_outliers_to_nan"], changes_df=True, use_once=False)
     def convert_gps_coordinates(self,
                                 lat_col='flight_computer_Lat', lon_col='flight_computer_Long',
                                 lat_dir='S', lon_dir='W'):
+        """Convert GPS coordinates to signed decimal format."""
         self._df = convert_gps_coordinates(self._df, lat_col, lon_col, lat_dir, lon_dir)
 
     @function_dependencies(required_operations=["convert_gps_coordinates"], changes_df=False, use_once=False)
     def plot_gps_on_map(self, center_coords=(-70.6587, -8.2850), zoom_start=13) -> folium.Map:
+        """Plot GPS track on an interactive map."""
         return plot_gps_on_map(self._df, center_coords, zoom_start)
 
     @function_dependencies(required_operations=["set_outliers_to_nan"], changes_df=True, use_once=False)
     def T_RH_averaging(self,
                        columns_t: list[str] | None = None, columns_rh: list[str] | None = None,
                        nan_threshold: int = 400):
+        """Averages reference instrument temperature and humidity data from available sensors and
+        plots temperature and RH versus pressure.
+        Updates DataFrame with 'Average_Temperature' and 'Average_RH' columns.
+
+        Args:
+            columns_t: List of column names containing temperature data.
+            columns_rh: List of column names containing humidity data.
+            nan_threshold (int): Number of NaNs to tolerate before discarding a sensor.
+        """
         columns_t = columns_t if columns_t is not None else self._build_FC_T_columns()
         columns_rh = columns_rh if columns_rh is not None else self._build_FC_RH_columns()
         self._df = T_RH_averaging(self._df, columns_t, columns_rh, nan_threshold)
 
     @function_dependencies(required_operations=["T_RH_averaging"], changes_df=False, use_once=False)
     def plot_T_RH(self, save_path: str | pathlib.Path | None = None):
+        """Plot averaged temperature and humidity values."""
         plot_T_RH(self._df, self._reference_instrument, self._flight_computer, save_path)
 
     def _build_FC_T_columns(self) -> list[str]:
@@ -223,14 +243,24 @@ class DataProcessorLevel1(BaseProcessor):
 
     @function_dependencies(required_operations=["T_RH_averaging"], changes_df=True, use_once=False)
     def altitude_calculation_barometric(self, offset_to_add: Number = 0):
+        """Calculates altitude using barometric formula based on ground pressure/temperature interpolation
+         and pressure readings during flight.
+         Updates DataFrame with 'Pressure_ground', 'Temperature_ground', and 'Altitude' columns.
+
+        Args:
+            offset_to_add: Offset to add to altitude estimate.
+        """
         self._df = altitude_calculation_barometric(self._df, self._reference_instrument, self._metadata, offset_to_add)
 
     @function_dependencies(required_operations=["altitude_calculation_barometric"], changes_df=False, use_once=False)
     def plot_altitude(self):
+        """Plot altitude profile."""
         plot_altitude(self._df, self._reference_instrument)
 
     @function_dependencies(required_operations=[], changes_df=True, use_once=True)
     def add_missing_columns(self):
+        """Add columns missing from the dataframe filled with NaN. This way, all the dataframes for flights
+         from the same campaign have the same columns."""
         all_missing_columns = {}
         expected_columns = Cleaner.get_expected_columns(self.output_schema, with_dtype=True)
 
@@ -261,6 +291,7 @@ class DataProcessorLevel1(BaseProcessor):
                            changes_df=True, use_once=False,
                            complete_with_arg="instrument")
     def calculate_derived(self, instrument: Instrument, verbose: bool = True, *args, **kwargs):
+        """Run instrument-specific derived calculations."""
         if self._check_schema_contains_instrument(instrument):
             self._df = instrument.calculate_derived(self._df, verbose, *args, **kwargs)
 
@@ -268,6 +299,7 @@ class DataProcessorLevel1(BaseProcessor):
                            changes_df=True, use_once=False,
                            complete_with_arg="instrument")
     def normalize(self, instrument: Instrument, verbose: bool = True, *args, **kwargs):
+        """Normalize instrument measurements."""
         if self._check_schema_contains_instrument(instrument):
             self._df = instrument.normalize(self._df, self._reference_instrument, verbose, *args, **kwargs)
 
@@ -275,6 +307,7 @@ class DataProcessorLevel1(BaseProcessor):
                            changes_df=False, use_once=False,
                            complete_with_arg="instrument")
     def plot_raw_and_normalized_data(self, instrument: Instrument, verbose: bool = True, *args, **kwargs):
+        """Plot raw versus normalized data."""
         if self._check_schema_contains_instrument(instrument):
             plt.close("all")
             instrument.plot_raw_and_normalized(self._df, verbose, *args, **kwargs)
@@ -284,6 +317,7 @@ class DataProcessorLevel1(BaseProcessor):
                            complete_with_arg="instrument", complete_req=True)
     def plot_distribution(self, instrument: Instrument, verbose: bool = True,
                           time_start: datetime | None = None, time_end: datetime | None = None, *args, **kwargs):
+        """Plot distribution of instrument data."""
         if self._check_schema_contains_instrument(instrument):
             plt.close("all")
             instrument.plot_distribution(self._df, verbose, time_start, time_end, *args, **kwargs)
@@ -292,6 +326,7 @@ class DataProcessorLevel1(BaseProcessor):
                            changes_df=False, use_once=False,
                            complete_with_arg="instrument", complete_req=True)
     def plot_vertical_distribution(self, instrument: Instrument, verbose: bool = True, *args, **kwargs):
+        """Plot vertical distribution of instrument data."""
         if self._check_schema_contains_instrument(instrument):
             plt.close("all")
             instrument.plot_vertical_distribution(self._df, verbose, *args, **kwargs)
@@ -299,6 +334,7 @@ class DataProcessorLevel1(BaseProcessor):
     @function_dependencies(required_operations=[], changes_df=False, use_once=False)
     def plot_flight_profiles(self, flight_basename: str, save_path: str | pathlib.Path,
                              variables: list[FlightProfileVariable] | None = None):
+        """Generate and save flight profile plots."""
         plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level {self.level.value}]'
         fig = flight_profiles(self._df, self._reference_instrument,
@@ -311,6 +347,7 @@ class DataProcessorLevel1(BaseProcessor):
     @function_dependencies(required_operations=[], changes_df=False, use_once=False)
     def plot_size_distr(self, flight_basename: str, save_path: str | pathlib.Path,
                         time_start: datetime | None = None, time_end: datetime | None = None):
+        """Generate and save particle size distribution plots combined in a single plot."""
         plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level {self.level.value}]'
         fig = plot_size_distributions(self._df, self.level, self._output_schema, title, time_start, time_end)
@@ -324,6 +361,15 @@ class DataProcessorLevel1(BaseProcessor):
                              output_schema: OutputSchema,
                              reference_instrument: Instrument,
                              with_dtype: bool) -> list[str] | dict[str, str]:
+        """Generate expected dataframe columns at level 1.
+
+        Args:
+            output_schema: Schema containing campaign instruments.
+            with_dtype: Whether to include dtype mapping.
+
+        Returns:
+            List of column names or dict of column-to-dtype.
+        """
         columns_level0 = Cleaner.get_expected_columns(output_schema, with_dtype=True)
 
         df_level0 = pd.DataFrame({c: pd.Series(dtype=t) for c, t in columns_level0.items()})
@@ -342,6 +388,7 @@ class DataProcessorLevel1(BaseProcessor):
 
     @staticmethod
     def read_data(level1_filepath: str | pathlib.Path) -> pd.DataFrame:
+        """Load Level 1 dataframe from CSV."""
         df_level1 = pd.read_csv(level1_filepath, index_col='DateTime', parse_dates=['DateTime'])
         df_level1.rename(columns={"DateTime.1": "DateTime"}, inplace=True)
         df_level1 = df_level1.convert_dtypes()
@@ -350,4 +397,5 @@ class DataProcessorLevel1(BaseProcessor):
 
     @function_dependencies(required_operations=[], changes_df=False, use_once=False)
     def export_data(self, filepath: str | pathlib.Path | None = None):
+        """Export dataframe in its final state."""
         self._df.to_csv(filepath, index=True)

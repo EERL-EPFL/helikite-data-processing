@@ -31,8 +31,12 @@ logger = logging.getLogger(__name__)
 logger.setLevel(constants.LOGLEVEL_CONSOLE)
 
 class Cleaner(BaseProcessor):
+    """
+    Level 0 processor for synchronizing timestamps across instruments and merging their data into a unified structure.
+    """
     @property
     def level(self) -> Level:
+        """Processing level identifier."""
         return Level.LEVEL0
 
     def __init__(
@@ -96,6 +100,7 @@ class Cleaner(BaseProcessor):
 
     @property
     def df(self) -> pd.DataFrame | None:
+        """Return the current state of dataframe."""
         return self.master_df
 
     def _data_state_info(self) -> list[str]:
@@ -216,6 +221,8 @@ class Cleaner(BaseProcessor):
         start_pressure: float = None,
         start_temperature: float = None,
     ) -> None:
+        """Apply instrument-specific correction routines."""
+
         success = []
         errors = []
 
@@ -313,6 +320,8 @@ class Cleaner(BaseProcessor):
         use_once=False
     )
     def plot_time_sync(self, save_path: str | pathlib.Path, skip: list[Instrument]):
+        """Visualize pressure alignment after time synchronization."""
+
         plt.close('all')
         fig, (ax) = plt.subplots(1, 1, figsize=(10, 8))
 
@@ -1228,6 +1237,18 @@ class Cleaner(BaseProcessor):
     @staticmethod
     def choose_reference_instrument(output_schema: OutputSchema,
                                     instruments: list[Instrument]) -> Instrument | None:
+        """Select a reference instrument for synchronization.
+
+        Args:
+            output_schema: Schema containing reference instrument candidates.
+            instruments: Detected instruments.
+
+        Returns:
+            Selected reference instrument.
+
+        Raises:
+            ValueError: If no suitable instrument is found.
+        """
         for candidate in output_schema.reference_instrument_candidates:
             if candidate in instruments:
                 return candidate
@@ -1239,6 +1260,15 @@ class Cleaner(BaseProcessor):
 
     @classmethod
     def get_expected_columns(cls, output_schema: OutputSchema, with_dtype: bool) -> list[str] | dict[str, str]:
+        """Generate expected dataframe columns at level 0.
+
+        Args:
+            output_schema: Schema containing campaign instruments.
+            with_dtype: Whether to include dtype mapping.
+
+        Returns:
+            List of column names or dict of column-to-dtype.
+        """
         expected_columns = {}
         for instrument in output_schema.instruments:
             df = pd.DataFrame({c: pd.Series(dtype=t) for c, t in instrument.dtype.items()},
