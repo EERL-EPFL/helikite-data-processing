@@ -110,9 +110,9 @@ def execute_level1_5(config: Config):
     data_processor = DataProcessorLevel1_5(getattr(OutputSchemas, config.output_schema), df_level1, metadata)
     data_processor.fill_msems_takeoff_landing(time_window_seconds=90)
     data_processor.remove_before_takeoff_and_after_landing()
-    data_processor.filter_columns()
+    data_processor.drop_columns()
     data_processor.rename_columns()
-    data_processor.round_flightnbr_campaign(decimals=2)
+    data_processor.round_and_add_flightnbr_campaign(decimals=2)
 
     output_flags_dir = output_level1_5_dir / "flags"
 

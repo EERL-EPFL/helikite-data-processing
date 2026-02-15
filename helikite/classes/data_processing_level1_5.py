@@ -22,8 +22,11 @@ from helikite.processing.post.level1 import fill_msems_takeoff_landing, create_l
 
 
 class DataProcessorLevel1_5(BaseProcessor):
+    """Level 1.5 for detecting flags that indicate environmental or flight conditions, such as hovering,
+     pollution exposure, or cloud immersion."""
     @property
     def level(self) -> Level:
+        """Processing level identifier."""
         return Level.LEVEL1_5
 
 
@@ -49,26 +52,46 @@ class DataProcessorLevel1_5(BaseProcessor):
 
     @property
     def df(self) -> pd.DataFrame:
+        """Return the current state of dataframe."""
         return self._df
 
     @function_dependencies(required_operations=[], changes_df=True, use_once=False)
     def fill_msems_takeoff_landing(self, time_window_seconds=90):
+        """
+        Fill missing values in mSEMS columns at takeoff and landing times using nearby values.
+
+        Args:
+            time_window_seconds (int, optional): 
+                Number of seconds before/after to search for replacement values (default: 90).
+        """
         fill_msems_takeoff_landing(self._df, self._metadata, time_window_seconds)
 
     @function_dependencies(required_operations=["fill_msems_takeoff_landing"], changes_df=True, use_once=False)
     def remove_before_takeoff_and_after_landing(self):
+        """Trim dataframe outside flight time window."""
         self._df = self._df.loc[self._metadata.takeoff_time: self._metadata.landing_time]
 
     @function_dependencies(required_operations=[], changes_df=True, use_once=True)
-    def filter_columns(self):
+    def drop_columns(self):
+        """Drop dataframe columns which are not required for the final file."""
         self._df = create_level1_dataframe(self._df, self._output_schema)
 
-    @function_dependencies(required_operations=["filter_columns"], changes_df=True, use_once=True)
+    @function_dependencies(required_operations=["drop_columns"], changes_df=True, use_once=True)
     def rename_columns(self):
+        """Renames columns of the input DataFrame according to predefined rules and instrument-specific rules.
+        See `Instrument.rename_dict`
+        """
         self._df = rename_columns(self._df, self._output_schema, self._reference_instrument)
 
-    @function_dependencies(required_operations=["filter_columns"], changes_df=True, use_once=True)
-    def round_flightnbr_campaign(self, decimals=2):
+    @function_dependencies(required_operations=["drop_columns"], changes_df=True, use_once=True)
+    def round_and_add_flightnbr_campaign(self, decimals=2):
+        """
+        Round numeric columns of the DataFrame with special handling for 'WindDir',
+        and add columns for flight number and campaign.
+    
+        Args:
+            decimals (int, optional): The number of decimal places to round to (default is 2).
+        """
         self._df = round_flightnbr_campaign(self._df, self._metadata, self._output_schema, decimals)
 
     @function_dependencies(required_operations=["rename_columns"], changes_df=True, use_once=False,
@@ -77,6 +100,7 @@ class DataProcessorLevel1_5(BaseProcessor):
                     flag: Flag = flag_pollution_cpc,
                     auto_path: str | Path = "flag_auto.csv",
                     plot_detection: bool = True):
+        """Automatically detect and record flag events."""
         params = FDAParameters(inverse=False) if flag.params is None else flag.params
 
         fda = FDA(self._df, flag.column_name, gt_flag_column_name=None, params=params)
@@ -99,6 +123,7 @@ class DataProcessorLevel1_5(BaseProcessor):
                     flag: Flag = flag_pollution_cpc,
                     auto_path: str | Path | None = None,
                     corr_path: str | Path = "flag_corr.csv"):
+        """Interactively review and correct flag detection."""
         if auto_path is not None:
             try:
                 shutil.copy(auto_path, corr_path)
@@ -118,6 +143,7 @@ class DataProcessorLevel1_5(BaseProcessor):
                  flag: Flag = flag_pollution_cpc,
                  corr_path: str | Path = "flag_corr.csv",
                  mask: pd.Series | None = None):
+        """Apply finalized flag to dataframe."""
         flag_values = pd.read_csv(corr_path, index_col=0, parse_dates=True)["datetime"]
 
         self._df[flag.flag_name] = 0
@@ -132,6 +158,7 @@ class DataProcessorLevel1_5(BaseProcessor):
     @function_dependencies(required_operations=["rename_columns"], changes_df=False, use_once=False)
     def plot_flight_profiles(self, flight_basename: str, save_path: str | pathlib.Path,
                              variables: list[FlightProfileVariable] | None = None):
+        """Generate and save flight profile plots."""
         plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level {self.level.value}]'
         fig = flight_profiles(self._df, self._reference_instrument,
@@ -144,6 +171,7 @@ class DataProcessorLevel1_5(BaseProcessor):
     @function_dependencies(required_operations=["rename_columns"], changes_df=False, use_once=False)
     def plot_size_distr(self, flight_basename: str, save_path: str | pathlib.Path,
                         time_start: datetime | None = None, time_end: datetime | None = None):
+        """Generate and save particle size distribution plots combined in a single plot."""
         plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level {self.level.value}]'
         fig = plot_size_distributions(self._df, self.level, self._output_schema, title, time_start, time_end)
@@ -157,6 +185,15 @@ class DataProcessorLevel1_5(BaseProcessor):
                              output_schema: OutputSchema,
                              reference_instrument: Instrument,
                              with_dtype: bool) -> list[str] | dict[str, str]:
+        """Generate expected dataframe columns at level 0.
+
+        Args:
+            output_schema: Schema containing campaign instruments.
+            with_dtype: Whether to include dtype mapping.
+
+        Returns:
+            List of column names or dict of column-to-dtype.
+        """
         columns_level1 = DataProcessorLevel1.get_expected_columns(output_schema, reference_instrument, with_dtype=True)
         df_level1 = pd.DataFrame({c: pd.Series(dtype=t) for c, t in columns_level1.items()},
                                  index=pd.DatetimeIndex([], name="DateTime"))
@@ -170,15 +207,17 @@ class DataProcessorLevel1_5(BaseProcessor):
 
     @staticmethod
     def read_data(level1_5_filepath: str | pathlib.Path) -> pd.DataFrame:
+        """Load Level 1.5 dataframe from CSV."""
         df_level1_5 = pd.read_csv(level1_5_filepath, index_col='datetime', parse_dates=['datetime'])
         df_level1_5 = df_level1_5.convert_dtypes()
 
         return df_level1_5
 
     @function_dependencies(
-        required_operations=["rename_columns", "round_flightnbr_campaign"],
+        required_operations=["rename_columns", "round_and_add_flightnbr_campaign"],
         changes_df=False,
         use_once=False
     )
     def export_data(self, filepath: str | pathlib.Path | None = None):
+        """Export dataframe in its final state."""
         self._df.to_csv(filepath, index=False)

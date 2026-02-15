@@ -13,8 +13,10 @@ from helikite.processing.post.level1 import flight_profiles, plot_size_distribut
 
 
 class DataProcessorLevel2(BaseProcessor):
+    """Level 2 processor for averaging data to 10-second intervals."""
     @property
     def level(self) -> Level:
+        """Processing level identifier."""
         return Level.LEVEL2
 
 
@@ -30,10 +32,14 @@ class DataProcessorLevel2(BaseProcessor):
 
     @property
     def df(self) -> pd.DataFrame:
+        """Return the current state of dataframe."""
         return self._df
 
     @function_dependencies(required_operations=[], changes_df=True, use_once=True)
     def average(self, rule="10s"):
+        """Average the data to the specified time intervals (by default, 10-second intervals),
+        with special handling of "WindDir".
+        """
         agg_dict: dict[str, Any] = {
             **{
                 col: "mean"
@@ -76,6 +82,7 @@ class DataProcessorLevel2(BaseProcessor):
     @function_dependencies(required_operations=["average"], changes_df=False, use_once=False)
     def plot_flight_profiles(self, flight_basename: str, save_path: str | pathlib.Path,
                              variables: list[FlightProfileVariable] | None = None):
+        """Generate and save flight profile plots."""
         plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level {self.level.value}]'
         fig = flight_profiles(self._df, self._reference_instrument,
@@ -88,6 +95,7 @@ class DataProcessorLevel2(BaseProcessor):
     @function_dependencies(required_operations=["average"], changes_df=False, use_once=False)
     def plot_size_distr(self, flight_basename: str, save_path: str | pathlib.Path,
                         time_start: datetime | None = None, time_end: datetime | None = None):
+        """Generate and save particle size distribution plots combined in a single plot."""
         plt.close("all")
         title = f'Flight {self._metadata.flight} ({flight_basename}) [Level {self.level.value}]'
         fig = plot_size_distributions(self._df, self.level, self._output_schema, title, time_start, time_end)
@@ -98,6 +106,7 @@ class DataProcessorLevel2(BaseProcessor):
 
     @staticmethod
     def read_data(level2_filepath: str | pathlib.Path) -> pd.DataFrame:
+        """Load Level 2 dataframe from CSV."""
         df_level2 = pd.read_csv(level2_filepath, index_col='datetime', parse_dates=['datetime'])
         df_level2 = df_level2.convert_dtypes()
 
@@ -105,4 +114,5 @@ class DataProcessorLevel2(BaseProcessor):
 
     @function_dependencies(required_operations=["average"], changes_df=False, use_once=False)
     def export_data(self, filepath: str | pathlib.Path | None = None):
+        """Export dataframe in its final state."""
         self._df.to_csv(filepath, index=True)

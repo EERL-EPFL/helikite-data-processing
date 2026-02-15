@@ -23,6 +23,7 @@ def _build_colors_defaultdict():
 
 
 class Level(Enum):
+    """Processing level identifiers."""
     LEVEL0 = 0
     LEVEL1 = 1
     LEVEL1_5 = 1.5
@@ -31,10 +32,19 @@ class Level(Enum):
 
 @dataclass(frozen=True)
 class Flag:
+    """Definition of a processing flag.
+
+    A flag describes a condition derived from instrument data that marks
+    specific flight or environmental states.
+    """
     flag_name: str
+    """Name of the flag column in output data."""
     column_name: str
+    """Source column used to compute the flag."""
     params: FDAParameters
+    """FDA parameters controlling flag detection."""
     y_scale: str = "log"
+    """Plotting scale hint for visualization."""
 
     def __str__(self):
         return self.flag_name
@@ -42,29 +52,48 @@ class Flag:
 
 @dataclass(frozen=True)
 class FlightProfileVariable:
+    """Configuration for plotting a flight profile variable.
+
+    Defines how a variable is displayed in vertical flight profile plots.
+    """
     column_name: str
+    """Name of the data column to plot."""
     shade_flags: list[str] = dataclasses.field(default_factory=list)
+    """Flags for which background shading should be applied."""
     plot_kwargs: dict = dataclasses.field(default_factory=dict)
+    """Matplotlib plotting arguments."""
     alpha_ascent: float = 1.0
+    """Opacity for ascent segment."""
     alpha_descent: float = 0.5
+    """Opacity for descent segment."""
     x_min: Number | None = None
+    """Lower x-axis bound."""
     x_max: Number | None = None
+    """Upper x-axis bound."""
     x_divider: Number | None = None
+    """Tick spacing hint."""
     x_label: str | None = None
+    """Axis label override."""
 
 
 @dataclass(frozen=True)
 class FlightProfileVariableShade:
+    """Configuration for shaded regions in flight profile and size distribution plots."""
     name: str
+    """Source column used to compute shaded regions."""
     condition: Callable[[Level, pd.Series], pd.Series]
     """
     Predicate function that receives a column value and returns True if the corresponding row should be shaded,
     False otherwise.
     """
     label: str
+    """Legend label."""
     span_kwargs: dict
+    """Matplotlib plotting arguments for shaded spans."""
     line_name: str | None = None
+    """Optional column name for overlay line to plot in size distribution plot together with the shaded regions."""
     line_kwargs: dict | None = None
+    """Matplotlib plotting arguments for overlay line"""
 
 
 flag_pollution_cpc = Flag(flag_name="flag_pollution", column_name="CPC_total_N", params=FDA_PARAMS_POLLUTION)
@@ -115,6 +144,10 @@ shade_filter = FlightProfileVariableShade(
 
 @dataclass(frozen=True)
 class OutputSchema:
+    """Campaign-specific output configuration.
+
+    Defines instruments, plotting styles, and metadata expectations for a campaign.
+    """
     campaign: str | None
     """Campaign name"""
     instruments: list[Instrument]
@@ -124,6 +157,7 @@ class OutputSchema:
     reference_instrument_candidates: list[Instrument]
     """Reference instrument candidates for the automatic instruments detection"""
     flight_profile_variables: list[FlightProfileVariable] = dataclasses.field(default_factory=list)
+    """List of flight profile variables to plot."""
     flight_profile_shades: list[FlightProfileVariableShade] = (
         shade_hovering, shade_pollution_cpc, shade_cloud_mcda, shade_filter
     )
@@ -132,6 +166,10 @@ class OutputSchema:
 
 
 class OutputSchemas:
+    """Registry and factory for predefined output schemas.
+
+    Provides access to campaign configurations and allows runtime registration of custom schemas.
+    """
     _REGISTRY: dict[str, OutputSchema] = {}
 
     ORACLES_24_25 = OutputSchema(
@@ -171,14 +209,14 @@ class OutputSchemas:
             FlightProfileVariable(
                 column_name="Average_RH",
                 plot_kwargs=dict(color="orange", linewidth=3.0),
-                x_max = 100,
+                x_max=100,
                 x_divider=10,
                 x_label="RH (%)",
             ),
             FlightProfileVariable(
                 column_name="cpc_totalconc_stp",
                 plot_kwargs=dict(color="orchid", linewidth=3.0),
-                x_min = 0,
+                x_min=0,
                 x_divider=100,
                 x_label="CPC conc. (cm$^{-3}$) [7–2000 nm]",
             ),
@@ -187,7 +225,7 @@ class OutputSchemas:
                 shade_flags=["flag_pollution", "flag_cloud"],
                 plot_kwargs=dict(color="indigo", marker=".", linestyle="none"),
                 alpha_descent=0.3,
-                x_min = 0,
+                x_min=0,
                 x_divider=200,
                 x_label="mSEMS conc. (cm$^{-3}$) [8-250 nm]",
             ),
@@ -195,7 +233,7 @@ class OutputSchemas:
                 column_name="pops_total_conc_stp",
                 shade_flags=["flag_cloud"],
                 plot_kwargs=dict(color="teal", linewidth=3.0),
-                x_min = 0,
+                x_min=0,
                 x_divider=10,
                 x_label="POPS conc. (cm$^{-3}$) [186-3370 nm]",
             ),
@@ -204,7 +242,7 @@ class OutputSchemas:
                 plot_kwargs=dict(color="salmon", linewidth=3.0),
                 alpha_ascent=0.6,
                 alpha_descent=0.3,
-                x_min = 0,
+                x_min=0,
                 x_divider=10,
                 x_label="mCDA conc. (cm$^{-3}$) [0.66–33 um]",
             ),
@@ -212,7 +250,7 @@ class OutputSchemas:
                 column_name="smart_tether_Wind (m/s)",
                 plot_kwargs=dict(color="palevioletred", marker=".", linestyle="none"),
                 alpha_descent=0.2,
-                x_min = 0,
+                x_min=0,
                 x_divider=1,  # divider hint, bounds calculated
                 x_label="WS (m/s)",
             ),
@@ -220,8 +258,8 @@ class OutputSchemas:
                 column_name="smart_tether_Wind (degrees)",
                 plot_kwargs=dict(color="olivedrab", marker=".", linestyle="none"),
                 alpha_descent=0.3,
-                x_min = 0,
-                x_max = 360,
+                x_min=0,
+                x_max=360,
                 x_divider=90,
                 x_label="WD (deg)",
             ),
@@ -286,6 +324,17 @@ class OutputSchemas:
 
     @classmethod
     def from_name(cls, name: str) -> OutputSchema:
+        """Retrieve a schema by name.
+
+        Args:
+            name: Schema identifier (case-insensitive).
+
+        Returns:
+            OutputSchema instance.
+
+        Raises:
+            KeyError: If schema is not registered.
+        """
         try:
             return cls._REGISTRY[name.upper()]
         except KeyError:
@@ -299,6 +348,16 @@ class OutputSchemas:
 
     @classmethod
     def register(cls, name: str, schema: OutputSchema, *, overwrite: bool = False):
+        """Register a custom output schema.
+
+        Args:
+            name: Schema identifier.
+            schema: Schema instance.
+            overwrite: Whether to replace an existing schema in case of conflict.
+
+        Raises:
+            ValueError: If schema exists and overwrite is False.
+        """
         key = name.upper()
         if not overwrite and key in cls._REGISTRY:
             raise ValueError(f"OutputSchema '{name}' is already registered")
@@ -306,6 +365,11 @@ class OutputSchemas:
 
     @classmethod
     def keys(cls):
+        """List registered schema names.
+
+        Returns:
+            Iterable of schema identifiers.
+        """
         return cls._REGISTRY.keys()
 
 

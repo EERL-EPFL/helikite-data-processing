@@ -125,6 +125,17 @@ class FDA:
 
     def plot_data(self, use_time_index: bool = True, figsize=(18, 10), bins=100, fontsize=22, markersize=3,
                   save_path: str | pathlib.Path | None = None):
+        """Visualize concentration and gradient distributions.
+        Generates a joint histogram and time-series plot to inspect raw signal behavior and threshold placement.
+
+        Args:
+            use_time_index: Plot against timestamps instead of sample index.
+            figsize: Figure size.
+            bins: Histogram bin count.
+            fontsize: Axis label font size.
+            markersize: Marker size for time-series plot.
+            save_path: Optional output path for saving the figure.
+        """
         fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=figsize)
 
         data = self._df.copy()
@@ -208,6 +219,15 @@ class FDA:
         plt.show()
 
     def detect(self) -> pd.Series:
+        """Execute configured filters and produce a flag series.
+
+        Applies filters sequentially, storing intermediate results,
+        and returns the final flag series aligned with the original index.
+
+        Returns:
+            Series indicating detected flag events.
+        """
+
         self._filters = []
         match self._params.main_filter:
             case "iqr":
@@ -251,6 +271,21 @@ class FDA:
     def plot_detection(self, use_time_index: bool = True, figsize=None, fontsize=14, markersize=3, yscale="log",
                        save_path: str | pathlib.Path | None = None, start_time: datetime.datetime | None = None,
                        end_time: datetime.datetime | None = None):
+        """Visualize intermediate filtering stages.
+
+        Displays concentration and gradient signals alongside each filter’s flag results.
+
+        Args:
+            use_time_index: Plot against timestamps instead of sample index.
+            figsize: Figure size.
+            bins: Histogram bin count.
+            fontsize: Axis label font size.
+            markersize: Marker size.
+            save_path: Optional output path for saving the figure.
+            yscale: Y-axis scale for concentration.
+            start_time: Optional plot start time.
+            end_time: Optional plot end time.
+        """
         if len(self._df) == 0 or len(self._intermediate_flags) == 0:
             logging.warning("No data to plot. Assure that data is not empty.")
             return
@@ -328,6 +363,7 @@ class FDA:
 
     @staticmethod
     def power_law_filter(conc: pd.Series, grad: pd.Series, flag_old: pd.Series, params: FDAParameters):
+        """Flag anomalies using a power-law gradient threshold."""
         power_law = params.pl_a * conc ** params.pl_m
         if not params.inverse:
             flag_new = ((grad > power_law) & (conc > params.lower_thr)) | (conc > params.upper_thr)
@@ -338,6 +374,7 @@ class FDA:
 
     @staticmethod
     def iqr_filter(conc: pd.Series, grad: pd.Series, flag_old: pd.Series, params: FDAParameters):
+        """Flag anomalies using rolling interquartile range thresholds."""
         iqr_window, iqr_factor = params.iqr_window, params.iqr_factor
         q075 = grad.rolling(iqr_window, center=True).quantile(0.75)
         q075 = q075.bfill().ffill()
@@ -357,6 +394,7 @@ class FDA:
 
     @staticmethod
     def neighbor_filter(conc: pd.Series, grad: pd.Series, flag_old: pd.Series, params: FDAParameters):
+        """Extend flags to neighboring samples."""
         flag_fillna = flag_old.fillna(False)
 
         shift_down = flag_fillna.shift(1)
@@ -369,6 +407,7 @@ class FDA:
 
     @staticmethod
     def median_filter(conc: pd.Series, grad: pd.Series, flag_old: pd.Series, params: FDAParameters):
+        """Flag samples exceeding a rolling median threshold."""
         median_window, median_factor = params.median_window, params.median_factor
         median = conc.rolling(median_window, center=True, min_periods=1).median()
 
@@ -378,6 +417,7 @@ class FDA:
 
     @staticmethod
     def sparse_filter(conc: pd.Series, grad: pd.Series, flag_old: pd.Series, params: FDAParameters):
+        """Flag regions with high density of anomalies."""
         if len(flag_old) < 2:
             return flag_old.copy()
 
@@ -411,6 +451,7 @@ class FDA:
 
     @staticmethod
     def duration_filter(conc: pd.Series, grad: pd.Series, flag_old: pd.Series, params: FDAParameters):
+        """Remove flagged events shorter than a minimum duration."""
         min_duration = pd.Timedelta(params.min_duration)
 
         flag_new = flag_old.copy()
@@ -433,6 +474,9 @@ class FDA:
 
     @staticmethod
     def evaluate(conc: pd.Series, flag: pd.Series, flag_manual: pd.Series, verbose: bool = False):
+        """Compute detection performance metrics, in case ground truth is available.
+        Calculates precision, recall, and F1 score relative to reference flags.
+        """
         mask = ~conc.isna() & ~flag_manual.isna()
         conc, flag, flag_manual = conc[mask], flag[mask], flag_manual[mask]
 
