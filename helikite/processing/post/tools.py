@@ -77,16 +77,7 @@ def choose_outliers(df, y, coupled_columns, outlier_file,
     if coupled_columns is None:
         coupled_columns = []
 
-    # Build a dictionary mapping each column to its coupled group
-    # Columns not coupled to any others are excluded
-    coupled_columns_dict = {}
-    for coupled_columns_group in coupled_columns:
-        for column in coupled_columns_group:
-            if column in set(coupled_columns_dict):
-                raise ValueError(f"{column} is present in multiple coupled columns groups:"
-                                 f"\n\t{coupled_columns_group}"
-                                 f"\n\t{coupled_columns_dict[column]}")
-            coupled_columns_dict[column] = coupled_columns_group
+    coupled_columns_dict = _build_coupled_columns_dict(coupled_columns)
 
     def process_outlier(selected_index, current_x, value):
         all_x_to_set = (current_x,) if not current_x in coupled_columns_dict else coupled_columns_dict[current_x]
@@ -293,16 +284,34 @@ def choose_outliers(df, y, coupled_columns, outlier_file,
     return VBox([variable_dropdown, add_remove_toggle, fig, out])
 
 
+def _build_coupled_columns_dict(coupled_columns: list[tuple[str, ...]]) -> dict[str, tuple[str, ...]]:
+    """Build a dictionary mapping each column to its coupled group. Columns not coupled to any others are excluded"""
+    coupled_columns_dict = {}
+    for coupled_columns_group in coupled_columns:
+        for column in coupled_columns_group:
+            if column in set(coupled_columns_dict):
+                raise ValueError(f"{column} is present in multiple coupled columns groups:"
+                                 f"\n\t{coupled_columns_group}"
+                                 f"\n\t{coupled_columns_dict[column]}")
+            coupled_columns_dict[column] = coupled_columns_group
+
+    return coupled_columns_dict
+
+
 def detect_outliers(outliers_file: str | pathlib.Path, df: pd.DataFrame,
-                    columns: list[str], circular_ranges: dict[str, tuple], acceptable_ranges: dict[str, tuple],
+                    columns: list[str], coupled_columns: list[tuple[str, ...]],
+                    circular_ranges: dict[str, tuple], acceptable_ranges: dict[str, tuple],
                     iqr_factor: Number):
+    coupled_columns_dict = _build_coupled_columns_dict(coupled_columns)
+
     outliers = _load_or_create_outliers(outliers_file, df)
 
     def _set_column_outliers(column: str, mask: pd.Series, outliers: pd.DataFrame):
         idx = df.index[mask]
+        columns = (column,) if not column in coupled_columns_dict else coupled_columns_dict[column]
 
         outliers = outliers.reindex(outliers.index.union(idx), fill_value=False)
-        outliers.loc[idx, column] = True
+        outliers.loc[idx, columns] = True
 
         return outliers
 
