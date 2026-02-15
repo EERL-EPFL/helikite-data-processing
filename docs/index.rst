@@ -7,7 +7,9 @@ Welcome to Helikite Data Processing's Documentation!
 
 Overview
 --------
-Helikite Data Processing is a Python library designed to support Helikite campaigns by unifying field-collected data, generating quicklooks, and performing quality control on instrument data. Whether you’re a non-programmer who simply needs to run the provided command-line interface (CLI) or a developer looking to integrate its powerful API into your own workflows, this documentation will guide you every step of the way.
+This library supports Helikite campaigns by unifying field-collected data, generating quicklooks,
+and performing quality control on instrument recordings.
+It is available on PyPI and is designed to be used as a Python package within Jupyter notebooks.
 
 Installation & Environment Setup
 ----------------------------------
@@ -21,12 +23,6 @@ Helikite is published on PyPI: https://pypi.org/project/helikite-data-processing
 .. code-block:: bash
 
     pip install helikite-data-processing
-
-After installation, the CLI is available as a system command:
-
-.. code-block:: bash
-
-    helikite --help
 
 2. Setting Up a Poetry Environment
 
@@ -45,12 +41,6 @@ For an isolated development environment or if you prefer Poetry for dependency m
 
       poetry install
 
-- **Run the CLI within Poetry:**
-
-  .. code-block:: bash
-
-      poetry run helikite --help
-
 3. Using Jupyter Notebooks
 
 Helikite includes several Jupyter notebooks demonstrating various processing workflows. To work with these notebooks:
@@ -61,11 +51,13 @@ Helikite includes several Jupyter notebooks demonstrating various processing wor
 
       poetry run jupyter lab
 
-- **Open the notebooks** from the ``notebooks/`` folder. Notable examples include:
-  - ``level0.ipynb`` or ``level0_tutorial.ipynb``: An introductory tutorial covering basic processing.
-  - ``OutlierRemoval.ipynb``: Demonstrates techniques for identifying and removing outliers.
-  - ``FeatureFlagging.ipynb``: Shows how to apply feature flags to control processing features.
-  - ``metadata.ipynb``: Provides examples for handling metadata.
+- **Open the notebooks** from the ``notebooks/`` folder.
+  - ``level0_DataProcessing``: Level 0 processing tutorial. Level 0 synchronizes timestamps across instruments and merges their data into a unified structure.
+  - ``level1_DataProcessing``: Level 1 processing tutorial. Level 1 performs quality control, averages humidity and temperature measurements, calculates flight altitude
+using the barometric equation, and applies instrument-specific processing.
+  - ``level1_5_DataProcessing``: Level 1.5 processing tutorial. Level 1.5 detects flags that indicate environmental or flight conditions, such as hovering, pollution exposure,
+or cloud immersion.
+  - ``level2_DataProcessing``: Level 2 processing tutorial. Level 2 averages data to 10-second intervals and can merge flights into a final campaign dataset.
 
 Using the Library
 -----------------
@@ -89,21 +81,17 @@ Below is the auto-generated API reference documentation that covers all modules,
 
 Notebooks & Tutorials
 ----------------------
-A collection of Jupyter notebooks in the ``notebooks/`` folder provides practical, step-by-step examples of common workflows. These include:
-
-- **Level 0 Tutorial:** An introductory guide covering basic data processing steps.
-- **Outlier Removal:** Detailed techniques for outlier detection and removal.
-- **Feature Flagging:** How to enable and apply feature flags within your processing pipeline.
-- **Metadata Handling:** Examples for processing and utilizing metadata.
+A collection of Jupyter notebooks in the ``notebooks/`` folder provides practical,
+step-by-step examples of common workflows.
 
 .. toctree::
    :maxdepth: 2
    :caption: Notebooks & Tutorials
 
-   notebooks/level0_tutorial
-   notebooks/OutlierRemoval
-   notebooks/FeatureFlagging
-   notebooks/metadata
+   notebooks/level0_DataProcessing
+   notebooks/level1_DataProcessing
+   notebooks/level1_5_DataProcessing
+   notebooks/level2_DataProcessing
 
 Additional Resources
 --------------------
