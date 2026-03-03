@@ -1,162 +1,151 @@
 # EASE (hElikite dAta proceSsing codE)
 
-This library supports Helikite campaigns by unifying field-collected data, generating quicklooks, and performing quality control on instrument recordings. It is now available on PyPI, can be used via a command‐line interface (CLI), and also runs in Docker containers if needed.
+This library supports Helikite campaigns by unifying field-collected data, generating quicklooks,
+and performing quality control on instrument recordings.
+It is available on PyPI and is designed to be used as a Python package within Jupyter notebooks.
 
 ## Table of Contents
-1. [Getting Started](#getting-started)
-   1. [Pip Installation](#pip-installation)
-   2. [Docker](#docker)
-   3. [Makefile](#makefile)
+
+1. [Installation](#installation)
 2. [Using the Library](#using-the-library)
-3. [Cleaner](#cleaner)
-4. [Documentation & Examples](#documentation--examples)
-5. [Command-line Usage](#command-line-usage)
-6. [Development](#development)
+
+   1. [Level 0 (Cleaner)](#level-0-cleaner)
+   2. [Level 1](#level-1)
+   3. [Level 1.5](#level-15)
+   4. [Level 2](#level-2)
+   5. [Configuration](#configuration)
+3. [Documentation & Examples](#documentation--examples)
+4. [Development](#development)
+
    1. [The Instrument class](#the-instrument-class)
    2. [Adding more instruments](#adding-more-instruments)
-7. [Configuration](#configuration)
-   1. [Application constants](#application-constants)
-   2. [Runtime configuration](#runtime)
 
 
-# Getting Started
+# Installation
 
-## Pip Installation
+## Installation for standard users
 
-Helikite is published on [PyPI](https://pypi.org/project/helikite-data-processing/). To install it via `pip`, run:
+Helikite is published on PyPI. To install it with `pip`, run:
 
 ```bash
 pip install helikite-data-processing
 ```
 
-After installation, the CLI is available as a system command:
+## Installation for contributors
 
-```bash
-helikite --help
+For an isolated development environment, or if you prefer Poetry for dependency management:
+
+**Clone the repository**
+
+```
+git clone https://github.com/EERL-EPFL/helikite-data-processing.git
+cd helikite-data-processing
 ```
 
-## Docker
+**Install dependencies with Poetry**
 
-> **Note:** Docker usage is now optional. For most users, installing via pip is the recommended approach.
-
-### Building and Running with Docker
-
-1. **Build the Docker image:**
-
-   ```bash
-   docker build -t helikite .
-   ```
-
-2. **Generate project folders and create the configuration file:**
-
-   ```bash
-   docker run \
-       -v ./inputs:/app/inputs \
-       -v ./outputs:/app/outputs \
-       helikite:latest generate_config
-   ```
-
-3. **Preprocess the configuration file:**
-
-   ```bash
-   docker run \
-       -v ./inputs:/app/inputs \
-       -v ./outputs:/app/outputs \
-       helikite:latest preprocess
-   ```
-
-4. **Process data and generate plots:**
-
-   ```bash
-   docker run \
-       -v ./inputs:/app/inputs \
-       -v ./outputs:/app/outputs \
-       helikite:latest
-   ```
-
-You can also use the pre-built image from GitHub Packages:
-
-```bash
-docker run \
-   -v ./inputs:/app/inputs \
-   -v ./outputs:/app/outputs \
-   ghcr.io/eerl-epfl/helikite-data-processing:latest generate_config
+```
+poetry install
 ```
 
-## Makefile
-
-The Makefile provides simple commands for common tasks:
-
-```bash
-make build             # Build the Docker image
-make generate_config   # Generate the configuration file in the inputs folder
-make preprocess        # Preprocess data and update the configuration file
-make process           # Process data and generate plots (output goes into a timestamped folder)
-```
 
 # Using the Library
 
-Helikite can be used both as a standalone CLI tool and as an importable Python package.
-For non-programmers, the CLI is the simplest way to use the library.
-For programmers, the library can be imported and used in your own scripts:
+Helikite is intended to be used as an importable Python package. The standard workflow is organized into multiple
+processing levels, typically executed through Jupyter notebooks. These notebooks allow interactive control during
+processing, such as selecting flight takeoff and landing times or marking outliers and flags
+(for example, hovering periods).
 
-```python
-import helikite
-from helikite.processing import preprocess, sorting
-from helikite.constants import constants
+The library also supports automatic detection of outliers and flags, enabling fully non-interactive processing.
+Automatic runs may produce results that differ from manual review, so they should be used with caution.
 
-# For example, to generate a configuration file programmatically:
-preprocess.generate_config()
+An example script that processes all flights from a campaign in non-interactive mode is available
+[here](./notebooks/execute_all.py).
+
+If the library is installed from source, run the following from the project root to view usage instructions:
+
+```
+poetry run python ./notebooks/execute_all.py --help
 ```
 
-A complete list of available functions and modules is documented on the [auto-published documentation site](https://eerl-epfl.github.io/helikite-data-processing/).
 
-# Cleaner
+## Level 0 (Cleaner)
 
-The `cleaner` module is designed to tidy up output folders generated by the application. For instructions on how to use it, refer to the [Level 0 notebook](./notebooks/level0.ipynb).
+Level 0 synchronizes timestamps across instruments and merges their data into a unified structure.
+
+See the [Level 0 notebook](notebooks/level0_DataProcessing.ipynb) for a detailed example, or the `execute_level0`
+function in the [script](./notebooks/execute_all.py).
+
+
+## Level 1
+
+Level 1 performs quality control, averages humidity and temperature measurements, calculates flight altitude
+using the barometric equation, and applies instrument-specific processing.
+
+See the [Level 1 notebook](notebooks/level1_DataProcessing.ipynb) for a detailed example, or the `execute_level1`
+function in the [script](./notebooks/execute_all.py).
+
+
+## Level 1.5
+
+Level 1.5 detects flags that indicate environmental or flight conditions, such as hovering, pollution exposure,
+or cloud immersion.
+
+See the [Level 1.5 notebook](notebooks/level1_5_DataProcessing.ipynb) for a detailed example, or the `execute_level1_5` 
+function in the [script](./notebooks/execute_all.py).
+
+
+## Level 2
+
+Level 2 averages data to 10-second intervals and can merge flights into a final campaign dataset.
+
+See the [Level 2 notebook](notebooks/level2_DataProcessing.ipynb) for a detailed example, or the `execute_level2`
+function in the [script](./notebooks/execute_all.py).
+
+
+## Configuration
+
+Each notebook uses a configuration file, and the same file is applied to all processing levels for a given flight.
+An example configuration:
+
+```
+flight: "1"
+flight_date: 2025-11-26
+flight_suffix: "A"
+
+output_schema: "ORACLES_25_26"
+campaign_data_dirpath: /home/EERL/data/ORACLES/Helikite/2025-2026/Data/
+processing_dir: "./outputs/2025-2026"
+```
+
+Where:
+
+* `campaign_data_dirpath` contains folder `2025-11-26_A` corresponding to an individual campaign flight
+* `output_schema` defines plot and output formatting (see available schemas [here](./helikite/classes/output_schemas.py))
+
+Custom schemas can be registered using `OutputSchemas.register(name, SCHEMA)` 
+if default configurations do not match campaign needs.
+
+A complete list of available modules and functions is documented on the auto-published documentation site.
+
 
 # Documentation & Examples
 
-For full API documentation, usage examples, and tutorials, please visit the [Helikite Data Processing Documentation](https://eerl-epfl.github.io/helikite-data-processing/).
+Full API documentation is available on the
+[Helikite Data Processing Documentation](https://eerl-epfl.github.io/helikite-data-processing/) site.
 
-The `notebooks` folder also contains a [Level 0 processing example](./notebooks/level0.ipynb) that demonstrates how to use the library for basic data processing tasks.
-
-# Command-line Usage
-
-Once installed (via pip or Docker), you can use the CLI to run the three main stages of the application:
-
-1. **Generate a configuration file:**
-   This creates a config file in your `inputs` folder.
-   ```bash
-   helikite generate-config
-   ```
-
-2. **Preprocess:**
-   Scans the input folder, associates raw instrument files to configurations, and updates the config file.
-   ```bash
-   helikite preprocess
-   ```
-
-3. **Process:**
-   Processes the input data based on the configuration, normalizes timestamps, and generates plots.
-   (Running without any command runs this stage.)
-   ```bash
-   helikite
-   ```
-
-For detailed help on any command, append `--help` (e.g., `helikite preprocess --help`).
 
 # Development
 
 ## The Instrument class
 
-The structure of the Instrument class allows specific data cleaning activities to be overridden for each instrument that inherits from it. The main application (in `helikite.py`) calls these class methods to process the data.
+All instruments implement a shared interface that allows instrument-specific behavior to override default processing. 
+Data processing components call these methods during workflow execution.
+
 
 ## Adding more instruments
 
-The configuration file is generated during the `generate_config`/`preprocess` steps by iterating over the instantiated classes imported in `helikite/instruments/__init__.py`. To add a new instrument, create a subclass of `Instrument` and import it in `__init__.py`.
-
-Firstly, the class should inherit from `Instrument` and set a unique name (e.g., for the `MCPC` instrument):
+New instrument classes should inherit from `Instrument` and define a unique name. Example:
 
 ```python
 def __init__(self, *args, **kwargs) -> None:
@@ -164,70 +153,52 @@ def __init__(self, *args, **kwargs) -> None:
     self.name = 'mcpc'
 ```
 
-The minimum functions required are:
+Required methods include:
 
-- `file_identifier()`: Accepts the first 50 lines of a CSV file and returns `True` if it matches the instrument’s criteria (typically checking header content).
+### `file_identifier()`
 
-  ```python
-  # Example for the pico instrument:
-  def file_identifier(self, first_lines_of_csv) -> bool:
-      if ("win0Fit0,win0Fit1,win0Fit2,win0Fit3,win0Fit4,win0Fit5,win0Fit6,"
-          "win0Fit7,win0Fit8,win0Fit9,win1Fit0,win1Fit1,win1Fit2") in first_lines_of_csv[0]:
-          return True
-      return False
-  ```
+Determines whether a CSV file belongs to the instrument by inspecting header lines.
 
-- `set_time_as_index()`: Converts the instrument's timestamp information into a common pandas `DateTimeIndex`.
-
-  ```python
-  # Example for the filter instrument:
-  def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
-      df['DateTime'] = pd.to_datetime(
-          df['#YY/MM/DD'].str.strip() + ' ' + df['HR:MN:SC'].str.strip(),
-          format='%y/%m/%d %H:%M:%S'
-      )
-      df.drop(columns=["#YY/MM/DD", "HR:MN:SC"], inplace=True)
-      df.set_index('DateTime', inplace=True)
-      return df
-  ```
-
-For more details and examples, refer to the [auto-published documentation](https://eerl-epfl.github.io/helikite-data-processing/).
-
-# Configuration
-
-There are three sources of configuration parameters:
-
-## Application constants
-
-These are defined in `helikite/constants.py` and include settings such as filenames, folder paths for inputs/outputs, logging formats, and default plotting parameters.
-
-## Runtime configuration
-
-The runtime configuration is stored in `config.yaml` (located in your `inputs` folder). This file is generated during the `generate_config` or `preprocess` steps. It holds runtime arguments for each instrument (e.g., file locations, time adjustments, and plotting settings).
-
-Below is an example snippet from a generated `config.yaml`:
-
-```yaml
-global:
-  time_trim:
-    start: 2022-09-29 10:21:58
-    end: 2022-09-29 12:34:36
-ground_station:
-  altitude: null
-  pressure: null
-  temperature: 7.8
-instruments:
-  filter:
-    config: filter
-    date: null
-    file: /app/inputs/220209A3.TXT
-    pressure_offset: null
-    time_offset:
-      hour: 5555
-      minute: 0
-      second: 0
-plots:
-  altitude_ground_level: false
-  grid:
-    resample_seconds: 60
+```python
+def file_identifier(self, first_lines_of_csv) -> bool:
+    if ("win0Fit0,win0Fit1,win0Fit2,win0Fit3,win0Fit4,win0Fit5,win0Fit6,"
+        "win0Fit7,win0Fit8,win0Fit9,win1Fit0,win1Fit1,win1Fit2") in first_lines_of_csv[0]:
+        return True
+    return False
 ```
+
+### `read_data()`
+
+Parses raw instrument data.
+
+### `data_corrections()`
+
+Applies instrument-specific corrections.
+
+### `set_time_as_index()`
+
+Converts the instrument's timestamp information into a common pandas `DateTimeIndex`.
+
+```python
+def set_time_as_index(self, df: pd.DataFrame) -> pd.DataFrame:
+    df['DateTime'] = pd.to_datetime(
+        df['#YY/MM/DD'].str.strip() + ' ' + df['HR:MN:SC'].str.strip(),
+        format='%y/%m/%d %H:%M:%S'
+    )
+    df.drop(columns=["#YY/MM/DD", "HR:MN:SC"], inplace=True)
+    df.set_index('DateTime', inplace=True)
+    return df
+```
+
+### `__repr__()`
+
+Returns a short instrument label used in certain plots (for example, `"FC"` for the flight computer).
+
+Additional implementation details and examples are available in the auto-published documentation.
+
+
+# Command-line Interface (Outdated)
+
+The CLI is not up to date with the main processing workflow.
+If CLI usage is still required, refer to the legacy documentation: `./cli.md`.
+

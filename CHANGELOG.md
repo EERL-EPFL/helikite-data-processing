@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.4] - 2026-02-15
+
+### Added
+- Output format specification for final data file and plots consistent across flights in a campaign.
+- Level 1, 1.5, and 2 data processors analogous to `Cleaner` for level 0.
+- Automatic instruments detection at level 0 based on the flight files.
+- Automatic flag detection based on [[Beck et al., 2022]](https://doi.org/10.5194/amt-15-4195-2022).
+- Instrument classes for CO2 and MicroAeth.
+- Instrument methods.
+- Flight processing configuration.
+
+### Changed
+- Modified pressure-based time synchronization allowing arbitrarily large time offsets.
+- Modified CPC3007, Tapir, STAP instrument classes.
+
 ## [1.1.3] - 2025-09-09
 
 ### Added
