@@ -15,6 +15,10 @@ factors I have)
 
 Housekeeping variables to look at:
 POPS_flow -> flow should be just below 3, and check for variability increase
+
+The code has been updated to the processing of the new POPS462: all bins are kept.
+If needed, "pops_old" contains the code for the old POPS (101, 105) where only
+bins 3 to 16 are kept.
 """
 import datetime
 from pathlib import Path
@@ -69,7 +73,10 @@ class POPS(Instrument):
 
         # Calculate PartCon_186
         df["PartCon_186"] = (
-            df["b3"]
+            df["b0"]
+            + df["b1"]
+            + df["b2"]
+            + df["b3"]
             + df["b4"]
             + df["b5"]
             + df["b6"]
@@ -168,10 +175,11 @@ class POPS(Instrument):
 
         # List of columns to correct
         columns_to_normalize = [
-            'pops_total_conc', 'pops_b3_dlogDp', 'pops_b4_dlogDp', 'pops_b5_dlogDp',
-            'pops_b6_dlogDp', 'pops_b7_dlogDp', 'pops_b8_dlogDp', 'pops_b9_dlogDp',
-            'pops_b10_dlogDp', 'pops_b11_dlogDp', 'pops_b12_dlogDp',
-            'pops_b13_dlogDp', 'pops_b14_dlogDp', 'pops_b15_dlogDp'
+            'pops_total_conc',
+            'pops_b0_dlogDp', 'pops_b1_dlogDp','pops_b2_dlogDp', 'pops_b3_dlogDp',
+            'pops_b4_dlogDp', 'pops_b5_dlogDp', 'pops_b6_dlogDp', 'pops_b7_dlogDp',
+            'pops_b8_dlogDp', 'pops_b9_dlogDp', 'pops_b10_dlogDp', 'pops_b11_dlogDp',
+            'pops_b12_dlogDp', 'pops_b13_dlogDp', 'pops_b14_dlogDp', 'pops_b15_dlogDp'
         ]
 
         # Dictionary to hold new columns temporarily
@@ -239,22 +247,38 @@ class POPS(Instrument):
             df = df[df.index <= pd.to_datetime(time_end)]
 
         # Define pops_dlogDp variable from Hendix documentation
+        # Old POPS (101, 105)
+        #pops_dia = [
+        #    149.0801282, 162.7094017, 178.3613191, 195.2873341,
+        #    212.890625, 234.121875, 272.2136986, 322.6106374,
+        #    422.0817873, 561.8906456, 748.8896681, 1054.138693,
+        #    1358.502538, 1802.347716, 2440.99162, 3061.590212
+        #]
+
+        #pops_dlogDp = [
+        #    0.036454582, 0.039402553, 0.040330922, 0.038498955,
+        #    0.036550107, 0.045593506, 0.082615487, 0.066315868,
+        #    0.15575785, 0.100807113, 0.142865049, 0.152476328,
+        #    0.077693935, 0.157186601, 0.113075192, 0.086705426
+        #]
+        
+        # New POPS (462)
         pops_dia = [
-            149.0801282, 162.7094017, 178.3613191, 195.2873341,
-            212.890625, 234.121875, 272.2136986, 322.6106374,
-            422.0817873, 561.8906456, 748.8896681, 1054.138693,
-            1358.502538, 1802.347716, 2440.99162, 3061.590212
+            128.320605, 139.409092, 152.34442, 167.986438,
+            187.369994, 211.442379, 264.247966, 361.755791,
+            458.623459, 574.673158, 837.124736, 1155.592451,
+            1476.720919, 1933.918892, 2490.278383, 3170.226146
         ]
 
         pops_dlogDp = [
-            0.036454582, 0.039402553, 0.040330922, 0.038498955,
-            0.036550107, 0.045593506, 0.082615487, 0.066315868,
-            0.15575785, 0.100807113, 0.142865049, 0.152476328,
-            0.077693935, 0.157186601, 0.113075192, 0.086705426
+            0.034982511, 0.036926465, 0.040008055, 0.044660699,
+            0.049905708, 0.054784606, 0.13077362, 0.140523656, 
+            0.073748759, 0.11739797, 0.195444474, 0.100579881,
+            0.111128387, 0.121737597, 0.100575107, 0.108197874
         ]
 
         # Define the range of columns for POPS concentration
-        start_conc = self.column_name(df, 'pops_b3_dlogDp_stp')
+        start_conc = self.column_name(df, 'pops_b0_dlogDp_stp')
         end_conc = self.column_name(df, 'pops_b15_dlogDp_stp')
 
         # Extract the relevant columns
@@ -266,7 +290,7 @@ class POPS(Instrument):
         print(f"max value ({self.name}): {vmax_value}")
 
         # Create 2D grid
-        bin_diameters = pops_dia[3:16]
+        bin_diameters = pops_dia[0:16]
         xx, yy = np.meshgrid(counts.index.values, bin_diameters)
         Z = counts.values.T
 
@@ -308,7 +332,7 @@ class POPS(Instrument):
             ax.tick_params(axis='x', rotation=90, labelsize=11)
 
         # Set axis labels and limits
-        ax.set_ylim(180, 3370)
+        ax.set_ylim(120, 3370)
         ax.tick_params(axis='y', labelsize=11)
         ax.set_yscale('log')
         ax.set_ylabel('Part. Diameter (nm)', fontsize=12, fontweight='bold')
@@ -337,8 +361,8 @@ class POPS(Instrument):
         # Adjust dN_pops and calculate dNdlogDp
         popsflow_mean = df_pops['pops_POPS_Flow'].mean()  # 2.9866
         dN_pops = df_pops.filter(like='pops_b') / popsflow_mean
-        df_pops.loc[:, 'pops_total_conc'] = dN_pops.loc[:, 'pops_b3':'pops_b15'].sum(axis=1, skipna=True, min_count=1)
-        dNdlogDp = dN_pops.loc[:, 'pops_b3':'pops_b15'].div(dp_notes['dlogdp'].iloc[3:].values, axis=1).add_suffix(
+        df_pops.loc[:, 'pops_total_conc'] = dN_pops.loc[:, 'pops_b0':'pops_b15'].sum(axis=1, skipna=True, min_count=1)
+        dNdlogDp = dN_pops.loc[:, 'pops_b0':'pops_b15'].div(dp_notes['dlogdp'].iloc[0:].values, axis=1).add_suffix(
             '_dlogDp')
 
         # Add dNdlogDp columns to df
@@ -466,13 +490,13 @@ pops = POPS(
         "b14",
         "b15",
     ],
-    cols_final=[f"b{i}_dlogDp_stp" for i in range(3, 16)] + ["total_conc_stp"],
+    cols_final=[f"b{i}_dlogDp_stp" for i in range(0, 16)] + ["total_conc_stp"],
     pressure_variable="P",
     temperature_variable="Temp",
     coupled_columns=[
         [f"pops_b{i}" for i in range(16)] +
-        [f"pops_b{i}_dlogDp" for i in range(3, 16)] +
+        [f"pops_b{i}_dlogDp" for i in range(0, 16)] +
         ["pops_total_conc", "pops_PartCon_186"],
     ],
-    rename_dict={f'pops_b{i}_dlogDp_stp': f'POPS_b{i}' for i in range(3, 16)} | {'pops_total_conc_stp': 'POPS_total_N'},
+    rename_dict={f'pops_b{i}_dlogDp_stp': f'POPS_b{i}' for i in range(0, 16)} | {'pops_total_conc_stp': 'POPS_total_N'},
 )

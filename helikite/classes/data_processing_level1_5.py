@@ -6,6 +6,7 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 from pydantic import BaseModel
 
 from helikite.classes.base import BaseProcessor, get_instruments_from_cleaned_data, function_dependencies, \
@@ -18,7 +19,7 @@ from helikite.metadata.models import Level0
 from helikite.processing import choose_outliers
 from helikite.processing.post.fda import FDAParameters, FDA
 from helikite.processing.post.level1 import fill_msems_takeoff_landing, create_level1_dataframe, rename_columns, \
-    round_flightnbr_campaign, flight_profiles, plot_size_distributions
+    reorder_final_columns, round_flightnbr_campaign, flight_profiles, plot_size_distributions
 
 
 class DataProcessorLevel1_5(BaseProcessor):
@@ -82,6 +83,11 @@ class DataProcessorLevel1_5(BaseProcessor):
         See `Instrument.rename_dict`
         """
         self._df = rename_columns(self._df, self._output_schema, self._reference_instrument)
+
+    @function_dependencies(required_operations=["drop_columns"], changes_df=True, use_once=True)
+    def reorder_columns(self):
+        """Apply final column ordering to dataframe."""
+        self._df = reorder_final_columns(self._df, self._output_schema, self._reference_instrument)
 
     @function_dependencies(required_operations=["drop_columns"], changes_df=True, use_once=True)
     def round_and_add_flightnbr_campaign(self, decimals=2):

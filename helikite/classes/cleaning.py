@@ -24,6 +24,7 @@ from helikite.instruments.base import Instrument, filter_columns_by_instrument
 from helikite.metadata.models import Level0
 from helikite.processing.helpers import temporary_attr
 from helikite.processing.post import crosscorrelation
+from helikite.processing.post.level1 import ask_cpc_mode
 
 parent_process = psutil.Process().parent().cmdline()[-1]
 
@@ -487,6 +488,10 @@ class Cleaner(BaseProcessor):
             )
             filepath = f"level0_{time}"  # noqa
 
+        cpc_mode = getattr(self, "cpc_mode", None)
+        if cpc_mode is None:
+            cpc_mode = ask_cpc_mode()
+            self.cpc_mode = cpc_mode
 
         metadata = Level0(
             flight=self.flight,
@@ -495,6 +500,7 @@ class Cleaner(BaseProcessor):
             landing_time=self.time_landing,
             reference_instrument=self.reference_instrument.name,
             instruments=[instrument.name for instrument in self._instruments],
+            cpc_mode=cpc_mode,
         ).model_dump()
 
         all_columns = list(self.master_df.columns)

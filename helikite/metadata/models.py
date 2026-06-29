@@ -9,6 +9,7 @@ class Level0(BaseModel):
     landing_time: datetime.datetime
     reference_instrument: str
     instruments: list[str] = []  # The str repr of each Instrument
+    cpc_mode: str | None = None
 
     def __repr__(self) -> str:
         return (

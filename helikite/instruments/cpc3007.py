@@ -5,6 +5,7 @@ Total particle concentration in size range of 7 - 2000 nm.
 
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
 
 from helikite.instruments.base import Instrument, filter_columns_by_instrument
 
@@ -13,7 +14,7 @@ class CPC(Instrument):
     """
     Instrument definition for the cpc3007 sensor system.
     """
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
     def __repr__(self):
@@ -77,15 +78,35 @@ class CPC(Instrument):
         Returns:
         df (pd.DataFrame): Updated DataFrame with STP-normalized columns inserted.
         """
+        metadata = kwargs.get("metadata", None)
+
+        if metadata is None:
+            raise ValueError("CPC requires metadata (cpc_mode missing)")
     
+        mode = metadata.cpc_mode
+        
         # Constants for STP
         P_STP = 1013.25  # hPa
         T_STP = 273.15   # Kelvin
     
         # Measured conditions
-        P_measured = df[f"{reference_instrument.name}_pressure"]
-        T_measured = df["Average_Temperature"] + 273.15  # Convert °C to Kelvin
+        if mode == "V":
+            P_measured = df[f"{reference_instrument.name}_pressure"]
+            T_measured = df["Average_Temperature"] + 273.15  # Convert °C to Kelvin
+            output_column = "cpc_totalconc_stp"
     
+        elif mode == "S":
+            P_measured = df["Pressure_ground"]
+            T_measured = df["Temperature_ground"]
+            output_column = "cpc_totalconc_surface_stp"
+
+            # Ensure the vertical CPC column exists
+            if "cpc_totalconc_stp" not in df.columns:
+                df["cpc_totalconc_stp"] = np.nan
+
+        else:
+            raise ValueError(f"Unknown CPC mode: {mode}")
+            
         # Calculate STP correction
         correction_factor = (P_measured / P_STP) * (T_STP / T_measured)
         normalized_column = df['cpc_totalconc_raw'] * correction_factor
@@ -98,12 +119,12 @@ class CPC(Instrument):
             last_cpc_index = len(df.columns)
     
         # Insert STP-normalized column (only if it doesn't already exist)
-        if 'cpc_totalconc_stp' in df.columns:
-            df = df.drop(columns='cpc_totalconc_stp')
+        if output_column in df.columns:
+            df = df.drop(columns=output_column)
     
         df = pd.concat(
             [df.iloc[:, :last_cpc_index],
-             pd.DataFrame({'cpc_totalconc_stp': normalized_column}, index=df.index),
+             pd.DataFrame({output_column: normalized_column}, index=df.index),
              df.iloc[:, last_cpc_index:]],
             axis=1
         )
@@ -111,19 +132,59 @@ class CPC(Instrument):
         return df
 
     def plot_raw_and_normalized(self, df: pd.DataFrame, verbose: bool, *args, **kwargs):
-        plt.figure(figsize=(8, 6))
+        
+        metadata = kwargs.get("metadata", None)
 
-        plt.plot(df['cpc_totalconc_raw'], df['Altitude'], label='Measured', color='blue', marker='.', linestyle='none')
-        if 'cpc_totalconc_stp' in df.columns:
-            plt.plot(df['cpc_totalconc_stp'], df['Altitude'], label='STP-normalized', color='red', marker='.',
-                     linestyle='none')
-        plt.xlabel('CPC3007 total concentration (cm$^{-3}$)', fontsize=12)
-        plt.ylabel('Altitude (m)', fontsize=12)
-
+        if metadata is None:
+            raise ValueError("CPC plotting requires metadata")
+    
+        mode = metadata.cpc_mode
+        import matplotlib.pyplot as plt
+        
+        plt.figure(figsize=(12, 6))
+        
+        # -------------------------
+        # VERTICAL PROFILE
+        # -------------------------
+        if mode == "V":
+        
+            x_raw = df["cpc_totalconc_raw"]
+            x_stp = df["cpc_totalconc_stp"] if "cpc_totalconc_stp" in df.columns else None
+        
+            y = df["Altitude"]
+            ylabel = "Altitude (m)"
+            xlabel = "CPC3007 total concentration (cm$^{-3}$)"
+        
+            plt.plot(x_raw, y, label="Measured", color="blue", marker=".", linestyle="none")
+        
+            if x_stp is not None:
+                plt.plot(x_stp, y, label="STP-normalized", color="red", marker=".", linestyle="none")
+        
+        # -------------------------
+        # SURFACE TIME SERIES
+        # -------------------------
+        elif mode == "S":
+        
+            # time axis
+            x = df.index  # or df["Time"] if you have explicit column
+        
+            plt.plot(x, df["cpc_totalconc_raw"], label="Measured", color="blue", marker=".", linestyle="none")
+        
+            if "cpc_totalconc_surface_stp" in df.columns:
+                plt.plot(x, df["cpc_totalconc_surface_stp"], label="STP-normalized", color="red", marker=".", linestyle="none")
+        
+            xlabel = "Time"
+            ylabel = "CPC3007 total concentration (cm$^{-3}$)"
+        
+        else:
+            raise ValueError(f"Unknown CPC mode: {mode}")
+        
+        plt.xlabel(xlabel, fontsize=12)
+        plt.ylabel(ylabel, fontsize=12)
+        
         plt.legend()
         plt.grid(True)
         plt.tight_layout()
-
         plt.show()
 
 
@@ -134,8 +195,9 @@ cpc = CPC(
         "Concentration (#/cm3)": "Int64"
     },
     expected_header_value="Time,Concentration (#/cm3),\n",
-    cols_final=["totalconc_stp"],
+    cols_final=["totalconc_stp", "totalconc_surface_stp"],
     header=17,
     pressure_variable=None,
-    rename_dict={'cpc_totalconc_stp': 'CPC_total_N'},
+    rename_dict={'cpc_totalconc_stp': 'CPC_total_N',
+                'cpc_totalconc_surface_stp': 'CPC_surface_total_N'},
 )

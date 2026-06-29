@@ -6,6 +6,8 @@ import re
 
 from helikite.instruments.base import Instrument
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 import logging
 from helikite.constants import constants
 
@@ -122,6 +124,73 @@ class Filter(Instrument):
                     return [matched_file]
 
         return matched_files
+
+    def plot_filter_variables(self, df: pd.DataFrame):
+        """
+        Plot filter position, sample flow and pump power versus time.
+        """
+        plt.close("all")
+        
+        # Resolve actual column names
+        pos_col = self.column_name(df, "filter_cur_pos")
+        flow_col = self.column_name(df, "filter_smp_flw")
+        pump_col = self.column_name(df, "filter_pump_pw")
+    
+        fig, ax1 = plt.subplots(figsize=(12, 5))
+    
+        # Filter position (left axis)
+        ax1.plot( df.index, df[pos_col], color="navy", linewidth=2, label="Filter position")
+        ax1.set_xlabel("DateTime")
+        ax1.set_ylabel("Filter position", color="navy", fontweight="bold", fontsize="12")
+        ax1.tick_params(axis="y", labelcolor="navy")
+    
+        # Flow (first right axis)
+        ax_flow = ax1.twinx()
+        ax_flow.spines["right"].set_position(("outward", 60))
+        ax_flow.plot(df.index, df[flow_col], color="green", linewidth=2, label="Flow (lpm)")
+        ax_flow.set_ylabel("Flow (lpm)", color="green", fontweight="bold", fontsize="12")
+        ax_flow.tick_params(axis="y", labelcolor="green")
+    
+        # Pump power (second right axis)
+        ax2 = ax1.twinx()
+        ax2.plot(df.index, df[pump_col], color="darkorange", linewidth=2, label="Pump power")
+        ax2.set_ylabel("Pump power", color="darkorange", fontweight="bold", fontsize="12")
+        ax2.tick_params(axis="y", labelcolor="darkorange")
+    
+        # Combine legends from all axes
+        handles1, labels1 = ax1.get_legend_handles_labels()
+        handles2, labels2 = ax_flow.get_legend_handles_labels()
+        handles3, labels3 = ax2.get_legend_handles_labels()
+
+        ax1.grid(True, linestyle="--", linewidth=0.5)
+    
+        plt.title("Filter position, flow and pump power during measurement")
+        fig.tight_layout()
+    
+        return fig
+
+    def simplified_filter_position(self, df: pd.DataFrame,
+                          pos_col: str = "filter_cur_pos",
+                          pump_col: str = "filter_pump_pw") -> None:
+
+        if hasattr(self, "column_name"):
+            pos_col = self.column_name(df, pos_col)
+            pump_col = self.column_name(df, pump_col)
+    
+        pump = df[pump_col]
+        pos = df[pos_col]
+    
+        valid_positions = {2, 4, 6}
+
+        valid = (pos.isin(valid_positions) & (pump > 25) & (pump < 50))
+        result = pd.Series(index=df.index, dtype="float")
+    
+        result[pump.isna()] = np.nan
+        result[valid] = 1
+        result[~pump.isna() & ~valid] = 0
+    
+        # overwrite
+        df.loc[:, pos_col] = result
 
 
 filter = Filter(

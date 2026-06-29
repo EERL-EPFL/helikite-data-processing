@@ -61,8 +61,8 @@ def _build_rename_dict(output_schema: OutputSchema, reference_instrument: Instru
         'DateTime': 'datetime',
         'latitude_dd': 'Lat',
         'longitude_dd': 'Long',
-        f'{reference_instrument.name}_pressure': 'P',
-        'Average_Temperature': 'TEMP',
+        f'{reference_instrument.name}_pressure': 'Pressure',
+        'Average_Temperature': 'Temperature',
         'Average_RH': 'RH',
     }
     for instrument in output_schema.instruments:
@@ -70,6 +70,61 @@ def _build_rename_dict(output_schema: OutputSchema, reference_instrument: Instru
 
     return rename_dict
 
+def reorder_final_columns(df, output_schema, reference_instrument):
+    """
+    Reorder Level1 dataframe into final standardized export structure.
+    Safe: ignores missing columns automatically.
+    """
+    # 1. FIXED CORE COLUMNS
+    base_order = ["datetime", "Altitude", "Lat", "Long", "Pressure", "Temperature", "RH", "WindSpeed", "WindDir",]
+    
+    # 2. INSTRUMENT TOTALS
+    instrument_totals = ["POPS_total_N", "mSEMS_total_N", "mCDA_total_N",]
+    if "CPC_total_N" in df.columns:
+        instrument_totals.append("CPC_total_N")
+    if "CPC_surface_total_N" in df.columns:
+        instrument_totals.append("CPC_surface_total_N")
+
+    # 3. FILTER
+    filter_cols = ["Filter_position", "Filter_flow",]
+
+    # 4. POPS BINS
+    pops_bins = [c for c in df.columns if c.startswith("POPS_b")]
+    def sort_pops(x):
+        try:
+            return int(x.replace("POPS_b", ""))
+        except:
+            return 999
+    pops_bins = sorted(pops_bins, key=sort_pops)
+
+    # 5. mSEMS BINS
+    msems_bins = [c for c in df.columns if c.startswith("mSEMS_Bin_Conc")]
+    def sort_msems(x):
+        try:
+            return int(x.replace("mSEMS_Bin_Conc", ""))
+        except:
+            return 999
+    msems_bins = sorted(msems_bins, key=sort_msems)
+
+    # 6. mCDA BINS
+    mcda_bins = [c for c in df.columns if c.startswith("mCDA_dataB")]
+    def sort_mcda(x):
+        try:
+            return int(x.replace("mCDA_dataB", ""))
+        except:
+            return 999
+    mcda_bins = sorted(mcda_bins, key=sort_mcda)
+
+    # 7. FLAGS + METADATA
+    tail_cols = ["flag_pollution", "flag_hovering", "flag_cloud", "flight_nr", "campaign",]
+
+    # 8. BUILD FINAL ORDER
+    desired_order = (base_order + instrument_totals + filter_cols + pops_bins + msems_bins + mcda_bins + tail_cols)
+
+    # 9. FILTER EXISTING ONLY
+    final_cols = [c for c in desired_order if c in df.columns]
+
+    return df.loc[:, final_cols].copy()
 
 def round_flightnbr_campaign(df: pd.DataFrame, metadata: BaseModel, output_schema: OutputSchema, decimals: int):
     """
@@ -85,14 +140,21 @@ def round_flightnbr_campaign(df: pd.DataFrame, metadata: BaseModel, output_schem
     Returns:
         pd.DataFrame: The rounded and modified DataFrame with additional columns.
     """
+    df = df.copy()
     # Columns to exclude from default rounding
     exclude_cols = ['Lat', 'Long']
+    zero_decimal_cols = ['flag_pollution', 'flag_hovering', 'flag_cloud']
 
     # Round all numeric columns except 'Lat' and 'Long'
     numeric_cols = df.select_dtypes(include='number').columns
     round_cols = [col for col in numeric_cols if col not in exclude_cols]
-    df[round_cols] = df[round_cols].round(decimals)
+    df.loc[:, round_cols] = df.loc[:, round_cols].round(decimals)
 
+    # Round flags to integers
+    for col in zero_decimal_cols:
+        if col in df.columns:
+            df[col] = df[col].round(0).astype('Int64')
+            
     # Now round 'Lat' and 'Long' to 4 decimals
     for col in exclude_cols:
         if col in df.columns:
@@ -113,7 +175,7 @@ def round_flightnbr_campaign(df: pd.DataFrame, metadata: BaseModel, output_schem
 
 
 
-def fill_msems_takeoff_landing(df, metadata, time_window_seconds):
+def fill_msems_takeoff_landing(df: pd.DataFrame, metadata, time_window_seconds):
     """
     Fill missing values in mSEMS columns at takeoff and landing times using nearby values.
 
@@ -126,7 +188,8 @@ def fill_msems_takeoff_landing(df, metadata, time_window_seconds):
     time_window_seconds : int, optional
         Number of seconds before/after to search for replacement values (default: 90).
     """
-
+    df.index = pd.to_datetime(df.index)
+    
     # Convert to Timestamps
     takeoff_time = pd.to_datetime(metadata.takeoff_time)
     landing_time = pd.to_datetime(metadata.landing_time)
@@ -134,7 +197,7 @@ def fill_msems_takeoff_landing(df, metadata, time_window_seconds):
     # Select relevant columns
     msems_cols = [
         col for col in df.columns
-        if (col.startswith("msems_scan_") or col.startswith("msems_inverted_"))
+        if (col.startswith("mSEMS_Bin") or col.startswith("mSEMS_total"))
         and col not in ["msems_scan_DateTime", "msems_inverted_DateTime"]
     ]
 
@@ -145,7 +208,7 @@ def fill_msems_takeoff_landing(df, metadata, time_window_seconds):
             if row.isna().any():
                 window_start = event_time - pd.Timedelta(seconds=time_window_seconds)
                 window_end = event_time + pd.Timedelta(seconds=time_window_seconds)
-                window_df = df.loc[window_start:window_end, msems_cols]
+                window_df = df.loc[window_start:window_end, msems_cols]#
 
                 filled_from_indices = []
 
@@ -297,7 +360,8 @@ def _get_series_bounds(
         return (default_min, default_max), default_divider
 
     min_bound = x.min() if default_min is None else default_min
-    max_bound = x.quantile(0.99) * 1.1 if default_max is None else default_max
+    max_bound = x.max() if default_max is None else default_max
+    #max_bound = x.quantile(0.99) * 1.1 if default_max is None else default_max
 
     divider = default_divider
     while max_bound - min_bound > divider * 6:
@@ -339,6 +403,23 @@ def plot_size_distributions(df: pd.DataFrame, level: Level, output_schema: Outpu
     ax1.tick_params(axis='x', labelbottom=False)
     ax1.set_ylim(-40, df['Altitude'].max() * 1.04)
 
+    # Surface CPC vs Time
+    ax1_cpc = None
+    cpc_col = None
+    if "cpc_totalconc_surface_stp" in df.columns:
+        cpc_col = "cpc_totalconc_surface_stp"
+    elif "CPC_surface_total_N" in df.columns:
+        cpc_col = "CPC_surface_total_N"
+    
+    if cpc_col is not None:
+        ax1_cpc = ax1.twinx()
+    
+        ax1_cpc.plot(df.index, df[cpc_col], color='rosybrown', linewidth=2, alpha=0.7, label='Surface CPC')
+        ax1_cpc.set_ylabel('Surface CPC (cm$^{-3}$)', color='rosybrown', fontsize=12, fontweight='bold')
+    
+        ax1_cpc.tick_params(axis='y', labelsize=11, colors='rosybrown')
+        ax1_cpc.set_ylim(0, df[cpc_col].max() * 1.1)
+
     freq_detected = pd.infer_freq(df.index)
     if freq_detected is None:
         freq_detected = freq
@@ -353,14 +434,17 @@ def plot_size_distributions(df: pd.DataFrame, level: Level, output_schema: Outpu
                 v_max = values.max() if not values.isna().all() else 1.0
                 line_label, line_color = shade_config.line_kwargs["label"], shade_config.line_kwargs.get("color", None)
 
-                ax1_twin = ax1.twinx()
-                ax1_twin.plot(df.index, values, **shade_config.line_kwargs)
-                ax1_twin.tick_params(axis="y", labelsize=11, colors=line_color)
-                ax1_twin.set_ylabel(line_label, color=line_color, fontsize=12, fontweight='bold')
-                ax1_twin.set_ylim(0.0, v_max * 1.1)
+                #ax1_twin = ax1.twinx()
+                #ax1_twin.plot(df.index, values, **shade_config.line_kwargs)
+                #ax1_twin.tick_params(axis="y", labelsize=11, colors=line_color)
+                #ax1_twin.set_ylabel(line_label, color=line_color, fontsize=12, fontweight='bold')
+                #ax1_twin.set_ylim(0.0, v_max * 1.1)
 
     # Optional: Clean legend (avoid duplicates)
-    handles, labels = ax1.get_legend_handles_labels()
+    handles1, labels1 = ax1.get_legend_handles_labels()
+    handles2, labels2 = ax1_cpc.get_legend_handles_labels()
+    handles = handles1 + handles2
+    labels = labels1 + labels2
     by_label = dict(zip(labels, handles))
     ax1.legend(by_label.values(), by_label.keys(), fontsize=10)
 
@@ -448,3 +532,17 @@ def filter_data(df):
     #fig.suptitle('Filter Position and Flow vs Time')
     fig.tight_layout()
     plt.show()
+
+def ask_cpc_mode() -> str:
+    """
+    Ask user whether CPC measurement is Vertical (V) or Surface (S).
+    """
+    while True:
+        mode = input(
+            "CPC measurement type - Vertical (V) or Surface (S)? "
+        ).strip().upper()
+
+        if mode in ("V", "S"):
+            return mode
+
+        print("Please enter 'V' or 'S'.")

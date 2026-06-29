@@ -304,18 +304,25 @@ class DataProcessorLevel1(BaseProcessor):
                            changes_df=True, use_once=False,
                            complete_with_arg="instrument")
     def normalize(self, instrument: Instrument, verbose: bool = True, *args, **kwargs):
-        """Normalize instrument measurements."""
-        if self._check_schema_contains_instrument(instrument):
-            self._df = instrument.normalize(self._df, self._reference_instrument, verbose, *args, **kwargs)
+        if not self._check_schema_contains_instrument(instrument):
+            return
+        # Metadata only for CPC
+        if instrument.name == "cpc":
+            kwargs["metadata"] = self._metadata
+        self._df = instrument.normalize(self._df, self._reference_instrument, verbose, *args, **kwargs)
 
     @function_dependencies(required_operations=["altitude_calculation_barometric", "add_missing_columns"],
                            changes_df=False, use_once=False,
                            complete_with_arg="instrument")
     def plot_raw_and_normalized_data(self, instrument: Instrument, verbose: bool = True, *args, **kwargs):
         """Plot raw versus normalized data."""
-        if self._check_schema_contains_instrument(instrument):
-            plt.close("all")
-            instrument.plot_raw_and_normalized(self._df, verbose, *args, **kwargs)
+        if not self._check_schema_contains_instrument(instrument):
+            return
+        plt.close("all")
+        # Metadata only for CPC
+        if instrument.name == "cpc":
+            kwargs["metadata"] = self._metadata
+        instrument.plot_raw_and_normalized(self._df, verbose, *args, **kwargs)
 
     @function_dependencies(required_operations=["normalize"],
                            changes_df=False, use_once=False,

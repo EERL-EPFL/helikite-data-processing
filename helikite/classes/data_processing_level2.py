@@ -63,6 +63,9 @@ class DataProcessorLevel2(BaseProcessor):
         if "WindDir" in self._df.columns:
             self._df["WindDir"] = self._df["WindDir"].astype("Float64")
 
+        if "Altitude" in self._df.columns:
+            self._df["Altitude"] = self._df["Altitude"].clip(lower=0)
+
         # Convert flags to binary
         flag_cols = [flag.flag_name for flag in self._output_schema.flags]
         self._df[flag_cols] = (self._df[flag_cols] >= 0.5).astype("Int64")
@@ -76,8 +79,17 @@ class DataProcessorLevel2(BaseProcessor):
 
         # Convert filter position to binary
         if "Filter_position" in self._df.columns:
-            self._df.loc[self._df['Filter_position'] <= 1.5, 'Filter_position'] = 0
-            self._df.loc[self._df['Filter_position'] > 1.5, 'Filter_position'] = 1
+            self._df.loc[self._df['Filter_position'] <= 0.5, 'Filter_position'] = 0
+            self._df.loc[self._df['Filter_position'] > 0.5, 'Filter_position'] = 1
+
+        cols = list(self._df.columns)
+
+        if "WindSpeed" in cols and "WindDir" in cols:
+            cols.remove("WindDir")
+            idx = cols.index("WindSpeed") + 1
+            cols.insert(idx, "WindDir")
+    
+        self._df = self._df[cols]
 
     @function_dependencies(required_operations=["average"], changes_df=False, use_once=False)
     def plot_flight_profiles(self, flight_basename: str, save_path: str | pathlib.Path,
@@ -113,6 +125,17 @@ class DataProcessorLevel2(BaseProcessor):
         return df_level2
 
     @function_dependencies(required_operations=["average"], changes_df=False, use_once=False)
-    def export_data(self, filepath: str | pathlib.Path | None = None):
+    def export_data(self, metadata, filepath: str | pathlib.Path | None = None):
         """Export dataframe in its final state."""
+        mode = metadata.cpc_mode
+        if mode == "S":
+            self._df.drop(columns=["CPC_total_N"], errors="ignore", inplace=True)
+        
+        elif mode == "V":
+            self._df.drop(columns=["CPC_surface_total_N"], errors="ignore", inplace=True)
+
+        else:
+            raise ValueError(f"Invalid CPC mode: {mode}")
+        
+        self._df.index.name = "DateTime"
         self._df.to_csv(filepath, index=True)

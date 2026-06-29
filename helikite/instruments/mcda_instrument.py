@@ -131,7 +131,7 @@ class mCDA(Instrument):
 
     def read_data(self) -> pd.DataFrame:
         try:
-            # First read everything as string to avoid crashing on weird values like '000A'
+            # Read everything as strings first
             df = pd.read_csv(
                 self.filename,
                 dtype=str,
@@ -144,12 +144,27 @@ class mCDA(Instrument):
                 index_col=self.index_col,
             )
     
-            # Then attempt conversion to numeric where possible
-            for col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors='coerce')
+            # Convert hexadecimal mcda_dataB columns
+            hex_cols = [
+                col for col in df.columns
+                if col.startswith("dataB")
+            ]
+    
+            for col in hex_cols:
+                df[col] = df[col].map(
+                    lambda x: int(str(x).strip(), 16)
+                    if pd.notna(x) and str(x).strip() != ""
+                    else np.nan
+                )
+    
+            # Convert all remaining columns to numeric where possible
+            non_hex_cols = [col for col in df.columns if col not in hex_cols]
+    
+            for col in non_hex_cols:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
     
             return df
-    
+
         except Exception as e:
             logger.error(f"Failed to read and convert mCDA data from {self.filename}: {e}")
             raise
@@ -314,7 +329,7 @@ class mCDA(Instrument):
             df = df[df.index <= pd.to_datetime(time_end)]
 
         # Define the range of columns for concentration
-        start_conc = self.column_name(df, 'mcda_dataB 1_dN_dlogDp_stp')
+        start_conc = self.column_name(df, 'mcda_dataB 72_dN_dlogDp_stp')
         end_conc = self.column_name(df, 'mcda_dataB 256_dN_dlogDp_stp')
 
         # Extract the relevant concentration data
@@ -328,7 +343,8 @@ class mCDA(Instrument):
         print(f"max value ({self.name}): {vmax_value}")
 
         # Create 2D mesh grid
-        xx, yy = np.meshgrid(counts.index.values, MCDA_MIDPOINT_DIAMETER_LIST)
+        diameters = MCDA_MIDPOINT_DIAMETER_LIST[71:]  # start from bin 72
+        xx, yy = np.meshgrid(counts.index.values, diameters)
         Z = counts.values.T
 
         # Start plotting
@@ -515,7 +531,7 @@ mcda = mCDA(
         "calib2",
         "measurement_nbr"
     ],
-    cols_final=[f"dataB {i}_dN_dlogDp_stp" for i in range(1, 257)] + ["dN_totalconc_stp"],
+    cols_final=[f"dataB {i}_dN_dlogDp_stp" for i in range(72, 257)] + ["dN_totalconc_stp"],
     export_order=730,
     pressure_variable="Pressure",
     temperature_variable="Temperature",

@@ -96,7 +96,7 @@ class FlightProfileVariableShade:
     """Matplotlib plotting arguments for overlay line"""
 
 
-flag_pollution_cpc = Flag(flag_name="flag_pollution", column_name="CPC_total_N", params=FDA_PARAMS_POLLUTION)
+flag_pollution_cpc = Flag(flag_name="flag_pollution", column_name="CPC_surface_total_N", params=FDA_PARAMS_POLLUTION)
 flag_hovering = Flag(flag_name="flag_hovering", column_name="Altitude", params=FDA_PARAMS_HOVERING, y_scale="linear")
 flag_cloud_mcda = Flag(flag_name="flag_cloud", column_name="mCDA_total_N", params=FDA_PARAMS_CLOUD)
 
@@ -127,18 +127,19 @@ shade_cloud_mcda = FlightProfileVariableShade(
 
 
 def filter_shade_condition(level: Level, values: pd.Series) -> pd.Series:
-    match level:
-        case Level.LEVEL2:
-            return values != 0.0
-        case _:
-            return values != 1.0
+    return values == 1.0
+    #match level:
+    #    case Level.LEVEL2:
+    #        return values != 0.0
+    #    case _:
+    #        return values != 1.0
 
 
 shade_filter = FlightProfileVariableShade(
     name="Filter_position",
     condition=filter_shade_condition,
     label="Filter",
-    span_kwargs=dict(facecolor='none', edgecolor='gray', hatch='////', alpha=0.5),
+    span_kwargs=dict(facecolor='none', edgecolor='gray', hatch='////', alpha=0.8),
 )
 
 

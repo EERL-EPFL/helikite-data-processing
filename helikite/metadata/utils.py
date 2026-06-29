@@ -42,6 +42,7 @@ def load_parquet(filepath: str | pathlib.Path) -> tuple[pd.DataFrame, Level0]:
         instruments=(
             metadata.get("instruments") if metadata.get("instruments") else []
         ),
+        cpc_mode=metadata.get("cpc_mode"),
     )
 
     return df, level0_md
