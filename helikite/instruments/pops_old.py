@@ -348,6 +348,8 @@ class POPS(Instrument):
 
 pops = POPS(
     name="pops",
+    # "pops" is taken by the current POPS462 instrument in pops.py
+    registry_name="pops_old",
     dtype={
         "DateTime": "Float64",
         "Status": "Int64",

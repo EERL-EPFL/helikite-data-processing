@@ -27,7 +27,6 @@ def test_read_data(campaign_file_paths_and_instruments_2022):
 
 
 def test_instrument_instances():
-    registered_classes = {obj.__class__ for obj in Instrument.REGISTRY.values()}
     # specify classes which are not supposed to be instantiated
     excluded_classes = {helikite.instruments.Instrument}
     all_classes = set()
@@ -38,6 +37,9 @@ def test_instrument_instances():
             if issubclass(cls, Instrument) and cls not in excluded_classes and not inspect.isabstract(cls):
                 all_classes.add(cls)
 
+    # snapshot after the imports so instances registered by modules not
+    # imported through the package __init__ (e.g. pops_old) are counted
+    registered_classes = {obj.__class__ for obj in Instrument.REGISTRY.values()}
     uninstantiated_classes = all_classes - registered_classes
     assert not uninstantiated_classes, (
         f"The following instrument classes are not instantiated: {uninstantiated_classes}. "
@@ -49,7 +51,8 @@ def test_columns_consistency():
     for name, obj in Instrument.REGISTRY.items():
         cols_all = set(obj.dtype.keys())
 
-        if obj == helikite.instruments.pops:
+        # both POPS variants derive PartCon_186 in data_corrections
+        if name in ("pops", "pops_old"):
             cols_all.add("PartCon_186")
 
         if obj == helikite.instruments.flight_computer_v1:

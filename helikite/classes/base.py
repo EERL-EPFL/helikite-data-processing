@@ -254,18 +254,26 @@ def get_instruments_from_cleaned_data(
     df: pd.DataFrame,
     metadata: BaseModel,
     flight_computer_version: str | None,
+    output_schema: OutputSchema | None = None,
 ) -> tuple[list[Instrument], Instrument]:
     """Reconstruct instrument objects from a dataframe and level 0 metadata.
+
+    When ``output_schema`` is provided, instruments are resolved against the
+    campaign's declared objects first, so a campaign can select an instrument
+    variant (e.g. ``pops_old``) that shares its ``name`` with the default. The
+    global registry is only used as a fallback.
 
     Args:
         df: Level 0 dataframe.
         metadata: Metadata model.
         flight_computer_version: Optional flight computer version.
+        output_schema: Campaign schema whose instruments take precedence.
 
     Returns:
         Tuple of instruments list and reference instrument.
     """
     flight_computer_name = "flight_computer"
+    schema_by_name = {instr.name: instr for instr in output_schema.instruments} if output_schema else {}
 
     instruments = []
     reference_instrument = None
@@ -274,6 +282,7 @@ def get_instruments_from_cleaned_data(
         is_reference = name == metadata.reference_instrument
 
         if name == flight_computer_name:
+            # flight computer keeps its version-detection path unchanged
             if flight_computer_version is None:
                 if f"{flight_computer_name}_{flight_computer_v1.pressure_variable}" in df.columns:
                     flight_computer_version = "v1"
@@ -282,9 +291,12 @@ def get_instruments_from_cleaned_data(
                 else:
                     raise ValueError("Could not determine flight computer version. "
                                      "Please specify `flight_computer_version` manually.")
-            name += f"_{flight_computer_version}"
+            instrument = Instrument.REGISTRY[f"{flight_computer_name}_{flight_computer_version}"]
+        elif name in schema_by_name:
+            instrument = schema_by_name[name]
+        else:
+            instrument = Instrument.REGISTRY[name]
 
-        instrument = Instrument.REGISTRY[name]
         if is_reference:
             reference_instrument = instrument
         instruments.append(instrument)

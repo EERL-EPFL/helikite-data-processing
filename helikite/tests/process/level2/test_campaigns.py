@@ -89,12 +89,13 @@ def test_2025_02_12_level2(campaign_data):
 
         level1_df = cleaner.master_df[level1_cols].copy()
 
-        # Add basic metadata columns and a mock altitude for Level 2 testing
+        # Add basic metadata columns for Level 2 testing
         level1_df["flight_nr"] = metadata.flight
         level1_df["campaign"] = "ORACLES"
-        # Add a mock altitude column for Level 2 testing if not present
-        if "Altitude" not in level1_df.columns:
-            level1_df["Altitude"] = 100.0  # Mock altitude value
+
+    # altitude is calculated by DataProcessorLevel1, which this test does not run
+    if "Altitude" not in level1_df.columns:
+        level1_df["Altitude"] = 100.0  # Mock altitude value
 
     # Level 1.5: Simulate CSV export/import
     with tempfile.NamedTemporaryFile(

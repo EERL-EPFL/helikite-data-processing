@@ -34,6 +34,8 @@ def create_level1_dataframe(df: pd.DataFrame, output_schema: OutputSchema):
                          if col not in processed_columns and col not in non_instr_columns_to_skip]
 
     selected_columns = non_instr_columns + selected_columns
+    # mode-dependent columns may be absent, e.g. cpc_totalconc_surface_stp in "V" mode
+    selected_columns = [col for col in selected_columns if col in df.columns]
 
     return df[selected_columns].copy()
 
@@ -68,6 +70,9 @@ def _build_rename_dict(output_schema: OutputSchema, reference_instrument: Instru
     for instrument in output_schema.instruments:
         rename_dict = rename_dict | instrument.rename_dict
 
+    # campaign overrides win, so a campaign can pin its canonical output names
+    rename_dict = rename_dict | output_schema.column_renames
+
     return rename_dict
 
 def reorder_final_columns(df, output_schema, reference_instrument):
@@ -75,6 +80,10 @@ def reorder_final_columns(df, output_schema, reference_instrument):
     Reorder Level1 dataframe into final standardized export structure.
     Safe: ignores missing columns automatically.
     """
+    # legacy campaigns keep their canonical column set (and order) untouched
+    if not output_schema.reorder_final_columns:
+        return df
+
     # 1. FIXED CORE COLUMNS
     base_order = ["datetime", "Altitude", "Lat", "Long", "Pressure", "Temperature", "RH", "WindSpeed", "WindDir",]
     
