@@ -26,7 +26,8 @@ class Level0(BaseModel):
         return self.__str__().replace("\n", "<br>")
 
     @classmethod
-    def mock(cls, reference_instrument: str, instruments: list[str]) -> "Level0":
+    def mock(cls, reference_instrument: str, instruments: list[str],
+             cpc_mode: str | None = None) -> "Level0":
         start = datetime.datetime(2000, 1, 1, 00, 00, 00)
         end = start + datetime.timedelta(seconds=2)
 
@@ -37,4 +38,5 @@ class Level0(BaseModel):
             landing_time=end,
             reference_instrument=reference_instrument,
             instruments=instruments,
+            cpc_mode=cpc_mode,
         )

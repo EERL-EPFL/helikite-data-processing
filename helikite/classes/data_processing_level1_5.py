@@ -33,7 +33,8 @@ class DataProcessorLevel1_5(BaseProcessor):
 
     def __init__(self, output_schema: OutputSchema, df: pd.DataFrame, metadata: BaseModel,
                  flight_computer_version: str | None = None) -> None:
-        instruments, reference_instrument = get_instruments_from_cleaned_data(df, metadata, flight_computer_version)
+        instruments, reference_instrument = get_instruments_from_cleaned_data(
+            df, metadata, flight_computer_version, output_schema)
         super().__init__(output_schema, instruments, reference_instrument)
         self._df = df.copy()
         self._metadata = metadata
@@ -204,7 +205,8 @@ class DataProcessorLevel1_5(BaseProcessor):
         df_level1 = pd.DataFrame({c: pd.Series(dtype=t) for c, t in columns_level1.items()},
                                  index=pd.DatetimeIndex([], name="DateTime"))
         metadata = Level0.mock(reference_instrument.name,
-                               instruments=[instrument.name for instrument in output_schema.instruments])
+                               instruments=[instrument.name for instrument in output_schema.instruments],
+                               cpc_mode=output_schema.cpc_mode)
         data_processor = cls(output_schema, df_level1, metadata)
         launch_operations_changing_df(data_processor)
         expected_columns = {column: str(t) for column, t in data_processor.df.dtypes.to_dict().items()}

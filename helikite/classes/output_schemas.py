@@ -11,6 +11,10 @@ from matplotlib import pyplot as plt
 
 from helikite.instruments import Instrument, flight_computer_v2, smart_tether, msems_readings, msems_inverted, \
     msems_scan, pops, mcda, filter, tapir, cpc, flight_computer_v1, stap, co2, stap_raw
+# Campaign-specific legacy variants, kept out of the instruments package namespace so
+# config auto-discovery (which scans that namespace) does not treat them as extra files.
+from helikite.instruments.pops_old import pops as pops_old
+from helikite.instruments.mcda_instrument import mcda_legacy
 from helikite.processing.post.fda import FDAParameters, FDA_PARAMS_POLLUTION, FDA_PARAMS_HOVERING, FDA_PARAMS_CLOUD
 
 
@@ -96,7 +100,9 @@ class FlightProfileVariableShade:
     """Matplotlib plotting arguments for overlay line"""
 
 
-flag_pollution_cpc = Flag(flag_name="flag_pollution", column_name="CPC_surface_total_N", params=FDA_PARAMS_POLLUTION)
+flag_pollution_cpc = Flag(flag_name="flag_pollution", column_name="CPC_total_N", params=FDA_PARAMS_POLLUTION)
+flag_pollution_cpc_ground = Flag(flag_name="flag_pollution", column_name="CPC_surface_total_N",
+                                 params=FDA_PARAMS_POLLUTION)
 flag_hovering = Flag(flag_name="flag_hovering", column_name="Altitude", params=FDA_PARAMS_HOVERING, y_scale="linear")
 flag_cloud_mcda = Flag(flag_name="flag_cloud", column_name="mCDA_total_N", params=FDA_PARAMS_CLOUD)
 
@@ -110,6 +116,7 @@ shade_pollution_cpc = FlightProfileVariableShade(
 )
 shade_pollution_cpc_ground = dataclasses.replace(
     shade_pollution_cpc,
+    line_name=flag_pollution_cpc_ground.column_name,
     line_kwargs=dict(color="rosybrown", label="ground CPC (cm⁻³)", linewidth=1),
 )
 shade_hovering = FlightProfileVariableShade(
@@ -164,6 +171,16 @@ class OutputSchema:
     )
     flags: list[Flag] = (flag_pollution_cpc, flag_hovering, flag_cloud_mcda)
     """List of flags which should be present in the output dataframe."""
+    cpc_mode: str | None = None
+    """CPC measurement mode for this campaign ("V" vertical, "S" surface). Drives which
+    CPC columns are produced during column enumeration. Live runs read the mode from
+    the flight metadata instead."""
+    column_renames: dict[str, str] = dataclasses.field(default_factory=dict)
+    """Campaign-specific final-column renames, applied last so a campaign can pin its
+    canonical output names (e.g. `P`/`TEMP` instead of `Pressure`/`Temperature`)."""
+    reorder_final_columns: bool = True
+    """Whether level 1.5 applies the standardised final-column reorder/whitelist. Legacy
+    campaigns disable it to keep their canonical column set."""
 
 
 class OutputSchemas:
@@ -175,14 +192,16 @@ class OutputSchemas:
 
     ORACLES_24_25 = OutputSchema(
         campaign="ORACLES",
+        # legacy POPS (b3-b15) and mCDA (all 256 bins) reproduce this campaign's
+        # canonical output; see cpc_mode/column_renames/reorder_final_columns below.
         instruments=[
             flight_computer_v2,
             smart_tether,
             msems_readings,
             msems_inverted,
             msems_scan,
-            pops,
-            mcda,
+            pops_old,
+            mcda_legacy,
             filter,
             tapir,
             cpc,
@@ -190,16 +209,19 @@ class OutputSchemas:
         colors=_build_colors_defaultdict() | {
             flight_computer_v2: "C0",
             smart_tether: "C1",
-            pops: "C2",
+            pops_old: "C2",
             msems_readings: "C3",
             msems_inverted: "C6",
             msems_scan: "C5",
-            mcda: "C4",
+            mcda_legacy: "C4",
             filter: "C7",
             tapir: "C8",
             cpc: "C9",
         },
-        reference_instrument_candidates=[flight_computer_v2, smart_tether, pops],
+        cpc_mode="V",
+        column_renames={"flight_computer_pressure": "P", "Average_Temperature": "TEMP"},
+        reorder_final_columns=False,
+        reference_instrument_candidates=[flight_computer_v2, smart_tether, pops_old],
         flight_profile_variables=[
             FlightProfileVariable(
                 column_name="Average_Temperature",
@@ -267,7 +289,8 @@ class OutputSchemas:
         ]
     )
 
-    # the difference from 24-25 is that there is no tapir
+    # the difference from 24-25 is that there is no tapir, and it uses the current
+    # POPS/mCDA/CPC-surface behaviour and standardised final columns.
     ORACLES_25_26 = dataclasses.replace(
         ORACLES_24_25,
         instruments=[
@@ -287,6 +310,10 @@ class OutputSchemas:
             shade_cloud_mcda,
             shade_filter
         ],
+        flags=[flag_pollution_cpc_ground, flag_hovering, flag_cloud_mcda],
+        cpc_mode="S",
+        column_renames={},
+        reorder_final_columns=True,
     )
 
     TURTMANN = OutputSchema(

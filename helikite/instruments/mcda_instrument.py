@@ -545,3 +545,22 @@ mcda = mCDA(
     rename_dict={f'mcda_dataB {i}_dN_dlogDp_stp': f'mCDA_dataB{i}' for i in range(1, 257)} |
                 {'mcda_dN_totalconc_stp': 'mCDA_total_N'},
 )
+
+# Legacy mCDA retains all size bins (1-256) as in campaigns before bins 1-71
+# were dropped. Same behaviour otherwise; selected per campaign via OutputSchema.
+mcda_legacy = mCDA(
+    name="mcda",
+    registry_name="mcda_legacy",
+    dtype=mcda.dtype,
+    na_values=mcda.na_values,
+    comment=mcda.comment,
+    cols_export=mcda.cols_export,
+    cols_housekeeping=mcda.cols_housekeeping,
+    cols_final=[f"dataB {i}_dN_dlogDp_stp" for i in range(1, 257)] + ["dN_totalconc_stp"],
+    export_order=mcda.export_order,
+    pressure_variable=mcda.pressure_variable,
+    temperature_variable=mcda.temperature_variable,
+    rh_variable=mcda.rh_variable,
+    coupled_columns=mcda.coupled_columns,
+    rename_dict=mcda.rename_dict,
+)

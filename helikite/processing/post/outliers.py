@@ -111,6 +111,8 @@ def convert_gps_coordinates(df: pd.DataFrame, lat_col: str, lon_col: str, lat_di
             return df
 
     def convert_dm_to_dd(dm_values: pd.Series, direction: str):
+        # raw flight computer data stores Lat/Long as strings
+        dm_values = pd.to_numeric(dm_values, errors="coerce")
         degrees = (dm_values / 100).round()
         minutes = dm_values - degrees * 100
         dd = degrees + minutes / 60
